@@ -314,12 +314,14 @@ def main():
                         help="Capture this exact declared function start in the matched image; requires --server.")
     parser.add_argument("--kernel-callers-of", action="append", default=[],
                         help="Capture declared functions with a direct B/BL to this exact defined symbol; requires --server.")
+    parser.add_argument("--kernel-lifecycle", action="store_true",
+                        help="Capture bounded IOUserClient task-death/close ownership methods; requires --server.")
     parser.add_argument("--reference-root", type=pathlib.Path,
                         help="Hash reference source files already downloaded under artifacts/sources; never execute them.")
     parser.add_argument("--signing-probe", type=pathlib.Path,
                         help="Statically record allowlisted codesign identity for a local probe executable; never run or sign it.")
     args = parser.parse_args()
-    if (args.kernel_symbol or args.kernel_vtable or args.kernel_image or args.kernel_string or args.kernel_address or args.kernel_callers_of) and not args.server:
+    if (args.kernel_symbol or args.kernel_vtable or args.kernel_image or args.kernel_string or args.kernel_address or args.kernel_callers_of or args.kernel_lifecycle) and not args.server:
         parser.error("kernel selection options require --server")
     if sys.platform != "darwin":
         parser.error("requires macOS dyld_info")
@@ -431,7 +433,7 @@ def main():
                 raise ValueError("Boot image selection is ambiguous; provide evidence rather than guessing")
             server_evidence = collect_server_evidence(files[0], decoder, args.kernel_symbol, args.kernel_vtable,
                                                       args.kernel_image, args.kernel_string, args.kernel_address,
-                                                      args.kernel_callers_of)
+                                                      args.kernel_callers_of, args.kernel_lifecycle)
             print("Kernel UUID matched; captured selected static server methods.")
     finally:
         decoder.close()

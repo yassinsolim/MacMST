@@ -105,6 +105,19 @@ def rpc_endpoint_symbol(name):
     return owner is not None and any(method in name for method in methods)
 
 
+def user_client_lifecycle_symbol(name):
+    if name in {"_iokit_task_terminate", "_iokit_task_terminate_phase1", "_iokit_task_terminate_phase2",
+                "_iokit_connect_no_senders", "_is_io_service_close", "_iokit_client_died",
+                "_iokit_client_retain", "_iokit_client_release", "_iokit_destroy_object_port"}:
+        return True
+    if "IOUserClient" in name:
+        return any(method in name for method in ("clientDied", "clientClose", "noMoreSenders",
+                   "4freeE", "registerOwner", "ipcEnter", "ipcExit", "destroyUserReferences"))
+    if "IOMachPort" in name:
+        return any(method in name for method in ("noMoreSenders", "4freeE", "releasePortForObject"))
+    return False
+
+
 def function_record_key(symbol, selected):
     addresses = {item["address"] for item in selected if item["name"] == symbol["name"]}
     return symbol["name"] if len(addresses) == 1 else symbol["name"] + " [" + hex(symbol["address"]) + "]"
@@ -428,7 +441,7 @@ class KernelCachePointers:
                 "raw_bytes_hex": bytes(page[page_offset:page_offset + 8]).hex()}
 
 
-def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), extra_images=(), extra_strings=(), extra_addresses=(), callers_of=()):
+def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), extra_images=(), extra_strings=(), extra_addresses=(), callers_of=(), lifecycle=False):
     if file.stat().st_size > 64 * 1024 * 1024:
         raise ValueError("Kernel container exceeds static inspection limit")
     original = file.read_bytes()
@@ -485,6 +498,7 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
                  or "IOUserClient14externalMethod" in symbol["name"]
                          or rpc_memory_or_wait_symbol(symbol["name"])
                          or rpc_endpoint_symbol(symbol["name"])
+                         or (lifecycle and user_client_lifecycle_symbol(symbol["name"]))
                          or symbol["name"] in extra_symbols)]
         for section_index, section in enumerate(sections, 1):
             if section["section"] != "__text":
@@ -643,6 +657,7 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
             "requested_strings": sorted(set(extra_strings)),
             "requested_addresses_hex": [hex(address) for address in sorted(requested_addresses)],
             "requested_callers_of": sorted(set(callers_of)),
+            "user_client_lifecycle_selection": lifecycle,
             "direct_caller_scope": "Direct B/BL references in selected images only; absent references do not rule out indirect callbacks.",
             "observed_external_client_routing": {"command": command, "entries": routing},
             "scope": "Read-only decompression and static instruction analysis; no inspected kernel code is executed or loaded."}
