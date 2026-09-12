@@ -50,7 +50,7 @@ def function_edges(function):
                 pending.append(address + 4)
             continue
         conditional = None
-        if word & 0xff000010 == 0x54000000 or word & 0x7e000000 == 0x34000000:
+        if word & 0xff000000 == 0x54000000 or word & 0x7e000000 == 0x34000000:
             immediate = (word >> 5) & 0x7ffff
             conditional = address + (immediate - 0x80000 if immediate & 0x40000 else immediate) * 4
         elif word & 0x7e000000 == 0x36000000:

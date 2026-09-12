@@ -25,7 +25,8 @@ FOCUS = frozenset({
     "_IODPServiceCreate", "_IODPServiceCreateWithLocation", "_IODPServiceGetAVService",
     "___IODPDeviceFree", "___IODPServiceRegister", "___IODPServiceFree",
     "___IOAVDeviceRegister", "___IOAVDeviceFree", "___IODPControllerRegister", "___IODPControllerFree",
-    "_IOServiceOpen", "_IOServiceClose", "_IOConnectCallMethod",
+    "_IOServiceOpen", "_IOServiceClose", "_IOConnectCallMethod", "_IOObjectRetain",
+    "_IOObjectRelease", "_IORegistryEntryCreateCFProperty",
 })
 CALLER_METHODS = frozenset({
     "+[PS190IODPDevice allDevices]",
@@ -428,16 +429,15 @@ def main():
                 image_data["missing_focus_symbols"] = sorted(FOCUS - selected.keys())
                 strings = section_bytes(inspect(["-section_bytes", "__TEXT", "__cstring", image]))
                 image_data["relevant_cstrings_raw"] = raw_strings(strings)
-            else:
-                stubs = section_bytes(inspect(["-section_bytes", "__TEXT", "__auth_stubs", image]))
-                targets = {int(item["direct_branch_target_hex"], 16) for function in functions.values()
-                           for item in function["raw_byte_llvm_crosscheck"] if item["direct_branch_target_hex"]}
-                image_data["referenced_auth_stubs"] = {
-                    hex(target): [decoder.decode(target + offset, bytes(stubs[target + offset + index] for index in range(4)))
-                                  for offset in range(0, 16, 4)] for target in sorted(targets)
-                    if all(target + index in stubs for index in range(16))}
-                image_data["authenticated_call_bindings"] = resolve_call_bindings(
-                    cache, functions, image_data["referenced_auth_stubs"], export_addresses)
+            stubs = section_bytes(inspect(["-section_bytes", "__TEXT", "__auth_stubs", image]))
+            targets = {int(item["direct_branch_target_hex"], 16) for function in functions.values()
+                       for item in function["raw_byte_llvm_crosscheck"] if item["direct_branch_target_hex"]}
+            image_data["referenced_auth_stubs"] = {
+                hex(target): [decoder.decode(target + offset, bytes(stubs[target + offset + index] for index in range(4)))
+                              for offset in range(0, 16, 4)] for target in sorted(targets)
+                if all(target + index in stubs for index in range(16))}
+            image_data["authenticated_call_bindings"] = resolve_call_bindings(
+                cache, functions, image_data["referenced_auth_stubs"], export_addresses)
             images.append(image_data)
             print(pathlib.Path(image).name + ": " + str(len(selected)) + " selected function/caller blocks")
         if args.server:

@@ -92,7 +92,7 @@ class StaticAnalysisParserTests(unittest.TestCase):
                 call_graph.resolve_vtable_slot([{**table, "bindings": [{**table["bindings"][0], "pointer": {**pointer, field: value}}]}], "__ZTVExample", 0)
 
     def test_graph_rejects_undeclared_sink_and_retains_conditional_kinds(self):
-        for word in (0x34000080, 0x36000080):
+        for word in (0x54000080, 0x54000090, 0x34000080, 0x36000080):
             functions = {0x1000: self.graph_function(0x1000, [word, 0xd65f03c0])}
             result = call_graph.bounded_call_graph(functions.__getitem__, [0x1000], {0x1010})["roots"][0]
             self.assertFalse(result["complete"])
@@ -102,6 +102,17 @@ class StaticAnalysisParserTests(unittest.TestCase):
         result = call_graph.bounded_call_graph(lambda address: function, [0x1000], {0x1010})["roots"][0]
         self.assertFalse(result["complete"])
         self.assertEqual(result["gaps"][0]["detail"], "Target is not an exact function start")
+
+    def test_graph_virtual_options_fail_closed_before_capture(self):
+        for arguments in (
+            ["--kernel-graph-vtable-edge", "0x1000", "__ZTVExample", "0"],
+            ["--server", "--kernel-graph-vtable-edge", "0x1000", "__ZTVExample", "0"],
+            ["--server", "--kernel-graph-root", "0x1000", "--kernel-graph-vtable-edge", "invalid", "__ZTVExample", "0"],
+        ):
+            with mock.patch.object(sys, "argv", ["inspect_iodp.py", "--baseline", "unused", *arguments]), mock.patch("sys.stderr"):
+                with self.assertRaises(SystemExit) as raised:
+                    analysis.main()
+                self.assertEqual(raised.exception.code, 2)
 
     def test_user_client_lifecycle_selection_is_scoped(self):
         for name in ("_iokit_task_terminate", "_iokit_connect_no_senders", "_is_io_service_close",
