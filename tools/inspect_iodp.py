@@ -25,7 +25,7 @@ FOCUS = frozenset({
     "_IODPServiceCreate", "_IODPServiceCreateWithLocation", "_IODPServiceGetAVService",
     "___IODPDeviceFree", "___IODPServiceRegister", "___IODPServiceFree",
     "___IOAVDeviceRegister", "___IOAVDeviceFree", "___IODPControllerRegister", "___IODPControllerFree",
-    "_IOServiceClose", "_IOConnectCallMethod",
+    "_IOServiceOpen", "_IOServiceClose", "_IOConnectCallMethod",
 })
 CALLER_METHODS = frozenset({
     "+[PS190IODPDevice allDevices]",
