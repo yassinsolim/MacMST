@@ -21,6 +21,8 @@ separate open-only decision without changing the DPCD-read gate.
 M2D entries E099-E106 separate pre-selector open/close work from selector-created
 work and record the precise incomplete graph instead of automatically importing
 selector cancellation failures into an open-only experiment.
+E107 records the applicability correction; M2C's flat matrix stays historical
+and every global DPCD-read gate remains unchanged.
 
 ## Captures
 
@@ -220,6 +222,8 @@ are sequential, not atomic, and transient registry/display IDs are not stable ID
 | E104 | Bounded graph traversal finds actual send paths in selector-read and provider-close controls, but open/factory/normal-close graphs retain unresolved indirect/receiver/boundary/limit gaps. | UNKNOWN | R8: three complete local leaves and 20 incomplete roots; six selected sinks, four tool hashes and exact paths | Synthetic graph tests plus current-image graph export; no missing edge treated as harmless | CALL_GRAPH_INCOMPLETE; no certified pre-selector send absence or inevitable open-only send |
 | E105 | Open/close local lock and gate-removal waits are distinct from selector-0's firmware-reply wait; new passive/null-action gate facts narrow applicability but do not settle shared lifecycle progress. | PRIMARY_SOURCE | L3/R8 setWorkLoop 0xfffffe000bfe801c, local setup, S18/S34, M2D wait inventory | Do not import RPC-03 unbounded selector wait into open-only by association | No unbounded external wait positively demonstrated from the open root; complete absence remains unproved |
 | E106 | Authorization failures before the factory construct no new client; post-start entitlement/client-MACF/filter failures invoke close/release and share the conditional lifecycle frontier. Resource cleanup and hardware cancellation are separate questions. | UNKNOWN | R8 current outer-open bytes matching R6, S18/S30 policy/failure order, M2D failure graphs | Static failure-location analysis only; no runtime denial test | POLICY_DEPENDENT_UNRESOLVED; zero-selector outstanding open-created AFK work remains UNKNOWN |
+| E107 | M2D treats selector-command teardown and callback quiescence as UNKNOWN applicability, not automatic critical failures or PASS/N/A. Independent incomplete pre-selector and close proofs still prevent an open-only check. | UNKNOWN | M2D 17-row matrix: 13 critical, two supporting, two unknown-applicability; seven PASS, one graph-completeness FAIL, nine UNKNOWN | Require complete applicable open/close traffic/effect/wait evidence; preserve original mock and DPCD contracts | NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK; NOT_READY_FOR_DPCD_TEST unchanged |
+| E108 | Final M2D strict/sanitizer suites, public-only regression and 48 static parser methods pass; recorded graph/source/capture provenance and unchanged production/mock boundaries verify. | PRIMARY_SOURCE | M2D validation: 8/8 strict unit entries, 1/1 public hardware, 8/8 sanitizer unit entries; 27 G7 artifacts, ten core/capture hashes, 376 selected kernel blocks, 377 graph bodies, 25 retained XNU sources and four R8 tool hashes | Build/test and hash checks only; mock success is not real driver cleanup or a complete no-message proof | STATIC_AND_MOCK_VALIDATED; both not-ready decisions remain unchanged |
 
 ## Primary And Reproducible Source Catalog
 

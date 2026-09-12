@@ -1,5 +1,10 @@
 # M2D: Pre-Selector DPDV Open/Close Path
 
+**Result: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.** This follows from incomplete
+pre-selector open/close reachability, not from automatically copying selector-0
+cancellation failures into an open-only matrix. The global DPCD gate remains
+NOT_READY_FOR_DPCD_TEST.
+
 ## Scope And Method
 
 This is STATIC + MOCK ONLY on `research/dpdv-open-path-proof`, based on merge
@@ -394,3 +399,201 @@ cancellation may become NOT_APPLICABLE_TO_OPEN_ONLY and abnormal resource cleanu
 can remain a documented supporting risk under the user's one-shot/normal-close/
 abort-after-failure conditions. Those are conditional future conclusions, not
 evidence obtained here. Killing a helper is still not proof of firmware cancellation.
+
+## Gate Applicability Matrix
+
+This matrix supersedes M2C's flat matrix for the proposed **open-only** experiment;
+M2C's report remains historical. CRITICAL gates must support the experiment's
+safety claim. SUPPORTING gates record distinct operational evidence. UNKNOWN
+applicability is an unproved relationship, not an automatic FAIL or waiver.
+NOT_APPLICABLE requires positive exclusion proof; none of the unresolved
+selector/AFK risks receives that label here.
+
+PASS is scoped to its evidence, not a successful private call. FAIL on graph
+completeness means this proof is incomplete, not that opening is known to fail
+or change link state. Local leaf proofs do not fill whole-graph gaps.
+
+| Gate | Applicability | State | Evidence |
+| --- | --- | --- | --- |
+| External target selection | CRITICAL | PASS | G7: one active External DCPEXT0/Unit 0 target, support flags, active DP and HPD High. |
+| User-client creation ABI | CRITICAL | PASS | Exact CF/DPDV ABI, current factory/client vtables and constructor import receipts. |
+| Open call graph completeness | CRITICAL | FAIL | R8 retains indirect/receiver gaps, non-exhausted lifecycle callbacks and traversal limits; only three local roots are complete. |
+| Pre-selector DCP/AFK traffic | CRITICAL | UNKNOWN | No direct send in the proved start prefix; conditional provider sends and unclosed generic paths prevent a zero-traffic proof. |
+| Pre-selector display-link effects | CRITICAL | UNKNOWN | Retains/gate setup are local; full link/power reachability is not closed. |
+| Authorization pre-construction failure | CRITICAL | PASS | Known early exits precede newUserClient: no new client/gate to cancel. This does not attest every registered policy callback's internals. |
+| Authorization post-construction failure | CRITICAL | UNKNOWN | Started client/gate can exist; failure close shares the unresolved hardware-work frontier. |
+| Normal close behavior | CRITICAL | UNKNOWN | Current owner guard known; exclusion of conditional provider-close RPC across the full graph is not proved. |
+| Open-only external waits | CRITICAL | UNKNOWN | No external wait positively attributed to the new open prefix; shared workloop/lifecycle/conditional close paths remain unresolved. Not inherited from selector 0. |
+| Process-death kernel cleanup | SUPPORTING | UNKNOWN | Separate retained-object/resource risk, not proof of a hardware transaction. |
+| Process-death hardware cleanup | CRITICAL | UNKNOWN | Cannot yet establish no open-created external command exists to cancel; resource uncertainty is not its substitute. |
+| Outstanding selector-command teardown | UNKNOWN | UNKNOWN | UNKNOWN_APPLICABILITY: zero selectors intended and gate passive, but complete open-created AFK-work absence not proved. Not an automatic failure. |
+| Selector callback quiescence | UNKNOWN | UNKNOWN | UNKNOWN_APPLICABILITY: initialization differs from selector dispatch; complete exclusion of applicable callbacks remains missing. Not marked PASS. |
+| Parent watchdog | CRITICAL | PASS | Unchanged M2C mock runner bounds post-spawn parent observation, not firmware cancellation or arbitrary OS scheduling. |
+| Helper reaping | SUPPORTING | PASS | Unchanged mock reaping/ownership tests; no real kernel-blocked helper is claimed reaped. |
+| No selector invocation | CRITICAL | PASS | Static/mock-only milestone; method entry is distinct, real backend absent, CLI/import guards preserved. A future backend must enforce the same boundary. |
+| No DPCD/write/MST | CRITICAL | PASS | No private transport invoked or added; original capabilities and DPCD states unchanged. |
+
+Counts: 13 CRITICAL, two SUPPORTING, two UNKNOWN-applicability; seven PASS,
+one FAIL, nine UNKNOWN. Removing both selector-specific rows entirely would
+still leave independent critical graph, traffic, close, failure-cleanup, effect
+and wait gaps. They are not the reason this open-only proof remains incomplete.
+
+**Open-check result: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.**
+
+**Global gate: NOT_READY_FOR_DPCD_TEST.** Its original 13 states remain unchanged.
+
+## Reproduction And Tool Limits
+
+The graph validates raw function hashes, declared starts and sink boundaries;
+follows B/BL and both conditional outcomes; and records indirect transfer context.
+Vtable receipts reject ambiguous slots, mismatched bytes/addresses and unsupported
+formats but do not prove receiver identity. Limits are 64 nodes/eight levels per
+root and 512 stored graph bodies; reaching a limit is an explicit proof gap.
+BC.cond is tested with B.cond's signed imm19 target semantics, alongside CB/TB.
+This is a targeted collector, not a general decompiler. Generic callbacks and
+undecoded code are never silently declared bookkeeping leaves.
+
+R8 contains the exact CLI selections, images and four tool-source hashes. The
+following standalone recipe reproduces that selection into a new output directory
+without needing R8 itself. It requires the public G7 baseline and pinned source
+files above; a fresh clone must first obtain those sources and use its own public
+baseline directory from the existing collector. The kernel UUID must match.
+This invokes only the static collector, never captured code or a private client.
+
+```sh
+python3 - artifacts/probes/20260912T124416Z <<'PY'
+import subprocess
+import sys
+
+expected_uuid = '447D769E-1CB7-3086-A0B4-32226837B587'
+running_uuid = subprocess.check_output(['sysctl', '-n', 'kern.uuid'], text=True)
+if running_uuid.strip().upper() != expected_uuid:
+  raise SystemExit('Kernel UUID mismatch: do not reuse this selection')
+arguments = [sys.executable, 'tools/inspect_iodp.py', '--baseline', sys.argv[1],
+       '--server', '--kernel-lifecycle', '--reference-root', 'artifacts/sources/m2d',
+       '--kernel-image', 'com.apple.driver.AppleDCP',
+       '--kernel-callers-of', '__ZNK10DCPAVProxy13__sendMessageEPN8DCPAVIPC7MessageE']
+symbols = (
+  '__ZN10DCPAVProxy11handleCloseEP9IOServicej',
+  '__ZN10DCPAVProxy4openEP9IOServicejPv',
+  '__ZN10DCPAVProxy5closeEP9IOServicej',
+  '____ZN10DCPAVProxy4openEP9IOServicejPv_block_invoke',
+  '____ZN10DCPAVProxy5closeEP9IOServicej_block_invoke',
+)
+vtables = (
+  '__ZTV10IOWorkLoop', '__ZTV12IOUserClient', '__ZTV13DCPEndpointV2',
+  '__ZTV13IOCommandGate', '__ZTV15IOAVCommandGate', '__ZTV16DCPDPDeviceProxy',
+  '__ZTV20AFKEPInterfaceKextV2', '__ZTV26DCPDPDeviceProxyUserClient',
+  '__ZTV27AFKEPInterfaceServiceKextV2', '__ZTV9IOService',
+  '__ZTVN15IOAVCommandGate9MetaClassE',
+)
+roots = (
+  '0xfffffe0009279f70', '0xfffffe000a009bbc', '0xfffffe000a009de8',
+  '0xfffffe000a020628', '0xfffffe000a0214a4', '0xfffffe000a5a3420',
+  '0xfffffe000a5a3558', '0xfffffe000a5a3604', '0xfffffe000a5a3694',
+  '0xfffffe000a5cc3e4', '0xfffffe000bf964cc', '0xfffffe000bf9a518',
+  '0xfffffe000bf9cb80', '0xfffffe000bfa203c', '0xfffffe000bfe398c',
+  '0xfffffe000bfe3d4c', '0xfffffe000bfe5568', '0xfffffe000bfe5630',
+  '0xfffffe000bfe801c', '0xfffffe000c02c130', '0xfffffe000c02c224',
+  '0xfffffe000c037b80', '0xfffffe000c038688',
+)
+sinks = (
+  '0xfffffe000926de54', '0xfffffe0009276a3c', '0xfffffe00092837a8',
+  '0xfffffe00092855b4', '0xfffffe000a008e20', '0xfffffe000a018f40',
+)
+strings = ('%s[0x%qx]::detach(%s[0x%qx])\n', '%s[0x%qx]::stop(%s[0x%qx])\n')
+for flag, values in (('--kernel-symbol', symbols), ('--kernel-vtable', vtables),
+           ('--kernel-graph-root', roots), ('--kernel-graph-sink', sinks),
+           ('--kernel-string', strings)):
+  for value in values:
+    arguments.extend((flag, value))
+virtual_edges = (
+  ('0xfffffe000a5a3464', '__ZTV9IOService', 1520),
+  ('0xfffffe000a5a3490', '__ZTV26DCPDPDeviceProxyUserClient', 1720),
+  ('0xfffffe000a5a34d4', '__ZTV10IOWorkLoop', 352),
+  ('0xfffffe000a5a3504', '__ZTV16DCPDPDeviceProxy', 32),
+  ('0xfffffe000a5a354c', '__ZTV26DCPDPDeviceProxyUserClient', 1528),
+  ('0xfffffe000a5a36c4', '__ZTV26DCPDPDeviceProxyUserClient', 1584),
+  ('0xfffffe000a5cc418', '__ZTVN15IOAVCommandGate9MetaClassE', 168),
+  ('0xfffffe000a5cc450', '__ZTV15IOAVCommandGate', 472),
+  ('0xfffffe000a5cc474', '__ZTV15IOAVCommandGate', 40),
+  ('0xfffffe000bf9cca0', '__ZTV26DCPDPDeviceProxyUserClient', 1528),
+  ('0xfffffe000bf9ccd4', '__ZTV16DCPDPDeviceProxy', 1552),
+  ('0xfffffe000bf9cd00', '__ZTV16DCPDPDeviceProxy', 1544),
+  ('0xfffffe000bfe5680', '__ZTV15IOAVCommandGate', 352),
+)
+for callsite, vtable, offset in virtual_edges:
+  arguments.extend(('--kernel-graph-vtable-edge', callsite, vtable, str(offset)))
+subprocess.run(arguments, check=True)
+PY
+```
+
+Never transplant addresses or registry IDs to another build. Earlier captures
+retain their own tool hashes; they are not retroactively assigned the final
+parser revision. A selected sink ends traversal at its validated entry boundary,
+not at the end of its implementation; a sink count is not a dynamic invocation.
+
+## Validation
+
+Final checks on 2026-09-12, after the R8 tooling changes:
+
+| Command / Check | Result And Scope |
+| --- | --- |
+| `cmake --build build` | PASS, strict warning/error configuration; production and mock sources unchanged. |
+| `ctest --test-dir build -L unit --output-on-failure` | PASS, 8/8 entries including mock isolation and CLI/import guards. |
+| `ctest --test-dir build -L hardware --output-on-failure` | PASS, 1/1 existing public-only probe regression. Not a DPDV open. |
+| `cmake --build build-sanitized` | PASS, existing ASan/UBSan configuration. |
+| `ctest --test-dir build-sanitized -L unit --output-on-failure` | PASS, 8/8 entries, including mock isolation. |
+| `python3 -m unittest discover -s tests -p 'test_iodp_static.py' -v` | PASS, 48 methods including direct/conditional/sink/indirect/boundary/limit/vtable/CLI graph cases. |
+| Standalone replay, subprocess calls mocked | PASS: every selection equals R8; mismatched kernel UUID aborts before collection. No extra capture. |
+| Documentation and preservation checks | PASS: links, anchors, fences, all 17 matrix rows/counts, unique ledger IDs, editor diagnostics and whitespace; prior evidence rows and primary reports preserved. |
+
+No new helper state or architecture change was needed: the new finding concerns
+which work can be created before a selector, not a new helper protocol behavior.
+The unchanged 13-scenario mock matrix covers success, reported failure, crash,
+SIGTERM/SIGKILL, hang, malformed response, early exit, oversized response, valid
+response followed by cleanup hang, closed pipes, stderr flood and bad final exit.
+It also tests five fresh repeated helpers, spawn/input failures, descriptor/
+environment/signal boundaries and lost wait ownership. Each suite creates 20
+children: 19 explicit reaps and one deliberately auto-reaped ECHILD case; the
+ownership failure is not reported as successful cancellation. The mock entry
+took 3.85 seconds in the strict suite and 4.55 seconds in the sanitizer suite.
+These are regression results, not real kernel-blocked-helper or DCP evidence.
+
+G7's manifest SHA-256 remains
+`642c4426757c0d5c764cd956ed59359c22a9d8a10a41d8c4f819804ddc88b2ee`.
+Its 27 artifact hashes, 40 successful recorded commands and ten core/capture
+source hashes were rechecked. The rebuilt public probe still has SHA-256
+`450832c50446d3a430cbed2bcab7c285cddf5f6b370b2339df2cd0a33aefd89a`,
+matching G7; no older signing record is assigned to a different executable.
+
+All 376 selected R8 kernel blocks and 377 graph body hashes/ranges were checked;
+the graph bodies contain 49,291 contiguous four-byte instructions. The running
+kernel UUID still matches R8. All five report hashes in the provenance table
+and 25 retained XNU source hashes/local Git blob IDs (14 reused RPC-03, nine M2C,
+two M2D) were verified. The two new Git blob IDs were recomputed locally; no
+independent GitHub blob comparison for S34 is claimed.
+
+| R8 Tool Source | SHA-256 |
+| --- | --- |
+| [inspect_iodp.py](../../tools/inspect_iodp.py) | `2cee42de18934fe2e0457de92e5616cfc4b7ac91f6dfa076a228f99994786a28` |
+| [kernel_image.py](../../tools/kernel_image.py) | `cee357fc7323a35f662b8a9cafbc130bfc80003c01b8bd7c6d14a96e926d34b6` |
+| [dyld_cache.py](../../tools/dyld_cache.py) | `973a7e27492810291378018e75974050f5b5b35dd4bda7cc146e0697133e5fa7` |
+| [call_graph.py](../../tools/call_graph.py) | `6a36c2f085eb855ba26df5b0b306f073c719b40a255b4070ecb81fd4fe694998` |
+
+All four hashes match the final working sources. Build/mock success does not
+prove the incomplete open/close graph, zero firmware traffic or hardware cleanup.
+No production transport, experimental CLI, helper backend, dependency or security
+setting was added or changed by M2D.
+
+## Next Work
+
+Stage 17's READY prerequisite is unmet. No new real open-check experiment or
+backend is designed for execution here. Resolve the generic lifecycle/shared-
+workloop callbacks and owner-guard invariant, then reassess UNKNOWN applicability.
+A later separately approved design would require normal cleanup before success,
+one-shot zero-selector execution, abort after abnormal exit, and public pre/post
+display/path/HPD/link-rate/lane/mode comparisons. These are future review
+constraints, not authorization or a substitute for the missing proof. No DPDV
+open, selector, DPCD, AUX, I2C request, MST, firmware/security or display-state
+change occurred here.

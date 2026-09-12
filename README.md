@@ -129,6 +129,17 @@ remains **NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK**. No private open or selector
 was invoked, and **NOT_READY_FOR_DPCD_TEST** is unchanged. The proposed
 `macmst experimental dpdv-open-check` command is not implemented.
 
+M2C was integrated into main by merge
+`a7dc7d647e3e8fccb2e40e5cd56e3f9a8410697b`, with its branch and the baseline tag
+retained. M2D on `research/dpdv-open-path-proof` now separates
+[pre-selector open/close work from method dispatch](docs/research/dpdv-open-path.md).
+The user-client gate is passive and provider close is owner-guarded, but meaningful
+indirect/lifecycle gaps leave **CALL_GRAPH_INCOMPLETE**. The
+[applicability matrix](docs/research/dpdv-open-path.md#gate-applicability-matrix)
+does not automatically import selector cancellation risks into open-only.
+The isolated-open result remains not ready; no private backend or transaction
+was added, and the DPCD gate is unchanged.
+
 For a fresh clone, first build the probe and create your own public capture:
 
 ```sh
@@ -169,6 +180,7 @@ before comparing findings. No Apple binary is distributed by this project.
 - [DPDV authorization analysis](docs/research/dpdv-authorization.md)
 - [Public DisplayPort-native API and M5 enumeration](docs/research/public-dp-native.md)
 - [M2C isolation, teardown and open-only safety](docs/research/dpdv-isolation-safety.md)
+- [M2D pre-selector graph and gate applicability](docs/research/dpdv-open-path.md)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
 

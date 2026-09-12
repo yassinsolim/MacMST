@@ -3,6 +3,19 @@
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
 MST on M5 remains `UNKNOWN`.
 
+## M2D Update
+
+The [pre-selector proof](dpdv-open-path.md) separates passive local initialization
+from external-method dispatch and finds real provider-close messaging behind an
+owner guard. Whole-graph exclusion is still incomplete. Selector-command teardown
+and callback quiescence therefore have UNKNOWN applicability, not automatic
+open-only failure status and not an unproved N/A label.
+
+The next discriminator is the remaining generic lifecycle/shared-workloop graph
+and owner-guard invariant, not a repeated selector-0 cancellation investigation.
+The open-only result remains NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK for those
+independent gaps. The global NOT_READY_FOR_DPCD_TEST gate remains unchanged.
+
 ## M2C Update
 
 The [public-path investigation](public-dp-native.md) found no exposed
