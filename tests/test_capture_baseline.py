@@ -10,6 +10,15 @@ SPEC.loader.exec_module(capture)
 
 
 class CapturePrivacyTests(unittest.TestCase):
+    def test_public_i2c_capabilities_remain_scalar_and_private_blobs_omitted(self):
+        source = {"IOI2CTransactionTypes": 0x10, "IOI2CBusType": 2,
+                  "IOI2CInterfaceID": 123, "IOI2CSupportedCommFlags": 2,
+                  "IODisplayEDID": b"PRIVATE", "DisplaySerialNumber": 123456,
+                  "IOFBI2CInterfaceIDs": [123], "Unknown": "PRIVATE"}
+        self.assertEqual(capture.select_registry_properties(source),
+                         {"IOI2CTransactionTypes": 0x10, "IOI2CBusType": 2,
+                          "IOI2CInterfaceID": 123, "IOI2CSupportedCommFlags": 2})
+
     def test_symbol_name_extraction_has_no_addresses_or_abi_claims(self):
         source = "exports: [ _IODPDeviceReadDPCD, _IOAVServiceReadI2C, _Unrelated ]\n_IODPDeviceReadDPCD 0xdeadbeef"
         self.assertEqual(capture.extract_display_symbol_names(source),
@@ -46,6 +55,14 @@ class CapturePrivacyTests(unittest.TestCase):
         self.assertEqual(len(result), 2)
         self.assertEqual(result[1]["ancestors"], ["arm-io", "dcpext0"])
         self.assertNotIn("Unrelated", str(result))
+
+    def test_registry_tree_retains_alternate_public_interfaces(self):
+        source = "+-o Host <class IORegistryRoot, id 0x1>\n  +-o fb <class IOFramebuffer, id 0x2>\n    +-o bus <class IOFramebufferI2CInterface, id 0x3>\n    +-o display <class IODisplayConnect, id 0x4>"
+        result = capture.select_registry_tree(source)
+        self.assertEqual([entry["class"] for entry in result],
+                         ["IOFramebuffer", "IOFramebufferI2CInterface", "IODisplayConnect"])
+        self.assertEqual(result[1]["ancestors"], ["fb"])
+        self.assertNotIn("Host", str(result))
 
 
 if __name__ == "__main__":

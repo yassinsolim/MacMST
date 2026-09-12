@@ -10,6 +10,18 @@ HARDWARE = "--hardware" in sys.argv[2:]
 
 
 class CLIContractTests(unittest.TestCase):
+    def test_display_api_imports_are_enumeration_only(self):
+        result = subprocess.run(["/usr/bin/nm", "-u", EXECUTABLE], capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        imports = {line.split()[-1] for line in result.stdout.splitlines() if line.split()}
+        self.assertTrue({"_CGDisplayIOServicePort", "_IOFBGetI2CInterfaceCount",
+                         "_IOFBCopyI2CInterfaceForBus"} <= imports)
+        forbidden = {"_IOI2CSendRequest", "_IOI2CInterfaceOpen", "_IOI2CInterfaceClose",
+                     "_IOServiceOpen", "_IOConnectCallMethod", "_IOConnectCallScalarMethod",
+                     "_IOConnectCallStructMethod", "_IODPDeviceCreateWithService",
+                     "_IODPDeviceReadDPCD", "_IODPDeviceWriteDPCD"}
+        self.assertEqual(imports & forbidden, set())
+
     def test_help(self):
         result = subprocess.run([EXECUTABLE, "--help"], capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0)
@@ -18,7 +30,8 @@ class CLIContractTests(unittest.TestCase):
 
     def test_reject_invalid_arguments_without_probing(self):
         for arguments in ([], ["enable-mst"], ["--json"], ["probe", "--write"],
-                          ["probe", "--json", "extra"], ["probe", "probe"]):
+                          ["probe", "--json", "extra"], ["probe", "probe"],
+                          ["experimental", "dpcd-read", "--address", "0x000", "--length", "1"]):
             with self.subTest(arguments=arguments):
                 result = subprocess.run([EXECUTABLE, *arguments], capture_output=True, text=True, timeout=10)
                 self.assertEqual(result.returncode, 2)
@@ -39,6 +52,34 @@ class HardwareProbeTests(unittest.TestCase):
         self.assertNotEqual(report["host"]["soc"], "UNKNOWN")
         self.assertFalse(report["snapshot_atomic"])
         self.assertEqual(report["dpcd_transport"], {"read_capability": "UNVERIFIED", "private_object_acquired": False})
+        public = report["public_displayport_interface"]
+        self.assertEqual(public["scope"], "PUBLIC_ENUMERATION_ONLY")
+        self.assertEqual(public["dpcd_access"], "UNKNOWN")
+        self.assertFalse(public["interface_open_attempted"])
+        self.assertFalse(public["request_attempted"])
+        self.assertIn(public["result"], {"PUBLIC_DP_NATIVE_CANDIDATE", "PUBLIC_INTERFACE_PRESENT_NO_DP_NATIVE",
+                                         "PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE", "PUBLIC_PATH_UNRESOLVED"})
+        observation = public["enumeration"]
+        if observation is not None:
+            external = [display for display in report["displays"] if not display["built_in"] and display["active"]]
+            self.assertEqual(len(external), 1)
+            self.assertEqual(public["external_display_id_raw"], external[0]["display_id_raw"])
+            if observation["count_attempted"]:
+                self.assertTrue(observation["framebuffer_conforms"])
+                self.assertIs(type(observation["count_status_code_raw"]), int)
+                self.assertEqual(observation["count_status_hex"], f"0x{observation['count_status_code_raw'] & 0xffffffff:08x}")
+                self.assertIs(type(observation["bus_count_raw"]), int)
+            else:
+                self.assertIsNone(observation["count_status_code_raw"])
+                self.assertIsNone(observation["count_status_hex"])
+                self.assertIsNone(observation["bus_count_raw"])
+                self.assertEqual(observation["buses"], [])
+            for bus in observation["buses"]:
+                self.assertEqual(bus["copy_status_hex"], f"0x{bus['copy_status_code_raw'] & 0xffffffff:08x}")
+                interface = bus["interface"]
+                if interface is not None:
+                    for key in interface["properties"]:
+                        self.assertFalse(any(part in key.lower() for part in ("serial", "uuid", "edid", "token", "password")))
         for candidate in report["external_dp_candidates"]:
             self.assertEqual(candidate["location"], "External")
             self.assertEqual(candidate["evidence_class"], "INFERRED")
