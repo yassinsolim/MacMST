@@ -339,6 +339,47 @@ The public signatures are from the installed macOS SDK's IOKitLib.h, SHA-256
 They include raw-error-returning registry copy/ID/path/iterator functions and
 nullable class/bundle-copy functions; none is an undocumented display transport.
 
+### Discriminator Validation
+
+Final checks on 2026-09-12:
+
+| Check | Command / Result |
+| --- | --- |
+| Strict build | `cmake --build build`: PASS, no work required; strict warnings unchanged. |
+| Unit/mock/import suite | `ctest --test-dir build -L unit --output-on-failure`: PASS, 8/8. |
+| Public-only hardware test | `ctest --test-dir build -L hardware --output-on-failure`: PASS, 1/1 existing public probe. |
+| Sanitizer build | `cmake --build build-sanitized`: PASS, existing ASan/UBSan configuration. |
+| Sanitizer unit/mock/import suite | `ctest --test-dir build-sanitized -L unit --output-on-failure`: PASS, 8/8. |
+| Static/parser/public-inspector tests | `python3 -m unittest discover -s tests -p 'test_iodp_static.py'`: PASS, 60 methods; also run by both CTest suites. |
+| Public inspector boundary | PASS: synthetic fresh-target/ambiguity/error/privacy/personality tests and an exact public-API binding allowlist; production CLI/import guards still reject a real transport backend. |
+| Documentation | PASS: links/anchors, fences, exact reproduction arguments/UUID guard, unchanged M2D/M2E bodies and historical evidence rows, unique ledger IDs, whitespace and editor diagnostics. |
+| Provenance | PASS: G9 artifacts/core/binary, U10 source/personality/status, R10 function/caller bytes, complete-source archive/search receipts and unchanged static-tool hashes. |
+
+The unchanged 13-scenario helper regression passed, including fresh-process,
+FD/environment/signal isolation and lost wait ownership cases. Each suite still
+has 20 children: 19 explicit reaps plus one deliberately auto-reaped ECHILD case;
+no owned zombies are accepted. Mock entry durations were 3.25 seconds strict and
+4.05 seconds sanitized. These are test observations, not real driver teardown or
+firmware cancellation bounds.
+
+The actual bounded static replay is artifacts/probes/iodp-static-20260912T150227Z,
+report SHA-256 `916973c25ba877d1c6d0f490cecb35b391b7634c46b21c426fbddf8ba0a58747`.
+Its selected images, vtables and userspace static bindings equal R10; both have
+no call graph. All 191 body hashes/ranges and 10,150 instructions verify, along
+with the three direct-call receipts. The full archive hash, six matched source
+file SHA-256/local Git blob IDs and all 263 recorded source lines verify. The
+additional layout/macro/property-contract file hashes are retained above. No
+independent GitHub blob comparison is claimed for the new archive/source receipts.
+
+G9's 27 artifact hashes and ten core/capture source hashes match the retained
+manifest. The rebuilt public probe remains
+`450832c50446d3a430cbed2bcab7c285cddf5f6b370b2339df2cd0a33aefd89a`.
+Production source, CMake, the existing public collector, mock helper, previous
+static graph/cache/kernel tools and M2E scope receipts are unchanged from the
+merge base. No private DPDV backend, extra helper state, dependency or machine
+security/configuration change was introduced. Validation does not prove the
+unobserved runtime field or authorize M2F.
+
 ## M2E Historical Findings
 
 **Result: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.** The remaining blocker is not

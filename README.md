@@ -148,6 +148,14 @@ unexcluded. The [current 20-gate matrix](docs/research/dpdv-open-path.md#m2e-app
 therefore remains **NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK** for specific
 ownership/work/close uncertainties, not generic graph incompleteness.
 
+M2E is integrated by merge `ce28518eb301592ed6dd3d2b75d152b1a8e54970`.
+The focused [M2E.1 runtime discriminator](docs/research/dpdv-open-path.md#m2e1-runtime-userserver-discriminator)
+on `research/dpdv-userserver-discriminator` verifies native provider provenance,
+but no tested public marker proves the private userServer field's value.
+It returns **USER_SERVER_RUNTIME_STATE_UNRESOLVED** and stops static expansion;
+both not-ready gates remain unchanged. No private open or privileged inspection
+was performed.
+
 For a fresh clone, first build the probe and create your own public capture:
 
 ```sh
@@ -188,7 +196,7 @@ before comparing findings. No Apple binary is distributed by this project.
 - [DPDV authorization analysis](docs/research/dpdv-authorization.md)
 - [Public DisplayPort-native API and M5 enumeration](docs/research/public-dp-native.md)
 - [M2C isolation, teardown and open-only safety](docs/research/dpdv-isolation-safety.md)
-- [M2E open-only proof and historical M2D findings](docs/research/dpdv-open-path.md)
+- [M2E.1 discriminator and historical open-only proofs](docs/research/dpdv-open-path.md)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
 

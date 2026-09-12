@@ -48,6 +48,12 @@ resolve ordinary workloop identity and unused-gate removal, with hash-bound
 frontier classifications. The provider's alternate user-server factory condition
 remains a specific ownership/work uncertainty. Both not-ready gates stay intact.
 
+M2E is integrated by merge `ce28518eb301592ed6dd3d2b75d152b1a8e54970`.
+[M2E.1](dpdv-open-path.md#m2e1-runtime-userserver-discriminator) tests only the
+userServer writer/observable discriminator. Native instance provenance is verified,
+but the compiled writer set and public-equivalence proof remain incomplete.
+USER_SERVER_RUNTIME_STATE_UNRESOLVED; static expansion stops without a private open.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -67,8 +73,8 @@ remains a specific ownership/work uncertainty. Both not-ready gates stay intact.
   pinned implementation comparisons, P1 mapping/capabilities, validation and limits.
 - [M2C isolated-open investigation](dpdv-isolation-safety.md): current close/death,
   ownership, pre-selector effects, mock watchdog tests and the separate open-only gate.
-- [M2E open-only proof](dpdv-open-path.md): ownership, zero-selector close, shared
-  workloop and unused-gate evidence, relevance receipts, and preserved M2D history.
+- [Runtime discriminator and open-only proof](dpdv-open-path.md): current M2E.1
+  writer/observable evidence plus preserved M2E/M2D findings and gate states.
 
 The user reports two physical monitors connected to one USB-C dock showing the
 same image. This is an input to investigate, not proof of the dock's transport,
