@@ -1,4 +1,483 @@
-# M2D: Pre-Selector DPDV Open/Close Path
+# M2E: Experiment-Specific DPDV Open/Close Proof
+
+**Result: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.** The remaining blocker is not
+total generic IOService graph completeness. The native DPDV class route now has
+a concrete non-owning initialization argument and a never-used-gate removal
+argument. However, the selected provider's alternate user-server factory route
+has not been excluded. That unresolved branch precedes native client construction
+and can delegate to external driver code; it affects ownership, work creation,
+close and post-start failure guarantees. The global result remains
+**NOT_READY_FOR_DPCD_TEST**.
+
+This milestone used static image/source analysis, the existing public probe and
+mock tests only. No private IODP constructor, DPDV open, external method, DPCD,
+AUX, IOI2C request, MST or display/security configuration operation was invoked.
+No real backend or M2F implementation was added. The M2D report below is historical;
+its published revision remains `afdeff6a08d0d7cbf1d9e70cf551f93ce8b39494`.
+
+## M2E Integration And Target
+
+The exact three-commit M2D branch was checked against local and remote HEAD and
+merged with `--no-ff` as `73e0caaaf079b2177d5207f2320c5fc61dac9117`, message
+`merge: record DPDV pre-selector path investigation`. Its parents are
+`a7dc7d647e3e8fccb2e40e5cd56e3f9a8410697b` and
+`afdeff6a08d0d7cbf1d9e70cf551f93ce8b39494`; its tree equals M2D exactly.
+Main was pushed, then `research/dpdv-open-final-proof` was created from that merge.
+Historical branches and the baseline tag were retained. Subsequent work is only
+on the new branch; no M2E merge or PR is authorized here.
+
+G8 is artifacts/probes/20260912T133040Z: one existing public collector invocation,
+40 commands, zero failures, 27 hashed artifacts. Apple M5 / Mac17,2 / arm64,
+macOS 26.6.2 (25G83); one active external display 3, 1920x1080 at 60 Hz.
+External DCPEXT0 / Unit 0 DP device/service IDs are 4294970467/4294970463 in
+this snapshot only. Their published interface-supported flags remain true.
+The active Port-USB-C@4 DisplayPort state is HPD raw 2 / High, two lanes,
+LinkRate raw 4 / Apple description 8.1 Gbps (HBR3), SinkCount 1, not tunneled.
+Public result: PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE; no interface open or request.
+External selection/display/link fields match G7, but Embedded provider IDs changed;
+there is no claim of an unchanged entire registry or a new physical cable correlation.
+The owner's prior ZMUIPNG/right-side-socket identification is not inferred anew.
+
+| G8 Receipt | SHA-256 |
+| --- | --- |
+| Public report | `9732371a6a55e0f731839451b26a8df614962ccf33f42d5308920e66154d3efe` |
+| Manifest | `76fed184f7fc1d16b04358bbb81c8db8a62f864e69563783e8d585d3dbfb2fbb` |
+| Captured probe binary | `450832c50446d3a430cbed2bcab7c285cddf5f6b370b2339df2cd0a33aefd89a` |
+
+## M2E Provider Ownership
+
+**PROVIDER_OWNERSHIP_UNRESOLVED.** This is a specific unexcluded route, not an
+assertion that retaining a provider opens it.
+
+For the native class-property route, the ownership invariant is now supported
+through inherited behavior, not just the leaf start function:
+
+| Native Route / Owner | Current Evidence | Ownership Effect |
+| --- | --- | --- |
+| Factory 0xfffffe000bf964cc | Old overload slot 1960 returns unsupported; class allocation then client slots 2320/1696/1520 call init/attach/start | No provider open or owner+64 store in this route. |
+| Concrete client init | IOUserClient overloads 0xfffffe000c02c224/0xfffffe000c02c130; service/registry initialization, arbitration, deferral and accounting | Operates on the new client, not provider open-owner state. |
+| Client attach 0xfffffe000bf9f5a0 | Provider arbitration, child-count check, attachToParent and cached provider | Registry/provider reference relation, not an open relation. |
+| attachToParent 0xfffffe000bf8ff1c / attachToChild 0xfffffe000bf8fbc8 | Client slot 888 and provider slot 904 both select IORegistryEntry; current hashes plus pinned source reciprocal-link handling | No provider-specific attachment override or equivalent open mechanism. |
+| Native DPDV start | Concrete start 0xfffffe000a0214a4 -> IODP start 0xfffffe000a7ac62c -> IOAV start 0xfffffe000a5a3420 | Stores interface/table, allocates passive gate and retains provider; does not invoke provider.open. |
+| Late registerOwner / returned IOConnect | IOUserClient::registerOwner records task/uc links under its owners lock; port publication exposes the connection | Task/IPC ownership is not provider.__owner. It does not supply an equivalent provider-open mechanism. |
+| Provider owner implementation | handleOpen slot 1560 -> 0xfffffe000bfa207c; handleIsOpen slot 1576 -> 0xfffffe000bfa203c | Owner+64 assignment belongs to handleOpen; non-null isOpen(client) tests exact pointer equality. No separate custom ownership implementation in these slots. |
+
+The controlling unresolved branch is earlier than all of this. Factory instructions
+at `0xfffffe000bf96508`, `0xfffffe000bf96510`, and `0xfffffe000bf96518` load
+provider+40 (reserved), reserved+40 (uvars), and uvars+0 (userServer), with CBZ
+guards. A non-null chain tail-branches at `0xfffffe000bf96550` to
+`0xfffffe000c0622b4`, the source-correlated IOUserServer::serviceNewUserClient.
+It does not run the native class-property path first.
+
+Pinned IOUserServer::serviceAttach assigns that chain. IOService::startCandidate
+normally calls it only through the DriverKit server-name route; a DriverKit
+Create path can also attach a service. These are prior provider lifecycle paths,
+not actions newly caused by DPDV start. Nevertheless, native class/vtable identity
+and the IOUserClientClass registry property are not direct observations of uvars.
+The fresh public allowlist does not measure that private pointer or establish an
+immutable class-based prohibition on assigning it. No private memory was read.
+
+The attempted exclusion using the base _NewUserClient_Impl error stub fails:
+current serviceNewUserClient calls `0xfffffe000bf7093c` at
+`0xfffffe000c06247c`, and that wrapper reaches OSMetaClassBase::Invoke
+`0xfffffe000c05e32c`. Pinned Invoke selects userServer->rpc when the service has
+the relevant user-server state and the message is not local-host. Thus a base
+error implementation alone does not prove local dispatch. This branch remains
+RELEVANT_TO_PROVIDER_OWNERSHIP and RELEVANT_TO_OPEN_HARDWARE_EFFECT, not harmless
+logging or an assumed failed authorization. Neither ownership nor non-ownership
+is claimed for an actual unexecuted fresh open.
+
+The wrapper's local-host predicate is also checked, not left as a speculative
+escape: it zeroes the message region, stores msgid at sp+100 and reference count
+at sp+116, leaving flags at sp+108 zero. The caller supplies x4=NULL; CBZ at
+`0xfffffe000bf709d0` takes the Invoke call at `0xfffffe000bf70a14`. Invoke loads
+flags from kernelContent+8 at `0xfffffe000c05e35c`, ORs the kernel bit 0x4, and
+tests original bit 1 at `0xfffffe000c05e368` (raw `480f0837`). That local-host bit
+is clear here. The unresolved discriminator is the provider user-server state,
+not a presumed local-host message or a generic choice of callback name.
+
+## M2E Zero-Selector Close
+
+**ZERO_SELECTOR_PROVIDER_CLOSE_UNRESOLVED.** On the native non-owning route,
+provider-close messaging is excluded by the exact owner predicate, not by absence
+of sends in the callback body. The full result inherits the factory uncertainty.
+
+| Exact Current Instruction / Binding | Meaning |
+| --- | --- |
+| actionStop 0xfffffe000bf9cb80, SHA-256 `57d4892fa9ecde36a8e9ba0f807ca10e0018835eb0522e3e3928e91a7e33e1aa` | Current stop/detach worker body, source role inferred from exact strings/slots. |
+| Call 0xfffffe000bf9cca0, client slot 1528 | IOAVUserClient::stop, not DCPDPDeviceProxy::stop. |
+| Call 0xfffffe000bf9ccd4, provider slot 1552 | IOService::isOpen(exact client), ultimately owner+64 equality. |
+| 0xfffffe000bf9ccd8, raw `60010034` | CBZ w0 -> 0xfffffe000bf9cd04; false skips provider.close at 0xfffffe000bf9cd00. |
+| Provider slot 1544 -> 0xfffffe000a009a30 | Conditional DCPAVProxy::close; its separate callback 0xfffffe000a009bbc contains send 0xfffffe000a009c2c -> 0xfffffe000a008e20. |
+| IOService::finalize 0xfffffe000bfa09fc | The compatibility direct stop/close/detach route has the same provider.isOpen(this) guard; normal phase-3 finalization schedules stop instead. |
+
+The predicate receipt retains both outcomes. It does not substitute a desired
+false value. The owner store, current raw guard and virtual slot receipts remain
+in R9. A positive send control inside provider.close is not a positive path from
+the new zero-selector client unless provider ownership is established.
+
+## M2E Workloop And Unused Gate
+
+SHARED_WORKLOOP_EXISTENCE is established separately from DPDV_OWNED_WORK.
+The observed native provider ancestry reaches DCPEndpointV2, whose getWorkLoop
+slot 1720 selects AFKEPKextV2::getWorkLoop, `0xfffffe0009279f70`, loading +384.
+New evidence closes the pointer-origin question: prior endpoint start at
+`0xfffffe0009279ae8` calls IOWorkLoop::workLoop at `0xfffffe0009279bb4` and stores
+the result at +384 at `0xfffffe0009279be0`. Its separate AFKWorkloop::create
+call at `0xfffffe0009279ca8` stores a different result at +392 at
+`0xfffffe0009279cd4`. The DPDV getter does not return that +392 AFKWorkloop.
+Endpoint start is an identity control for an already existing provider, not a
+reachable DPDV-start invocation or evidence that DPDV creates firmware work.
+
+The ordinary shared IOWorkLoop's existing control gate executes mAddEvent or
+mRemoveEvent. The new DPDV IOAVCommandGate is only their event-source argument.
+_maintRequest retains/links or unlinks/releases it on the passive chain and
+calls its selected getWorkLoop/setWorkLoop/getNext/setNext slots. Its checkForWork
+is the base return-false leaf; table registration does not run externalMethod.
+No message/AFK command is created by those native list operations.
+
+**UNUSED_GATE_REMOVAL_LOCAL_ONLY**, scoped to the specified newly allocated,
+never-run DPDV gate, not an active selector gate or arbitrary returned client.
+The concrete 88-byte allocation uses OSObject_typed_operator_new at
+`0xfffffe000bf126f4`; both allocation branches have the pinned zero-filled
+contract. The current command-gate constructor `0xfffffe000bfe8988` writes only
+refcount/vtable, leaving sleeper/action state +72 zero. Initialization sets null
+action, owner and enabled state; registration does not execute runAction.
+
+In current setWorkLoop(NULL), `0xfffffe000bfe8094` loads +72, teardown sets bit 0,
+and `0xfffffe000bfe80a0` tests old bit 1 with raw `29050836` (TBZ w9,#1).
+Pinned/current runAction is the writer of the wait-enabled bit and action count
+(0x100 units). With no runAction/runCommand/externalMethod or wrappers that call
+them, bit 1 and the action count stay zero. The removal sleep loop at
+`0xfffffe000bfe8138` and deferred-active-action case cannot activate in that state.
+Disable/enable alone does not set the sleeper bit. disableAllEventSources also
+explicitly skips the shared control gate, so that routine does not disable the
+maintenance executor.
+
+Shared closeGate/openGate use a recursive kernel lock; sleepGate releases/reacquires
+it through IORecursiveLockSleep. Another event source's sleepers do not become
+the DPDV gate's sleepers. Ordinary lock contention or scheduling is not a new
+firmware transaction or a standalone readiness failure. No hard wall-clock bound
+for arbitrary unrelated lock holders is proved, and no unrelated provider action
+is asserted to hold this lock until firmware replies. The unexcluded alternate
+factory/conditional-close paths remain the relevant external-wait questions.
+
+## M2E Open Work And Sinks
+
+**OPEN_WORK_REACHABILITY_UNRESOLVED.** The native class route has no demonstrated
+open-created AFK/DCP request: allocation, retained provider references, existing
+workloop lookup and passive registration are not counted as submissions. The
+remaining possible work is the alternate factory delegation and any resulting
+owner-dependent close, not an assumed selector-0 command.
+
+| Sink Kind | Exact Current Boundary |
+| --- | --- |
+| DCPAV request / register RPC | __sendMessage 0xfffffe000a008e20; performCommandGated 0xfffffe000a018f40 |
+| AFK command adapter / enqueue | AFKEndpointInterface 0xfffffe000926de54; AFKEPInterfaceKextV2 0xfffffe0009276a3c; AFKEPInterfaceV2 0xfffffe00092855b4 |
+| EPIC/AFK transport message | AFKEPInterfaceV2::sendMessage 0xfffffe00092837a8 |
+| RTBuddy endpoint message | RTBuddyEndpoint::sendMessage(Pv,Pv,bool) 0xfffffe000b1f9668, exact current symbol and captured bytes |
+| Ownership controls, not send sinks | DCPAVProxy::open 0xfffffe000a009898, IOService::open 0xfffffe000bfa23dc, handleOpen 0xfffffe000bfa207c |
+
+Static controls prove detection: readDPCD calls __sendMessage at
+`0xfffffe000a02074c`; writeDPCD at `0xfffffe000a0208f8`; provider-close callback
+at `0xfffffe000a009c2c`. Their roots are marked controls, not experiment paths.
+No control was executed. Sink traversal stops at validated function entry; lower
+transport semantics are inherited evidence, not a new AUX or firmware experiment.
+
+## M2E Denial And Lifecycle
+
+Pre-construction denial precedes newUserClient and creates no new client/gate.
+Authorization remains policy-dependent; M2E does not claim the process is permitted.
+For native post-start denial, init/attach/start has occurred but no external method
+has been requested. The ordinary native route does not set provider ownership or
+use its new gate's action. Failure calls clientClose at `0xfffffe000c03858c`, then
+clears termination deferral and releases before returning failure/no connection.
+Cleanup is initiated before the userspace error; asynchronous stop/finalize/free
+need not have completed. A denied result is not evidence that construction never
+happened, nor that a helper watchdog cancelled kernel work.
+
+**POST_START_DENIAL_UNRESOLVED.** The native-route local argument is conditional
+on actually taking that route. The unexcluded external factory and resulting
+owner/work state prevent a whole-experiment no-external-work conclusion.
+Client-stage MACF/filter callbacks are policy interfaces, not selector dispatch;
+their registered implementation/context is not silently certified by a symbol name.
+
+| Lifecycle Callback | Successful Native Zero-Selector Close | Receiver / Condition |
+| --- | --- | --- |
+| clientClose | ALWAYS | Once the valid fresh connection enters normal close; client slot 2336 is IOAVUserClient. |
+| terminate | ALWAYS | Called by that clientClose with zero caller options; base adds its terminate flag. |
+| terminatePhase1 | ALWAYS | Direct base terminate path; allocation/locking failure can limit later progress. |
+| terminateWorker | CONDITIONAL | Deferred phase-2/3 work, termination-deferral and worker progress; not necessarily completed before close returns. |
+| stop | CONDITIONAL | Finalized native client still attached and scheduled for stop; receiver is client, provider is an argument. |
+| detach | CONDITIONAL | Follows executed stop action, or factory partial-failure cleanup; registry detach, not provider shutdown. |
+| finalize | CONDITIONAL | Leaf client, termination state, deferral cleared and worker progress; selects scheduleStop or compatibility guarded direct close. |
+| free | CONDITIONAL | Final retained references/IPC owners released; close return alone does not establish this. |
+
+actionWillStop/actionDidStop call victim.willTerminate/didTerminate with its
+provider argument. actionWillTerminate/actionDidTerminate iterate the victim's
+children. Terminating a leaf DPDV client is not terminating the DCPDP provider or
+invoking that provider's DCPAV didTerminate override. Generic registered lifecycle
+notifiers are distinct callbacks; unresolved relevant ones retain UNKNOWN rather
+than being conflated with the selected native stop implementation.
+
+## M2E Wait Inventory
+
+| Function / Wait | Condition And Owner | Wake / Completion | External Control And Zero-Selector Relevance | Classification |
+| --- | --- | --- | --- | --- |
+| CF class once / allocator / registry and property locks | Shared CF initialization or local allocation/collection state | Initializer completion, allocator progress or local unlock | No DPDV command submitted; exact cached once export name remains unbound, but its supplied callback is class registration | LOCAL_LOCK_WAIT |
+| IOService::attach count-pressure wait | Provider child count exceeds busy threshold; caller owns arbitration attempt | Provider detach notification or one 15-second deadline | Reachable under local registry pressure; not a firmware reply wait | LOCAL_EVENT_SOURCE_WAIT |
+| IOWorkLoop::closeGate, add/remove control runCommand | Shared recursive gate lock, existing enabled control gate | Holder unlock; local _maintRequest completes | Native path reachable; no submitted DPDV command or external completion predicate in list maintenance | LOCAL_LOCK_WAIT |
+| New DPDV setWorkLoop removal sleep | Its own +72 wait-enable bit 1, set by a runAction caller waiting on disabled state | That caller leaves/wakes teardown | Cannot be set for the specified never-used gate; other event-source bits do not count | UNREACHABLE_ZERO_SELECTOR |
+| Active-action removal deferral | Its own action count at +72 is nonzero | Its runAction finishes | No such action exists in the specified native zero-selector gate | UNREACHABLE_ZERO_SELECTOR |
+| IOServiceClose IPC rwlock | Local connection serialization | Other local IPC holders exit | No selector reader is assumed; ordinary contention is not firmware dependence | LOCAL_LOCK_WAIT |
+| terminatePhase1 local-state wait / deferred worker | Concurrent termination/configuration and local deferral flags | Local phase completion, deferral clear and worker scheduling | Native resource progress, not a proven DPDV-created external command; abnormal retained resources remain supporting uncertainty | LOCAL_EVENT_SOURCE_WAIT |
+| Alternate factory Invoke/userServer RPC | Non-null provider userServer chain and dispatch context | External driver RPC result | Branch condition not excluded; driver behavior could affect ownership/work or depend on hardware | UNKNOWN |
+| Conditional provider-close DCP path | provider.isOpen(exact client) true | Selected DCP close callback and any command completion it requires | Guard unresolved for the whole factory; no firmware-wait duration/absence asserted | UNKNOWN |
+| Registered client-policy/lifecycle callbacks | Callback registered and matching/invoked for this client | Callback return / possible deferred completion | Built-in metadata/policy operations alone are not sends; unbound implementations with client/service access remain relevant UNKNOWN | UNKNOWN |
+| Selector read/write response waits | External method dispatch and submitted request | Firmware response/error path | Provably not directly invoked by the proposed helper; not transferred to native initialization | UNREACHABLE_ZERO_SELECTOR |
+
+There is no positively established FIRMWARE_DEPENDENT_WAIT from the native fresh
+start prefix. Relevant UNKNOWN branches still prohibit certifying whole-experiment
+absence. Lack of a wall-clock guarantee for ordinary kernel locks is not itself
+the rejection criterion.
+
+## M2E Relevant Frontiers And Closure
+
+The required closure is experiment-specific: resolve every open/start path capable
+of AFK/DCP send or DP state change, provider ownership, zero-selector close messages,
+external/firmware waits and post-start denial work. Complete generic IOService
+decompilation, logging internals or perfect SIGKILL resource reclamation is not
+required. Proven-unused selector paths may be excluded; they are not marked PASS.
+
+R9 exports every unresolved frontier with one of the six requested relevance
+classes. [The scope receipts](dpdv-open-final-scope.json) bind 19 reviewed function/
+callsite classifications to the exact kernel UUID and body SHA-256. Root-specific
+state prevents unused-gate annotations leaking into active controls. Specific
+receipts override applicable broader ones; unmatched frontiers remain UNKNOWN.
+Original graph paths, syntactic completeness and traversal limits are retained.
+The annotations are auditable analyst evidence, not an automatic semantic proof.
+
+| Frontier Family | Relevance / Disposition |
+| --- | --- |
+| Provider user-server factory/Invoke | RELEVANT_TO_PROVIDER_OWNERSHIP / RELEVANT_TO_OPEN_HARDWARE_EFFECT; actual branch condition unresolved. |
+| Guarded provider-close and native compatibility finalize | RELEVANT_TO_OPEN_HARDWARE_EFFECT; predicate known, whole-factory owner invariant unresolved. |
+| Native add/remove/control-gate and lock operations | Mechanism reviewed as local synchronization; no transfer of unrelated firmware work into DPDV_OWNED_WORK. Any unbound non-native callback remains UNKNOWN. |
+| Registered policy/lifecycle callbacks | UNKNOWN where implementation/receiver context could change service state or wait externally; no global claim that all callbacks are harmless. |
+| Zero allocation, metaclass accounting, concrete registry linking | RESOURCE_MANAGEMENT_ONLY with receipts; not automatic hardware blockers. |
+| Formatting and diagnostic output | UNRELATED_GENERIC_FRAMEWORK with receipts; do not require full logger graph closure. |
+| Other unmatched bodies/limits on expanded paths | UNKNOWN in the raw artifact; not treated as independent thousands of blockers. Only a path capable of the six experiment effects matters. |
+
+One smallest next discriminator is the provider's user-server chain at the factory
+entry: prove it is null, or prove the alternate dispatch cannot create ownership/
+external work for this provider. This is a concrete private-state/dispatch fact,
+not a request to expand all allocators or all kernel callbacks. Resolving it would
+remove this dominant branch; it is not a promise that all remaining callback
+obligations then disappear automatically.
+
+## M2E Applicability Matrix
+
+PASS is scoped to the evidence stated, not a successful private hardware call.
+The native-path subproofs are useful even while alternate construction is unexcluded.
+Process-death kernel resource cleanup may remain SUPPORTING / UNKNOWN only after
+the independent hardware-safety conditions are met. They are not yet met here.
+
+| Gate | Applicability | State | Evidence |
+| --- | --- | --- | --- |
+| External target | CRITICAL | PASS | Fresh G8 External DCPEXT0/Unit 0, active display/HPD/link and support flags. |
+| Creation ABI | CRITICAL | PASS | Retained exact IODP/DPDV and native factory/client bindings; no prototype change. |
+| Experiment-specific open graph | CRITICAL | UNKNOWN | Specific alternate factory and relevant callback conditions remain, not total generic incompleteness. |
+| Provider ownership | CRITICAL | UNKNOWN | Native route does not open provider; user-server delegation not excluded. |
+| Open-created AFK/DCP work | CRITICAL | UNKNOWN | Native setup is local; alternate work-producing path unresolved. |
+| Open display-link effects | CRITICAL | UNKNOWN | No native-prefix link operation; delegated path not proved effect-free. |
+| Normal zero-selector close | CRITICAL | UNKNOWN | Both close sites owner-guarded; whole-factory owner state unresolved. |
+| Shared workloop effects | CRITICAL | PASS | Native getter returns existing ordinary +384 IOWorkLoop, not +392 AFKWorkloop; passive maintenance is local. No global latency guarantee. |
+| Never-used gate removal | CRITICAL | PASS | Zero sleeper/action state and exact conditional loop prove gate-local removal for the specified native unused gate. |
+| Authorization pre-construction denial | CRITICAL | PASS | No new client or gate before factory; no claim of actual authorization. |
+| Authorization post-start denial | CRITICAL | UNKNOWN | Cleanup initiated before failure return; alternate work/ownership and relevant callbacks unresolved. |
+| Open/close firmware-dependent waits | CRITICAL | UNKNOWN | No native-prefix firmware wait established; delegated and conditional provider-close paths remain unknown. |
+| Process-death kernel resource cleanup | SUPPORTING | UNKNOWN | Generic retained resources/finalization do not independently prove external work. |
+| Process-death external hardware safety | CRITICAL | UNKNOWN | Open-created external-work absence not established for the whole factory. |
+| Selector-command cancellation | UNKNOWN | UNKNOWN | No direct selectors, but no global external-work exclusion; NOT_APPLICABLE not justified. |
+| Selector callback quiescence | UNKNOWN | UNKNOWN | Native passive setup distinguished from dispatch; alternate work still unexcluded. |
+| Parent watchdog | CRITICAL | PASS | Existing mock parent deadline, not firmware cancellation or bounded kernel scheduling. |
+| Helper reaping | SUPPORTING | PASS | Existing mock reaping and ownership failure regressions, not real kernel-blocked-helper proof. |
+| Zero selector enforcement | CRITICAL | PASS | No real backend or selector invocation added; production CLI/import boundary preserved. |
+| No DPCD/write/MST | CRITICAL | PASS | Static positive controls only; no transaction executed or implemented. |
+
+Counts: 16 CRITICAL, two SUPPORTING, two UNKNOWN applicability; nine PASS and
+11 UNKNOWN. There is no FAIL merely because a generic graph remains incomplete,
+and no selector-specific row is incorrectly marked PASS or NOT_APPLICABLE.
+
+**M2E open-check result: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.**
+
+**M2E global gate: NOT_READY_FOR_DPCD_TEST.** All original DPCD gate states remain
+unchanged. M2F is not implemented or designed for execution; its READY prerequisite
+is unmet. No real open/check command is authorized by this report.
+
+## M2E Capture And Sources
+
+R9 is artifacts/probes/iodp-static-20260912T141129Z/iodp-static.json, SHA-256
+`587ef7b55e8ed3a5fd0e88e69c0d160ac2973ddbcaa9a6ac86bf04a71dc1f966`.
+It records 374 selected kernel blocks, 32 roots, 447 bounded graph bodies,
+16 contextual vtable receipts, 19 relevance receipts and ten stopping boundaries
+(seven send/command boundaries plus three ownership controls). IOKit has 30
+selected blocks, PS190 six, libdpfu zero; 97 IODP names. Kernel UUID remains
+`447D769E-1CB7-3086-A0B4-32226837B587`; container/decoded identities match M2D.
+No previous capture was overwritten. Root/gap counts include static controls and
+overlapping paths, not dynamic invocations or unique experiment obligations.
+
+The scope document SHA-256 is
+`56b2149678493a8538efe3f9a96f16a96675fb1106938d5b7243746eec3a4f4c`.
+Across all roots, duplicated frontier occurrences are 2,991 UNKNOWN,
+453 RELEVANT_TO_OPEN_HARDWARE_EFFECT, 32 RELEVANT_TO_PROVIDER_OWNERSHIP,
+13 RELEVANT_TO_OPEN_EXTERNAL_WAIT, 420 RESOURCE_MANAGEMENT_ONLY and
+361 UNRELATED_GENERIC_FRAMEWORK. These counts are not the readiness decision.
+
+Three new source files are pinned to XNU
+`f6217f891ac0bb64f3d375211650a4c1ff8ca1ea`, not asserted as the exact running OS
+source. Reused IOService/IOUserClient/IOWorkLoop/IOCommandGate and M2D event-source
+evidence keeps its earlier provenance. Local source copies remain ignored.
+
+| New Primary Source | SHA-256 |
+| --- | --- |
+| [IORegistryEntry.cpp](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/iokit/Kernel/IORegistryEntry.cpp) | `50e1ea9a8aca9618fe71b7eaa8d95b63b96561d59d332147bfd5280a51d18bc8` |
+| [IOUserServer.cpp](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/iokit/Kernel/IOUserServer.cpp) | `7b6c08e382f48b62166c8bceaa65668d10db201c683ce5836746ffb81028d579` |
+| [OSObject.cpp](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/libkern/c%2B%2B/OSObject.cpp) | `2f66fcdfe761959cb0fc04669ea65c807220b5b72b6afb5dd5702d42e483817e` |
+
+## M2E Static Reproduction
+
+The recipe uses only public baseline metadata and on-disk static decoding. It
+does not depend on ignored R9 being present. Obtain the three pinned sources
+above under artifacts/sources/m2e, and use a fresh public baseline directory when
+reproducing from a clone. Addresses apply only to the exact matched kernel UUID.
+The committed scope file is an annotation input, not a driver or executable.
+
+```sh
+python3 - artifacts/probes/20260912T133040Z <<'M2E'
+import subprocess
+import sys
+
+expected_uuid = '447D769E-1CB7-3086-A0B4-32226837B587'
+if subprocess.check_output(['sysctl', '-n', 'kern.uuid'], text=True).strip().upper() != expected_uuid:
+  raise SystemExit('Kernel UUID mismatch: do not reuse these addresses')
+arguments = [sys.executable, 'tools/inspect_iodp.py', '--baseline', sys.argv[1],
+       '--server', '--kernel-lifecycle', '--reference-root', 'artifacts/sources/m2e',
+       '--kernel-graph-scope', 'docs/research/dpdv-open-final-scope.json']
+selections = {
+  '--kernel-image': ['com.apple.driver.AppleDCP', 'com.apple.driver.RTBuddy'],
+  '--kernel-vtable': [
+    '__ZTV9IOService', '__ZTV15IORegistryEntry', '__ZTV12IOUserClient',
+    '__ZTV26DCPDPDeviceProxyUserClient', '__ZTV16DCPDPDeviceProxy', '__ZTV11AFKEPKextV2',
+    '__ZTV13DCPEndpointV2', '__ZTV10IOWorkLoop', '__ZTV15IOAVCommandGate',
+    '__ZTV13IOCommandGate', '__ZTVN15IOAVCommandGate9MetaClassE'],
+  '--kernel-symbol': [
+    '__ZN15RTBuddyEndpoint11sendMessageEPvS0_b', '__ZN10DCPAVProxy4openEP9IOServicejPv',
+    '__ZN10DCPAVProxy5closeEP9IOServicej',
+    '____ZN10DCPAVProxy4openEP9IOServicejPv_block_invoke',
+    '____ZN10DCPAVProxy5closeEP9IOServicej_block_invoke'],
+  '--kernel-callers-of': [
+    '__ZN9IOService10handleOpenEPS_jPv', '__ZN9IOService4openEPS_jPv',
+    '__ZNK10DCPAVProxy13__sendMessageEPN8DCPAVIPC7MessageE'],
+}
+for flag, values in selections.items():
+  for value in values:
+    arguments.extend((flag, value))
+roots = (
+  'bf964cc', 'c02c224', 'c02c130', 'bf9f5a0', 'a0214a4', 'a5a3420', 'c037b80', 'c038688',
+  'bf9cb80', 'bfa09fc', 'bfe801c', 'bfe3d4c', 'bfe398c', 'bfe3944', 'bfe7be0', '9279ae8',
+  '90ea598', 'bfa207c', '9279f70', 'a020628', 'a0207bc', 'a009bbc', 'c05e32c', 'c0622b4',
+  'a5cc2b8', 'bf8ff1c', 'bf8fbc8', 'bf8fd60', 'bf126f4', 'bfe8988', 'bfe33c4', 'bfe346c',
+)
+sinks = ('926de54', '9276a3c', '92837a8', '92855b4', 'a008e20', 'a009898', 'a018f40',
+     'bfa207c', 'bfa23dc', 'b1f9668')
+for flag, suffixes in (('--kernel-graph-root', roots), ('--kernel-graph-sink', sinks)):
+  for suffix in suffixes:
+    arguments.extend((flag, '0xfffffe000' + suffix))
+virtual_edges = (
+  ('bf96588', '__ZTV16DCPDPDeviceProxy', 1960),
+  ('bf96784', '__ZTV26DCPDPDeviceProxyUserClient', 2320),
+  ('bf967b0', '__ZTV26DCPDPDeviceProxyUserClient', 1696),
+  ('bf967dc', '__ZTV26DCPDPDeviceProxyUserClient', 1520),
+  ('bf9cca0', '__ZTV26DCPDPDeviceProxyUserClient', 1528),
+  ('bf9ccd4', '__ZTV16DCPDPDeviceProxy', 1552),
+  ('bf9cd00', '__ZTV16DCPDPDeviceProxy', 1544),
+  ('a5a3464', '__ZTV9IOService', 1520),
+  ('a5a3490', '__ZTV26DCPDPDeviceProxyUserClient', 1720),
+  ('a5a34d4', '__ZTV10IOWorkLoop', 352),
+  ('a5a3504', '__ZTV16DCPDPDeviceProxy', 32),
+  ('a5a354c', '__ZTV26DCPDPDeviceProxyUserClient', 1528),
+  ('bfe3988', '__ZTV13IOCommandGate', 480),
+  ('c03858c', '__ZTV26DCPDPDeviceProxyUserClient', 2336),
+  ('c038790', '__ZTV26DCPDPDeviceProxyUserClient', 2336),
+  ('c037cb8', '__ZTV16DCPDPDeviceProxy', 1952),
+)
+for callsite, table, offset in virtual_edges:
+  arguments.extend(('--kernel-graph-vtable-edge', '0xfffffe000' + callsite, table, str(offset)))
+subprocess.run(arguments, check=True)
+M2E
+```
+
+Prior-provider initialization, read/write, provider-close, handleOpen and active
+runAction roots are positive/identity controls. They must not be relabeled as
+paths executed by the new client. The collector still has 64-node/eight-level
+per-root and 512-body global limits; relevance annotation does not silently raise
+them or turn any incomplete syntactic graph into a complete absence proof.
+
+## M2E Validation
+
+Final validation on 2026-09-12 used the current M2E source and unchanged native
+probe/mock code. No dependency, compiler setting, security setting or production
+API was changed.
+
+| Required Check | Command / Result |
+| --- | --- |
+| Strict build | `cmake --build build`: PASS, no work required; strict warning/error configuration preserved. |
+| Unit and mock regression | `ctest --test-dir build -L unit --output-on-failure`: PASS, 8/8 entries including mock isolation and CLI/import guard. |
+| Public-only hardware | `ctest --test-dir build -L hardware --output-on-failure`: PASS, 1/1 existing public probe; no private open. |
+| Sanitizer build | `cmake --build build-sanitized`: PASS, existing ASan/UBSan configuration. |
+| Sanitizer unit/mock/import | `ctest --test-dir build-sanitized -L unit --output-on-failure`: PASS, 8/8. |
+| Static graph/parser | `python3 -m unittest discover -s tests -p 'test_iodp_static.py'`: PASS, 54 methods; also run by both CTest suites. |
+| Import audit | Existing CLIContractTests passed for production enumeration-only imports and mock absence of display/dynamic transport imports. No real DPDV backend. |
+| Documentation | PASS: links/anchors, paired fences, exact 20-row M2E matrix and counts, historical M2D body, unique E/S IDs, whitespace and editor diagnostics. |
+| Reproduction | Standalone recipe argument comparison and mismatched-UUID rejection passed with subprocess mocked; actual static replay also passed. |
+| Provenance | PASS: all G8 artifacts/core hashes/probe, selected kernel/graph bytes, retained source hashes, four tool hashes and scope receipt hash. |
+
+The unchanged mock covers 13 scenarios plus five repeated fresh helpers, invalid
+input/spawn failure, FD/environment/signal isolation and lost wait ownership.
+Each suite's 20 children include 19 explicit reaps and one deliberate auto-reaped
+ECHILD ownership failure; no owned zombies are accepted. Mock entry durations
+were 3.23 seconds strict and 4.08 seconds sanitized. These are observed test
+durations, not firmware cancellation or real driver cleanup bounds.
+
+The actual replay is artifacts/probes/iodp-static-20260912T141722Z, report SHA-256
+`33f17ba0e797b5af564d8c3f4a5152b8c84fceef0bb30191829fd813096713ac`.
+Its entire graph (including conditions/relevance), selected images, vtables,
+userspace static bindings and reference-source records equal R9. Timestamps and
+report hash naturally differ. The original capture was not modified.
+
+All 374 selected kernel block hashes and 447 graph body hashes/ranges were
+verified, covering 52,727 graph instructions. G8's 27 artifact hashes and ten
+core/capture source hashes match; the rebuilt probe still matches the captured
+`450832c50446d3a430cbed2bcab7c285cddf5f6b370b2339df2cd0a33aefd89a`.
+The running kernel UUID matches. All 28 retained source hashes and locally
+computed Git blob IDs verify (14 RPC-03, nine M2C, two M2D, three M2E). No
+independent GitHub blob comparison is claimed for the three new M2E files.
+
+| R9 Tool Source | SHA-256 |
+| --- | --- |
+| [inspect_iodp.py](../../tools/inspect_iodp.py) | `273f1259c3335bbe6b9a3efc2f461e9b4ea55d5d2cfef872fc2421691dae2f77` |
+| [kernel_image.py](../../tools/kernel_image.py) | `1599ce12f7dc1f86e2d3cfe16249044b80813af68d95107a0cdc2d20907fb7e8` |
+| [call_graph.py](../../tools/call_graph.py) | `f4ea453afd410eafb5b2ce07987988cf2c5db2f4d7e6c312852e7c93a9aa1abe` |
+| [dyld_cache.py](../../tools/dyld_cache.py) | `973a7e27492810291378018e75974050f5b5b35dd4bda7cc146e0697133e5fa7` |
+
+Production sources, CMake, public collector, mock helper and original RPC/ABI/
+authorization/public/M2C reports are unchanged from the M2E merge base. Testing
+and reproducible static decoding do not establish private-open hardware behavior.
+
+## M2D Historical Report
+
+The following M2D findings and 17-row matrix are retained as the previous
+milestone, superseded for open-only applicability by the M2E matrix above.
 
 **Result: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.** This follows from incomplete
 pre-selector open/close reachability, not from automatically copying selector-0

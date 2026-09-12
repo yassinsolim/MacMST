@@ -324,20 +324,35 @@ def main():
     parser.add_argument("--kernel-graph-vtable-edge", nargs=3, action="append", default=[],
                         metavar=("CALLSITE", "VTABLE", "OFFSET"),
                         help="Follow a declared vtable slot in a selected receiver context; context remains a proof gap. Requires a graph root.")
+    parser.add_argument("--kernel-graph-scope", type=pathlib.Path,
+                        help="Annotate frontier relevance from a bounded, kernel/function-hash-bound JSON document; never changes graph completeness. Requires a graph root.")
     parser.add_argument("--reference-root", type=pathlib.Path,
                         help="Hash reference source files already downloaded under artifacts/sources; never execute them.")
     parser.add_argument("--signing-probe", type=pathlib.Path,
                         help="Statically record allowlisted codesign identity for a local probe executable; never run or sign it.")
     args = parser.parse_args()
-    if (args.kernel_symbol or args.kernel_vtable or args.kernel_image or args.kernel_string or args.kernel_address or args.kernel_callers_of or args.kernel_lifecycle or args.kernel_graph_root or args.kernel_graph_sink or args.kernel_graph_vtable_edge) and not args.server:
+    if (args.kernel_symbol or args.kernel_vtable or args.kernel_image or args.kernel_string or args.kernel_address or args.kernel_callers_of or args.kernel_lifecycle or args.kernel_graph_root or args.kernel_graph_sink or args.kernel_graph_vtable_edge or args.kernel_graph_scope) and not args.server:
         parser.error("kernel selection options require --server")
-    if (args.kernel_graph_sink or args.kernel_graph_vtable_edge) and not args.kernel_graph_root:
+    if (args.kernel_graph_sink or args.kernel_graph_vtable_edge or args.kernel_graph_scope) and not args.kernel_graph_root:
         parser.error("kernel graph sinks require a graph root")
     try:
         graph_virtual_edges = [(int(callsite, 0), symbol, int(offset, 0))
                                for callsite, symbol, offset in args.kernel_graph_vtable_edge]
     except ValueError:
         parser.error("graph callsite and vtable offset must be integers")
+    graph_scope = None
+    graph_scope_bytes = None
+    if args.kernel_graph_scope is not None:
+        try:
+            with args.kernel_graph_scope.open("rb") as stream:
+                graph_scope_bytes = stream.read(262145)
+            if len(graph_scope_bytes) > 262144:
+                raise ValueError("frontier scope exceeds 256 KiB")
+            graph_scope = json.loads(graph_scope_bytes)
+            if not isinstance(graph_scope, dict):
+                raise ValueError("frontier scope must be an object")
+        except (OSError, ValueError) as error:
+            parser.error("invalid kernel graph scope: " + str(error))
     if sys.platform != "darwin":
         parser.error("requires macOS dyld_info")
     repository = pathlib.Path(__file__).resolve().parents[1]
@@ -448,7 +463,9 @@ def main():
             server_evidence = collect_server_evidence(files[0], decoder, args.kernel_symbol, args.kernel_vtable,
                                                       args.kernel_image, args.kernel_string, args.kernel_address,
                                                       args.kernel_callers_of, args.kernel_lifecycle,
-                                                      args.kernel_graph_root, args.kernel_graph_sink, graph_virtual_edges)
+                                                      args.kernel_graph_root, args.kernel_graph_sink, graph_virtual_edges, graph_scope)
+            if graph_scope_bytes is not None:
+                server_evidence["call_graph"]["frontier_scope"]["document_sha256"] = hashlib.sha256(graph_scope_bytes).hexdigest()
             print("Kernel UUID matched; captured selected static server methods.")
     finally:
         decoder.close()

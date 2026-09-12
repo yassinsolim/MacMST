@@ -8,7 +8,7 @@ import subprocess
 import uuid
 
 from dyld_cache import adrp_add_target, direct_branch_target
-from call_graph import bounded_call_graph, resolve_vtable_slot
+from call_graph import bounded_call_graph, classify_frontiers, resolve_vtable_slot
 
 
 def decode_function_starts(raw, base):
@@ -442,7 +442,7 @@ class KernelCachePointers:
                 "raw_bytes_hex": bytes(page[page_offset:page_offset + 8]).hex()}
 
 
-def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), extra_images=(), extra_strings=(), extra_addresses=(), callers_of=(), lifecycle=False, graph_roots=(), graph_sinks=(), graph_virtual_edges=()):
+def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), extra_images=(), extra_strings=(), extra_addresses=(), callers_of=(), lifecycle=False, graph_roots=(), graph_sinks=(), graph_virtual_edges=(), graph_scope=None):
     if file.stat().st_size > 64 * 1024 * 1024:
         raise ValueError("Kernel container exceeds static inspection limit")
     original = file.read_bytes()
@@ -702,7 +702,8 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
         graph = bounded_call_graph(load_graph_function, graph_roots, graph_sinks, virtual_edges=virtual_edges)
         graph["function_bodies"] = graph_bodies
         graph["requested_virtual_edges"] = [{"callsite_hex": hex(callsite), **edge} for callsite, edge in virtual_edges.items()]
-    elif graph_sinks or graph_virtual_edges:
+        classify_frontiers(graph, graph_scope, kernel_uuid)
+    elif graph_sinks or graph_virtual_edges or graph_scope is not None:
         raise ValueError("Graph sinks require at least one graph root")
     command = ["/usr/sbin/ioreg", "-a", "-r", "-c", "DCPDPDeviceProxy", "-d", "1"]
     observed = plistlib.loads(subprocess.check_output(command))

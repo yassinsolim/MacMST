@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "kernel_uuid": "447D769E-1CB7-3086-A0B4-32226837B587",
+  "functions": [
+    {
+      "address_hex": "0xfffffe000bf126f4",
+      "bytes_sha256": "0f942a1f0ef30f6d7eed2c5be78549e61b9398feb36f6d2629954398e073d1b5",
+      "classification": "RESOURCE_MANAGEMENT_ONLY",
+      "include_descendants": true,
+      "evidence": "OSObject_typed_operator_new: current two allocation branches and pinned OSObject.cpp use zero-filled kernel allocation. Allocator scheduling, accounting and failure are resource concerns, not a provider open or AFK submission. No callback supplied by DPDV."
+    },
+    {
+      "address_hex": "0xfffffe000bf102ec",
+      "bytes_sha256": "e70e74087d15950f6d653a8c12e0f94d6e1f52df3029a5c79731e3d28426d67d",
+      "classification": "RESOURCE_MANAGEMENT_ONLY",
+      "include_descendants": true,
+      "evidence": "OSMetaClass::instanceConstructed: exact 32-byte current body increments class instance counts and walks superclass pointers; it does not operate on provider ownership or firmware."
+    },
+    {
+      "address_hex": "0xfffffe000bdd6164",
+      "bytes_sha256": "cba01678cbdfb4553321b31353c8b5265beda6e68a921a1e44aa0eed29b9b856",
+      "classification": "UNRELATED_GENERIC_FRAMEWORK",
+      "include_descendants": true,
+      "evidence": "snprintf formats a bounded local name in the inspected endpoint initialization context. No provider or command callback is passed through the formatter."
+    },
+    {
+      "address_hex": "0xfffffe000bf850e4",
+      "bytes_sha256": "814dc618ec8d4fbf694c20696f427a2a36dfb212110257698dddf299cd6c0274",
+      "classification": "UNRELATED_GENERIC_FRAMEWORK",
+      "include_descendants": true,
+      "evidence": "IOLog diagnostic output is not an AFK/DP command and receives formatted diagnostics, not the fresh client as an ownership callback. Logging completion is not used as hardware-safety evidence."
+    },
+    {
+      "address_hex": "0xfffffe000bf8ff1c",
+      "bytes_sha256": "dcf72e6dc28fbed989fdf35b0cd73d39f75fe7121f513d117abe85d0c018fa29",
+      "classification": "RESOURCE_MANAGEMENT_ONLY",
+      "evidence": "IORegistryEntry::attachToParent: pinned implementation updates service-plane links and immutable collection flags. Both concrete DPDV/client and provider attachment slots bind to IORegistryEntry; parent attachToChild is not IOService::open. This annotation does not classify arbitrary descendants."
+    },
+    {
+      "address_hex": "0xfffffe000bf8fbc8",
+      "bytes_sha256": "cea46260140be59595f0d6e092966057178aef9d1f3dbface29649107d4e2dd6",
+      "classification": "RESOURCE_MANAGEMENT_ONLY",
+      "evidence": "IORegistryEntry::attachToChild is the selected DCPDP provider slot 904. It creates reciprocal registry links; the already linked child prevents recursive new attachment. No owner+64 assignment, provider open, or dispatch-table call."
+    },
+    {
+      "address_hex": "0xfffffe000bf8fd60",
+      "bytes_sha256": "2261020cc00f7563c657f18d2e0c225d2cf96c9da64e05c67ad3951806566232",
+      "classification": "RESOURCE_MANAGEMENT_ONLY",
+      "evidence": "IORegistryEntry::detachFromParent removes reciprocal service-plane links. Provider detachFromChild is inherited registry code. Retain/release ownership here is distinct from provider.open; final dynamic object destruction is not waived by this function-local annotation."
+    },
+    {
+      "address_hex": "0xfffffe000bf9f5a0",
+      "bytes_sha256": "bab9c8c57ee87813e2e5b704a5c5450f613e044c3781fbc21b8b5f49c012ad36",
+      "classification": "RESOURCE_MANAGEMENT_ONLY",
+      "evidence": "Concrete client IOService::attach uses provider arbitration, service-plane attachment and cached provider lookup; child-count pressure has a single 15-second local detach deadline. The resolved attachToParent/attachToChild slots do not establish provider ownership. Descendants remain independently classified."
+    },
+    {
+      "address_hex": "0xfffffe000bf964cc",
+      "bytes_sha256": "1478c2d263c1d737c5e1eb914f7e20123d5e7f5dd509601bd62d3f21d60a4fe0",
+      "classification": "RELEVANT_TO_PROVIDER_OWNERSHIP",
+      "evidence": "Factory tests provider reserved+40/uvars+40/userServer+0 before the native class route. A non-null chain tail-calls serviceNewUserClient at 0xfffffe000c0622b4. Native class init/attach/start do not establish provider ownership, but the observed registry class alone does not certify the private chain is null."
+    },
+    {
+      "address_hex": "0xfffffe000c0622b4",
+      "bytes_sha256": "d0ff4363baa90c5eb029516b18ac5a1be4979ee53ed93d716fe178de51453ed0",
+      "classification": "RELEVANT_TO_OPEN_HARDWARE_EFFECT",
+      "include_descendants": true,
+      "evidence": "Conditional IOUserServer::serviceNewUserClient calls service->_NewUserClient before returning. Current wrapper invokes OSMetaClassBase::Invoke; pinned implementation routes a non-null service userServer through rpc instead of guaranteeing the local error stub. External callback behavior and returned class are not proved for this unexcluded branch."
+    },
+    {
+      "address_hex": "0xfffffe000c037b80",
+      "callsite_hex": "0xfffffe000c037cb8",
+      "bytes_sha256": "29f2834dda56b7192bcfe36c9fd0becd2e0589f6810fe621ca89d96eef368e7c",
+      "classification": "RELEVANT_TO_PROVIDER_OWNERSHIP",
+      "evidence": "Outer IOServiceOpen factory virtual call with provider receiver. Current provider slot 1952 selects the factory above; alternate user-server branch must be resolved before certifying the returned DPDV client path."
+    },
+    {
+      "address_hex": "0xfffffe000c037b80",
+      "callsite_hex": "0xfffffe000c03858c",
+      "bytes_sha256": "29f2834dda56b7192bcfe36c9fd0becd2e0589f6810fe621ca89d96eef368e7c",
+      "classification": "RELEVANT_TO_OPEN_HARDWARE_EFFECT",
+      "evidence": "Post-start authorization failure invokes constructed clientClose slot 2336 before clearing termination deferral and releasing. Normal-close ownership/message behavior must therefore hold for denied opens too."
+    },
+    {
+      "address_hex": "0xfffffe000c038688",
+      "callsite_hex": "0xfffffe000c038790",
+      "bytes_sha256": "17d5ebe7aae9d51873f11e8f78429e0f0321aa0b37f2828b7880bc52b453e4df",
+      "classification": "RELEVANT_TO_OPEN_HARDWARE_EFFECT",
+      "evidence": "Current normal-close clientClose slot 2336 invokes client lifecycle cleanup. Actual user-client class and provider ownership are prerequisites; successful RPC return is not proof that deferred stop/free completed."
+    },
+    {
+      "address_hex": "0xfffffe000bf9cb80",
+      "callsite_hex": "0xfffffe000bf9ccd4",
+      "bytes_sha256": "57d4892fa9ecde36a8e9ba0f807ca10e0018835eb0522e3e3928e91a7e33e1aa",
+      "classification": "RELEVANT_TO_PROVIDER_OWNERSHIP",
+      "evidence": "provider.isOpen(exact client), slot 1552; handleIsOpen slot 1576 compares provider owner+64. Raw 60010034 at 0xfffffe000bf9ccd8 branches to 0xfffffe000bf9cd04 when false, skipping close. Predicate is known; its full factory precondition is not."
+    },
+    {
+      "address_hex": "0xfffffe000bf9cb80",
+      "callsite_hex": "0xfffffe000bf9cd00",
+      "bytes_sha256": "57d4892fa9ecde36a8e9ba0f807ca10e0018835eb0522e3e3928e91a7e33e1aa",
+      "classification": "RELEVANT_TO_OPEN_HARDWARE_EFFECT",
+      "include_descendants": true,
+      "evidence": "Conditional provider.close slot 1544 reaches DCPAVProxy::close. Its callback sends at 0xfffffe000a009c2c. Receipt preserves the condition and does not assert that zero-selector close takes it."
+    },
+    {
+      "address_hex": "0xfffffe000bfe801c",
+      "bytes_sha256": "8f2aa1680215cde76c1fd14c79ea122e674df7b30416107cde6212089ae32ace",
+      "classification": "RESOURCE_MANAGEMENT_ONLY",
+      "root_addresses_hex": ["0xfffffe000bfe801c"],
+      "evidence": "This separately rooted case is the zero-initialized, never-run DPDV gate. Only runAction sets wait-enable bit1/action count at +72; no selectors/runAction/runCommand means both remain zero. Removal sets bit0, skips bit1 sleep and clears the workloop. Shared-lock acquisition is analyzed separately; no active-selector root inherits this condition."
+    },
+    {
+      "address_hex": "0xfffffe000bfe3944",
+      "bytes_sha256": "56b14011ec2aa050a74f41ed3af0a487663ce5b81e3c1fec8b59f79cfabc193f",
+      "classification": "RELEVANT_TO_OPEN_EXTERNAL_WAIT",
+      "evidence": "Removal runs mRemoveEvent on the pre-existing IOWorkLoop control gate, not on the new DPDV gate. The local synchronization mechanism is known, but cross-client progress guarantees are not inferred from unused DPDV sleeper state."
+    },
+    {
+      "address_hex": "0xfffffe000bfe398c",
+      "bytes_sha256": "604c840a23c50816f52731fecec34dc6838dc8889e5c521cf7872859205d6e18",
+      "classification": "RELEVANT_TO_OPEN_EXTERNAL_WAIT",
+      "evidence": "Addition runs mAddEvent on the existing control gate after optional thread naming. This creates no AFK request itself; control-gate/shared-recursive-lock progress is a separate question from DPDV-owned work."
+    },
+    {
+      "address_hex": "0xfffffe000bfe3d4c",
+      "bytes_sha256": "435a2e7d2e736efcb3ba3e9acb26168078efbe142b951302ae5e989f48959c33",
+      "classification": "RESOURCE_MANAGEMENT_ONLY",
+      "evidence": "Reviewed _maintRequest add/remove branches link/unlink the passive IOAVCommandGate, retain/release it, and invoke its selected setWorkLoop/getNext/setNext slots. The requested gate does not override checkForWork and has null action; loop list operations do not execute selector callbacks. Dynamic descendants remain independently classified."
+    }
+  ]
+}
