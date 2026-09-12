@@ -42,6 +42,12 @@ gate evidence and the provider-close owner guard to reassess applicability.
 It reports CALL_GRAPH_INCOMPLETE: selector risks are not automatic blockers,
 but independent critical open/close proof gaps remain. The helper stays mock-only.
 
+M2D is integrated by merge `73e0caaaf079b2177d5207f2320c5fc61dac9117`.
+M2E's [current proof and matrix](dpdv-open-path.md#m2e-applicability-matrix)
+resolve ordinary workloop identity and unused-gate removal, with hash-bound
+frontier classifications. The provider's alternate user-server factory condition
+remains a specific ownership/work uncertainty. Both not-ready gates stay intact.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -61,8 +67,8 @@ but independent critical open/close proof gaps remain. The helper stays mock-onl
   pinned implementation comparisons, P1 mapping/capabilities, validation and limits.
 - [M2C isolated-open investigation](dpdv-isolation-safety.md): current close/death,
   ownership, pre-selector effects, mock watchdog tests and the separate open-only gate.
-- [M2D pre-selector proof](dpdv-open-path.md): creation/close graphs, sink controls,
-  local waits and experiment-specific applicability rather than a flat inherited matrix.
+- [M2E open-only proof](dpdv-open-path.md): ownership, zero-selector close, shared
+  workloop and unused-gate evidence, relevance receipts, and preserved M2D history.
 
 The user reports two physical monitors connected to one USB-C dock showing the
 same image. This is an input to investigate, not proof of the dock's transport,

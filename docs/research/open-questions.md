@@ -3,6 +3,21 @@
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
 MST on M5 remains `UNKNOWN`.
 
+## M2E Update
+
+The [M2E proof](dpdv-open-path.md) resolves the native gate's workloop origin and
+never-used removal semantics, and traces native registry/task relationships without
+confusing them with provider.open ownership. Whole generic graph completeness is
+not required. The specific alternate factory branch tests private
+provider reserved/uvars/userServer state before class-based DPDV construction.
+That state and delegated work are not established by the public class property.
+
+The single smallest next discriminator is proving that this user-server route is
+excluded, or cannot create ownership/external work for the selected provider.
+Other relevant callback obligations remain explicit; resolving one branch is not
+a promise of automatic readiness. No M2F backend/design for execution is added.
+NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK and NOT_READY_FOR_DPCD_TEST remain unchanged.
+
 ## M2D Update
 
 The [pre-selector proof](dpdv-open-path.md) separates passive local initialization

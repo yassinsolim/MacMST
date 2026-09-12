@@ -87,6 +87,15 @@ RELEVANT_TO_PROVIDER_OWNERSHIP and RELEVANT_TO_OPEN_HARDWARE_EFFECT, not harmles
 logging or an assumed failed authorization. Neither ownership nor non-ownership
 is claimed for an actual unexecuted fresh open.
 
+The wrapper's local-host predicate is also checked, not left as a speculative
+escape: it zeroes the message region, stores msgid at sp+100 and reference count
+at sp+116, leaving flags at sp+108 zero. The caller supplies x4=NULL; CBZ at
+`0xfffffe000bf709d0` takes the Invoke call at `0xfffffe000bf70a14`. Invoke loads
+flags from kernelContent+8 at `0xfffffe000c05e35c`, ORs the kernel bit 0x4, and
+tests original bit 1 at `0xfffffe000c05e368` (raw `480f0837`). That local-host bit
+is clear here. The unresolved discriminator is the provider user-server state,
+not a presumed local-host message or a generic choice of callback name.
+
 ## M2E Zero-Selector Close
 
 **ZERO_SELECTOR_PROVIDER_CLOSE_UNRESOLVED.** On the native non-owning route,
@@ -413,6 +422,57 @@ runAction roots are positive/identity controls. They must not be relabeled as
 paths executed by the new client. The collector still has 64-node/eight-level
 per-root and 512-body global limits; relevance annotation does not silently raise
 them or turn any incomplete syntactic graph into a complete absence proof.
+
+## M2E Validation
+
+Final validation on 2026-09-12 used the current M2E source and unchanged native
+probe/mock code. No dependency, compiler setting, security setting or production
+API was changed.
+
+| Required Check | Command / Result |
+| --- | --- |
+| Strict build | `cmake --build build`: PASS, no work required; strict warning/error configuration preserved. |
+| Unit and mock regression | `ctest --test-dir build -L unit --output-on-failure`: PASS, 8/8 entries including mock isolation and CLI/import guard. |
+| Public-only hardware | `ctest --test-dir build -L hardware --output-on-failure`: PASS, 1/1 existing public probe; no private open. |
+| Sanitizer build | `cmake --build build-sanitized`: PASS, existing ASan/UBSan configuration. |
+| Sanitizer unit/mock/import | `ctest --test-dir build-sanitized -L unit --output-on-failure`: PASS, 8/8. |
+| Static graph/parser | `python3 -m unittest discover -s tests -p 'test_iodp_static.py'`: PASS, 54 methods; also run by both CTest suites. |
+| Import audit | Existing CLIContractTests passed for production enumeration-only imports and mock absence of display/dynamic transport imports. No real DPDV backend. |
+| Documentation | PASS: links/anchors, paired fences, exact 20-row M2E matrix and counts, historical M2D body, unique E/S IDs, whitespace and editor diagnostics. |
+| Reproduction | Standalone recipe argument comparison and mismatched-UUID rejection passed with subprocess mocked; actual static replay also passed. |
+| Provenance | PASS: all G8 artifacts/core hashes/probe, selected kernel/graph bytes, retained source hashes, four tool hashes and scope receipt hash. |
+
+The unchanged mock covers 13 scenarios plus five repeated fresh helpers, invalid
+input/spawn failure, FD/environment/signal isolation and lost wait ownership.
+Each suite's 20 children include 19 explicit reaps and one deliberate auto-reaped
+ECHILD ownership failure; no owned zombies are accepted. Mock entry durations
+were 3.23 seconds strict and 4.08 seconds sanitized. These are observed test
+durations, not firmware cancellation or real driver cleanup bounds.
+
+The actual replay is artifacts/probes/iodp-static-20260912T141722Z, report SHA-256
+`33f17ba0e797b5af564d8c3f4a5152b8c84fceef0bb30191829fd813096713ac`.
+Its entire graph (including conditions/relevance), selected images, vtables,
+userspace static bindings and reference-source records equal R9. Timestamps and
+report hash naturally differ. The original capture was not modified.
+
+All 374 selected kernel block hashes and 447 graph body hashes/ranges were
+verified, covering 52,727 graph instructions. G8's 27 artifact hashes and ten
+core/capture source hashes match; the rebuilt probe still matches the captured
+`450832c50446d3a430cbed2bcab7c285cddf5f6b370b2339df2cd0a33aefd89a`.
+The running kernel UUID matches. All 28 retained source hashes and locally
+computed Git blob IDs verify (14 RPC-03, nine M2C, two M2D, three M2E). No
+independent GitHub blob comparison is claimed for the three new M2E files.
+
+| R9 Tool Source | SHA-256 |
+| --- | --- |
+| [inspect_iodp.py](../../tools/inspect_iodp.py) | `273f1259c3335bbe6b9a3efc2f461e9b4ea55d5d2cfef872fc2421691dae2f77` |
+| [kernel_image.py](../../tools/kernel_image.py) | `1599ce12f7dc1f86e2d3cfe16249044b80813af68d95107a0cdc2d20907fb7e8` |
+| [call_graph.py](../../tools/call_graph.py) | `f4ea453afd410eafb5b2ce07987988cf2c5db2f4d7e6c312852e7c93a9aa1abe` |
+| [dyld_cache.py](../../tools/dyld_cache.py) | `973a7e27492810291378018e75974050f5b5b35dd4bda7cc146e0697133e5fa7` |
+
+Production sources, CMake, public collector, mock helper and original RPC/ABI/
+authorization/public/M2C reports are unchanged from the M2E merge base. Testing
+and reproducible static decoding do not establish private-open hardware behavior.
 
 ## M2D Historical Report
 

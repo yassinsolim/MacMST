@@ -140,6 +140,14 @@ does not automatically import selector cancellation risks into open-only.
 The isolated-open result remains not ready; no private backend or transaction
 was added, and the DPCD gate is unchanged.
 
+M2D is integrated by merge `73e0caaaf079b2177d5207f2320c5fc61dac9117`.
+M2E on `research/dpdv-open-final-proof` identifies the ordinary shared workloop,
+proves local removal for a never-used native gate, and separates task ownership
+from provider-open ownership. The alternate user-server factory route remains
+unexcluded. The [current 20-gate matrix](docs/research/dpdv-open-path.md#m2e-applicability-matrix)
+therefore remains **NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK** for specific
+ownership/work/close uncertainties, not generic graph incompleteness.
+
 For a fresh clone, first build the probe and create your own public capture:
 
 ```sh
@@ -180,7 +188,7 @@ before comparing findings. No Apple binary is distributed by this project.
 - [DPDV authorization analysis](docs/research/dpdv-authorization.md)
 - [Public DisplayPort-native API and M5 enumeration](docs/research/public-dp-native.md)
 - [M2C isolation, teardown and open-only safety](docs/research/dpdv-isolation-safety.md)
-- [M2D pre-selector graph and gate applicability](docs/research/dpdv-open-path.md)
+- [M2E open-only proof and historical M2D findings](docs/research/dpdv-open-path.md)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
 
