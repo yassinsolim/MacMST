@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import json
 import pathlib
+import plistlib
 import re
 import subprocess
 import sys
@@ -32,6 +33,55 @@ CALLER_METHODS = frozenset({
     "-[PS190IODPDevice readRegisterAddress:buffer:length:]",
     "-[PS190IODPDevice dealloc]",
 })
+
+
+def parse_signing_evidence(metadata, entitlement_bytes):
+    if len(metadata) > 65536 or len(entitlement_bytes) > 1024 * 1024:
+        raise ValueError("Excessive code-signing metadata")
+    allowed = {"Identifier", "Format", "CodeDirectory", "Signature", "TeamIdentifier", "CDHash"}
+    identity = {}
+    for line in metadata.splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key in allowed:
+            if key in identity or not value or len(value) > 512:
+                raise ValueError("Ambiguous or invalid code-signing identity field")
+            identity[key] = value
+    if not {"Identifier", "Format", "Signature", "CDHash"} <= identity.keys():
+        raise ValueError("Missing code-signing identity fields")
+    if not re.fullmatch(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", identity["CDHash"]):
+        raise ValueError("Invalid code-directory hash")
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", identity["Identifier"]):
+        raise ValueError("Unsupported executable identifier")
+    entitlements = plistlib.loads(entitlement_bytes) if entitlement_bytes.strip() else {}
+    if not isinstance(entitlements, dict):
+        raise ValueError("Entitlements are not a property-list dictionary")
+    sandbox = entitlements.get("com.apple.security.app-sandbox")
+    if sandbox is not None and not isinstance(sandbox, bool):
+        raise ValueError("App Sandbox entitlement is not boolean")
+    return {"identity": identity, "entitlement_key_count": len(entitlements),
+            "entitlement_output_status": "PLIST_REPORTED" if entitlement_bytes.strip() else "NO_DATA_REPORTED",
+            "entitlement_output_sha256": hashlib.sha256(entitlement_bytes).hexdigest(),
+            "app_sandbox_entitlement": sandbox,
+            "authorization": "UNRESOLVED_NOT_TESTED",
+            "privacy": "Executable path, authority details and entitlement names/values omitted except App Sandbox boolean."}
+
+
+def collect_probe_signing(executable, repository):
+    executable = pathlib.Path(executable).resolve()
+    repository = pathlib.Path(repository).resolve()
+    if not executable.is_relative_to(repository) or not executable.is_file() or executable.stat().st_size > 16 * 1024 * 1024:
+        raise ValueError("Signing inspection requires a bounded local probe executable")
+    before = hashlib.sha256(executable.read_bytes()).hexdigest()
+    command = ["/usr/bin/codesign", "--display", "--verbose=4", "--entitlements", "-", str(executable)]
+    result = subprocess.run(command, capture_output=True, timeout=30, check=False)
+    if result.returncode:
+        raise RuntimeError("Code-signing display failed; no signing or authorization fallback")
+    evidence = parse_signing_evidence(result.stderr.decode("utf-8"), result.stdout)
+    if hashlib.sha256(executable.read_bytes()).hexdigest() != before:
+        raise ValueError("Probe executable changed during signing inspection")
+    return {**evidence, "probe_relative_path": str(executable.relative_to(repository)),
+            "probe_sha256": before, "command": command[:-1] + [str(executable.relative_to(repository))],
+            "exit_code": result.returncode}
 
 
 def reference_source_evidence(root):
@@ -266,6 +316,8 @@ def main():
                         help="Capture declared functions with a direct B/BL to this exact defined symbol; requires --server.")
     parser.add_argument("--reference-root", type=pathlib.Path,
                         help="Hash reference source files already downloaded under artifacts/sources; never execute them.")
+    parser.add_argument("--signing-probe", type=pathlib.Path,
+                        help="Statically record allowlisted codesign identity for a local probe executable; never run or sign it.")
     args = parser.parse_args()
     if (args.kernel_symbol or args.kernel_vtable or args.kernel_image or args.kernel_string or args.kernel_address or args.kernel_callers_of) and not args.server:
         parser.error("kernel selection options require --server")
@@ -273,6 +325,7 @@ def main():
         parser.error("requires macOS dyld_info")
     repository = pathlib.Path(__file__).resolve().parents[1]
     root = repository / "artifacts/probes"
+    signing_evidence = collect_probe_signing(args.signing_probe, repository) if args.signing_probe else None
     references = []
     if args.reference_root is not None:
         if not args.reference_root.resolve().is_relative_to((repository / "artifacts/sources").resolve()):
@@ -391,6 +444,7 @@ def main():
         "kernel_parser_source_sha256": hashlib.sha256(pathlib.Path(__file__).with_name("kernel_image.py").read_bytes()).hexdigest(),
         "cache_components": cache.components, "export_binding_evidence": export_evidence,
         "server_evidence": server_evidence,
+        "probe_signing_evidence": signing_evidence,
         "reference_root": str(args.reference_root.resolve().relative_to(repository)) if args.reference_root else None,
         "reference_sources": references,
         "llvm_library": str(decoder.path),

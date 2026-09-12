@@ -1,5 +1,6 @@
 import importlib.util
 import pathlib
+import plistlib
 import struct
 import sys
 import tempfile
@@ -18,6 +19,31 @@ SPEC.loader.exec_module(analysis)
 
 
 class StaticAnalysisParserTests(unittest.TestCase):
+    def test_signing_identity_omits_paths_and_entitlement_values(self):
+        metadata = "Identifier=macmst\nFormat=Mach-O thin (arm64)\nSignature=adhoc\nCDHash=" + "a" * 40
+        metadata += "\nExecutable=/private-machine-path/macmst\nAuthority=private authority\n"
+        raw = plistlib.dumps({"com.apple.security.app-sandbox": False, "private-entitlement": "secret fixture"})
+        evidence = analysis.parse_signing_evidence(metadata, raw)
+        self.assertEqual(evidence["identity"]["Identifier"], "macmst")
+        self.assertFalse(evidence["app_sandbox_entitlement"])
+        self.assertEqual(evidence["entitlement_key_count"], 2)
+        self.assertEqual(evidence["authorization"], "UNRESOLVED_NOT_TESTED")
+        for omitted in ("private-machine-path", "private authority", "private-entitlement", "secret fixture"):
+            self.assertNotIn(omitted, str(evidence))
+
+    def test_signing_identity_rejects_ambiguous_or_malformed_input(self):
+        metadata = "Identifier=macmst\nFormat=Mach-O thin (arm64)\nSignature=adhoc\nCDHash=" + "a" * 40
+        evidence = analysis.parse_signing_evidence(metadata, b"")
+        self.assertEqual(evidence["entitlement_output_status"], "NO_DATA_REPORTED")
+        self.assertIsNone(evidence["app_sandbox_entitlement"])
+        for text, raw in ((metadata + "\nIdentifier=other", b""), ("", b""),
+                          (metadata.replace("a" * 40, "a" * 41), b""),
+                          (metadata, plistlib.dumps([])),
+                          (metadata, plistlib.dumps({"com.apple.security.app-sandbox": "true"})),
+                          (metadata, b"x" * (1024 * 1024 + 1))):
+            with self.assertRaises(ValueError):
+                analysis.parse_signing_evidence(text, raw)
+
     def test_direct_call_references_preserve_calls_and_tail_branches(self):
         raw = bytes.fromhex("04000094 ffffff17 20000054")
         result = kernel_image.direct_call_references(raw, 0x1000, {0x1010, 0x1000})
