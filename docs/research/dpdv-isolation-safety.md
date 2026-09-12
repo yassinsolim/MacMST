@@ -1,5 +1,9 @@
 # M2C: DPDV Isolation, Teardown And Open Safety
 
+**Open-only result: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.** Mock isolation works
+within its stated process-observation scope; it does not establish safe teardown
+of a helper inside DPDV. The separate global gate remains NOT_READY_FOR_DPCD_TEST.
+
 ## Scope
 
 This branch is `research/dpdv-isolation-safety`, based on public-path merge
@@ -298,14 +302,22 @@ the unchanged public probe reports ad-hoc signing, CDHash
 `61e874c0d61a4f53533c791d72811e028ccac27a`, no TeamIdentifier and no entitlement data.
 That does not attest a future helper's policy. No signing/security change was made.
 
-## Mock Helper Design
+## Mock Helper Architecture
 
-The next implementation in this milestone will be a separate, test-only helper
-process and parent harness, not a thread and not a runnable DPDV backend. The
-production macmst probe will not acquire a private transport. Use posix_spawn
-with an exact executable path and fixed scenario arguments, no shell, reset
-signal mask/defaults, stdin from /dev/null, and separate stdout/stderr pipes.
-Close-on-exec isolation prevents unrelated parent descriptors being inherited.
+Implemented in commit `68d939b367542e3e52012832b2d978f9a218b17f`: the parent runner
+is [mock_helper.cpp](../../src/isolation/mock_helper.cpp), its protocol/result
+types are [mock_helper.hpp](../../src/isolation/mock_helper.hpp), the separate
+mock process is [tests/mock_helper.cpp](../../tests/mock_helper.cpp), and the
+parent harness is [isolation_tests.cpp](../../tests/isolation_tests.cpp).
+These targets exist only when testing is enabled. They are not linked into the
+production macmst executable, and no real open-check CLI/backend exists.
+
+The runner uses posix_spawn with an absolute mock executable path and a fixed
+scenario allowlist, never a shell. It resets signal masks/defaults, supplies only
+LC_ALL=C as environment, maps stdin from /dev/null, and captures separate stdout
+and stderr pipes. POSIX_SPAWN_CLOEXEC_DEFAULT and explicit file actions prevent
+unrelated parent descriptors being inherited. This is process separation, not
+a filesystem/network security sandbox or a restriction on a future helper's UID.
 
 The response protocol is a fixed 12-byte frame: four-byte ASCII magic M2CM,
 version byte 1, operation byte 1 (mock only), two zero reserved bytes, and a
@@ -321,12 +333,94 @@ operation follows. If reaping cannot be established, report a distinct fatal
 unreaped result, never call an unbounded waitpid, and never claim cancellation.
 The mock child's hang is a userspace pause, not an uninterruptible driver wait.
 
+The protocol allows 12 stdout bytes; diagnostic retention is capped at 64 stdout
+bytes and 1024 stderr bytes. Overflow, bad magic/version/operation/reserved bytes,
+missing response and abnormal exit remain failures. A valid frame is insufficient
+without clean exit and observed reaping. Completion observed after the deadline
+also fails closed. A separate failure trigger preserves why termination began.
+If waitpid reports ECHILD unexpectedly, the runner reports lost wait ownership
+without signaling a PID that might have been reused.
+
 The watchdog bounds **parent-side observation after spawn returns**, not every
 OS scheduling/system-call delay, kernel teardown, firmware execution or DCP
 cancellation. Tests must demonstrate every mock child is reaped, no parent FD
 leaks, one spawn per invocation, and fresh processes for repeated invocations.
-Success/failure, crashes/signals, hangs, malformed/oversized responses and early
-exit must all be checked before the separate open-only readiness assessment.
+The test harness intentionally executes independent failure scenarios; that is
+not an automatic retry of a failed operation. No child PID or mock status is
+evidence of an opened user client.
+
+## Mock Validation
+
+The full suite passed in strict and ASan/UBSan builds. Thirteen scenario cases
+each spawn one process, capture its output, verify the expected outcome and
+check parent descriptors and waitpid ownership afterward:
+
+| Scenario | Observed Parent Outcome |
+| --- | --- |
+| success | Success only after exact frame, mock raw status 0 and clean reaped exit. |
+| failure | OperationFailure; raw mock status 0xe00002bc preserved independently of clean process exit. |
+| crash | AbnormalExit, SIGABRT; child-only core dumps disabled. |
+| sigterm | AbnormalExit, SIGTERM. |
+| sigkill | AbnormalExit, SIGKILL. |
+| hang | Timeout, one SIGKILL attempt, observed reaping. |
+| malformed | ProtocolFailure, never successful operation. |
+| early-exit | ProtocolFailure despite clean exit status, because no frame arrived. |
+| oversized | OutputLimit, bounded retention and terminated/reaped child. |
+| cleanup-hang | Timeout despite a valid result already being received. |
+| closed-pipes | Timeout; EOF on communication does not mean the process exited. |
+| stderr-flood | OutputLimit; stderr cannot consume unbounded parent memory. |
+| success-bad-exit | AbnormalExit despite a valid successful frame. |
+
+The three timeout fixtures use a 1000 ms observation deadline and 1000 ms reaping
+grace. Focused runs completed those cases in about 1012-1014 ms normally and
+1037-1038 ms under sanitizers. These measured examples are not hard real-time
+scheduling guarantees. Non-timeout fixtures use 2000 ms to tolerate startup.
+
+Additional checks cover raw 32-bit status preservation with representative bit patterns, truncated/oversized frames,
+each header byte, five repeated fresh helpers, ENOENT spawn failure, rejected
+real/unknown operations and paths, invalid deadlines, a blocked parent SIGTERM
+mask, a deliberately inheritable FD/environment sentinel, and lost wait ownership
+with SIGCHLD ignored. Each suite creates 20 actual children: 19 are explicitly
+reaped by the runner; the deliberate auto-reap case returns ReapFailure/ECHILD,
+not false success. The final waitpid check finds no owned children or zombies.
+
+The ReapTimeout state exists for an unobserved exit after the grace deadline;
+it was not forced with a real uninterruptible kernel operation. No such test is
+authorized. It is a failure-reporting boundary, not a guaranteed way to dispose
+of a stuck DPDV process. Spawn itself and arbitrary kernel scheduling delays are
+outside the measured observation deadline.
+
+## Open-Check Readiness Matrix
+
+This is separate from the DPCD-read matrix. PASS applies only to the exact scope
+in its evidence column; passing mock-process checks does not waive real teardown
+requirements. The intended future open-only command would issue zero selectors,
+so the old DPCD read failures are not mechanically copied into this matrix.
+The independent open/close/process-death unknowns are sufficient to withhold it.
+
+| Gate | State | Evidence And Limit |
+| --- | --- | --- |
+| External target selection | PASS | G6 fresh active External DCPEXT0/Unit 0/support flags/HPD High; no fallback. |
+| User-client creation ABI | PASS | Existing exact CF/DPDV construction and current R6 bindings; not an invoked open. |
+| Explicit close lifecycle | UNKNOWN | Concrete close/terminate/stop/free route established, but finite completion and full release are not guaranteed by its return. |
+| Process-death lifecycle | UNKNOWN | Conditional no-senders/owner paths are reconstructed; final task/IPC progress under a blocked open is not bounded. |
+| Outstanding-call teardown | UNKNOWN | IPC deferral and shared workloop lifetimes remain; the future zero-selector operation must not rely on cancellation of pre-existing work. |
+| Callback quiescence | UNKNOWN | Neither close, task death nor command storage release proves all relevant callbacks have stopped. |
+| AFK ownership safety | UNKNOWN | Explicit storage/reference transitions known; exceptional endpoint/buffer/firmware lifetime remains unproved. |
+| Open has no dangerous link side effects | UNKNOWN | No explicit dangerous link operation found in concrete init/start; indirect/shared lifecycle effects were not proved harmless. |
+| Authorization failure path safe | UNKNOWN | Pre-allocation rejection is distinct from post-start policy failure, which relies on the unbounded cleanup path. |
+| Parent watchdog bounded | PASS | Tested bounded post-spawn observation, protocol limits and fatal timeout results in mock runner; not kernel cancellation or a bound on spawn. |
+| Helper process reaped | PASS | Mock suite verifies explicit reaping and auto-reap failure handling, no owned zombies; not proof for a DPDV-blocked helper. |
+| No private selector invoked | PASS | No real backend; production rejects the proposed command; mock imports contain no IOKit/CoreGraphics/dlopen/dlsym. |
+| No DPCD/write/MST action | PASS | Static evidence, public-only hardware check and mock-only faults; no request or link operation. |
+
+**Overall: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.** Six narrowly scoped gates
+pass and seven remain unknown. This is not a claim that an open necessarily
+changes the display or hangs; it is an unmet safety proof. No open-only hardware
+experiment was performed, and a parent watchdog does not change that decision.
+
+**Global DPCD gate: NOT_READY_FOR_DPCD_TEST.** Its original 13 gate states remain
+unchanged. Public route exposure remains unavailable on the recorded topology.
 
 ## Future Open-Only Command
 
@@ -342,3 +436,91 @@ clean helper exit; a result sent before cleanup is not success if cleanup hangs.
 No selector 0/1, read, write, MST, retry, Embedded/default/sibling fallback or
 link operation is part of that design. Even a favorable later readiness result
 would still require a separate explicit prompt before execution.
+
+## Reproduction
+
+The exact static addresses below apply only to the recorded kernel UUID. Check
+that identity before reusing this selection; an SDK/header name is not an image
+identity. G6 was produced with `python3 tools/capture_baseline.py --probe build/macmst`.
+For a new checkout, create a fresh public capture and use its directory. Download
+the nine S30 files at the pinned revision under artifacts/sources/m2c first; no
+upstream code is built or executed.
+
+R6's complete selection on the recorded build:
+
+```sh
+python3 tools/inspect_iodp.py \
+  --baseline artifacts/probes/20260912T114320Z --server --kernel-lifecycle \
+  --signing-probe build/macmst --reference-root artifacts/sources/m2c \
+  --kernel-vtable __ZTV26DCPDPDeviceProxyUserClient \
+  --kernel-vtable __ZTV14IOAVUserClient --kernel-vtable __ZTV12IOUserClient \
+  --kernel-vtable __ZTV10IOWorkLoop \
+  --kernel-symbol __ZN9IOService9terminateEj \
+  --kernel-symbol __ZN9IOService15terminatePhase1Ej \
+  --kernel-symbol __ZN9IOService15terminateWorkerEj \
+  --kernel-symbol __ZN9IOService6attachEPS_ --kernel-symbol __ZN9IOService6detachEPS_ \
+  --kernel-symbol __ZN9IOService4freeEv --kernel-symbol __ZN9IOService4stopEPS_ \
+  --kernel-symbol __ZN9IOService5startEPS_ --kernel-symbol __ZNK9IOService11getWorkLoopEv \
+  --kernel-address 0xfffffe000c031e4c --kernel-address 0xfffffe000c038688 \
+  --kernel-address 0xfffffe000b837b0c --kernel-address 0xfffffe000b83d090 \
+  --kernel-address 0xfffffe000b83dba0 --kernel-address 0xfffffe000b83eb44 \
+  --kernel-address 0xfffffe000b933290 --kernel-address 0xfffffe000c0308c8 \
+  --kernel-address 0xfffffe000c0303f4 --kernel-address 0xfffffe000c02f7f4 \
+  --kernel-address 0xfffffe000b8031ec --kernel-address 0xfffffe000b804e04 \
+  --kernel-address 0xfffffe000bf9a30c --kernel-address 0xfffffe000bfb120c \
+  --kernel-address 0xfffffe000a5cc3e4 \
+  --kernel-string 'destroying out of band connect for %s
+' --kernel-string 'ignored is_io_service_close(0x%qx,%s)
+' --kernel-string 'IOUC %s missing entitlement in process %s
+'
+```
+
+R7's additional ownership selection:
+
+```sh
+python3 tools/inspect_iodp.py \
+  --baseline artifacts/probes/20260912T114320Z --server --kernel-lifecycle \
+  --reference-root artifacts/sources/m2c \
+  --kernel-symbol __ZN17AFKEPCommandLocal7releaseEv \
+  --kernel-symbol __ZN18AFKEPCommandRemote7releaseEv \
+  --kernel-symbol __ZN18AFKEPCommandRemoteD1Ev \
+  --kernel-symbol __ZN18AFKEPCommandRemoteD0Ev \
+  --kernel-vtable __ZTV18AFKEPCommandRemote \
+  --kernel-callers-of __ZN17AFKEPCommandLocal7releaseEv \
+  --kernel-callers-of __ZN18AFKEPCommandRemote7releaseEv
+```
+
+## Verification And Provenance
+
+| Command / Check | Result |
+| --- | --- |
+| `cmake --build build` | PASS, strict warnings maintained. |
+| `ctest --test-dir build -L unit --output-on-failure` | PASS, 8/8 entries, including mock integration and import contracts. |
+| `ctest --test-dir build -L hardware --output-on-failure` | PASS, 1/1 public-only check of the rebuilt probe; no private test. |
+| `cmake --build build-sanitized` | PASS, existing ASan/UBSan configuration. |
+| `ctest --test-dir build-sanitized -L unit --output-on-failure` | PASS, 8/8 entries. Python checks use their ordinary interpreter. |
+| `python3 -m unittest discover -s tests -p 'test_iodp_static.py' -v` | PASS, 39 methods. |
+| `ctest --test-dir build -R '^(mock_helper_isolation|cli_contract)$' --output-on-failure -V` | PASS, full mock fault/ownership matrix and production/helper import audit. |
+| Same focused command with build-sanitized | PASS, all mock cases and import guards. |
+
+G6's captured public probe binary SHA-256 is
+`7aba2b482d60083e8aabb98ffb340b44d7b068f5f9ca7ef41e46e3b7145d49d3`.
+R6's signing observation belongs to **that** binary. A later full build recompiled
+the production targets and produced SHA-256
+`450832c50446d3a430cbed2bcab7c285cddf5f6b370b2339df2cd0a33aefd89a`.
+The changed hash was detected, not hidden. All original G6 source hashes match
+the integration base; production/capture source remains byte-identical. CMake
+changed only for mock targets/test wiring. The rebuilt probe passed the separate
+public hardware/import checks. No original capture was rewritten or its signing
+result reassigned to the rebuilt executable or a future helper.
+
+R4/R5/R6/R7 tool-source hashes match their recorded commits. The final check
+verified 59 artifact hashes across the relevant old/new captures and 23 pinned
+source SHA-256/Git-blob records (14 reused and nine new). Documented R6/R7
+selection arguments exactly match the saved metadata. Documentation links,
+anchors, fences, ledger E001-E098/S01-S32 and editor diagnostics also passed.
+Original E001-E086 claims and the primary RPC/ABI/public reports are unchanged.
+Build and mock success establish
+software behavior, not private authorization, hardware functionality or DCP
+cancellation. All generated captures, binaries and upstream source copies remain
+ignored and outside published commits.

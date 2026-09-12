@@ -67,6 +67,12 @@ cmake --build build-sanitized
 ctest --test-dir build-sanitized -L unit --output-on-failure
 ```
 
+The unit suite also includes a mock-only isolated helper, with crash/timeout,
+protocol, descriptor and reaping checks. Run it alone with
+`ctest --test-dir build -R '^mock_helper_isolation$' --output-on-failure`.
+It is not linked into production macmst and does not open any display interface.
+A watchdog result is not evidence of kernel/DCP cancellation.
+
 The [DPCD decoder](src/displayport/dpcd/capabilities.hpp) has no macOS dependency.
 It decodes synthetic or future acquired receiver bytes, not a fabricated AUX
 transport. On non-Apple hosts CMake builds the generic library/tests, not the
@@ -81,6 +87,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | DPDV selector-0 path | Reconstructed through the host-side read RPC. |
 | DCP RPC safety | Under investigation; critical gates remain unresolved. |
 | Public framebuffer/I2C route | Unavailable on the recorded active M5 external path; no type-4 advertisement observed. |
+| Isolated DPDV open-check | Mock process architecture tested; real open/teardown safety remains unproved. |
 | Native DPCD access | Not yet exercised. |
 | MST source capability | Unknown. |
 
@@ -111,8 +118,16 @@ The separate `research/public-dp-native` investigation reports
 public CG mapping returns null and independent registry queries find no
 IOFramebuffer/I2C interfaces. No count-call IOReturn or zero mask is fabricated
 when no target exists. See [the public-path evidence and limits](docs/research/public-dp-native.md).
-This branch does not change the private-path gates or claim absent native AUX/MST
-hardware, and has not been merged into main.
+That investigation was integrated into main by merge
+`dd439c80f7b1190f0e033dcf1a19242de2bd3039`, with both completed research branches
+retained. It does not change the private-path gates or claim absent AUX/MST hardware.
+
+M2C on `research/dpdv-isolation-safety` traces current user-client close/death,
+deferred finalization and AFK command release, and adds a test-only mock helper.
+Its [separate open-check matrix](docs/research/dpdv-isolation-safety.md#open-check-readiness-matrix)
+remains **NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK**. No private open or selector
+was invoked, and **NOT_READY_FOR_DPCD_TEST** is unchanged. The proposed
+`macmst experimental dpdv-open-check` command is not implemented.
 
 For a fresh clone, first build the probe and create your own public capture:
 
@@ -153,6 +168,7 @@ before comparing findings. No Apple binary is distributed by this project.
 - [RPC-03 request/reply, wait and cancellation contract](docs/research/dcp-dpcd-rpc-03.md)
 - [DPDV authorization analysis](docs/research/dpdv-authorization.md)
 - [Public DisplayPort-native API and M5 enumeration](docs/research/public-dp-native.md)
+- [M2C isolation, teardown and open-only safety](docs/research/dpdv-isolation-safety.md)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
 

@@ -3,6 +3,21 @@
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
 MST on M5 remains `UNKNOWN`.
 
+## M2C Update
+
+The [public-path investigation](public-dp-native.md) found no exposed
+IOFramebuffer/I2C route on the tested M5 topology and is now integrated.
+[M2C](dpdv-isolation-safety.md) reconstructs conditional user-client close/death
+and deferred finalization, traces AFK storage release, and tests a separate mock
+helper. It does not prove real open/teardown completion or callback quiescence:
+**NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK**.
+
+The next work is stronger evidence for shared workloop progress, post-construction
+authorization-failure cleanup and process-death lifetimes, not a private open or
+read. A mock watchdog bounds parent observation only. Every original DPCD gate
+remains unchanged and **NOT_READY_FOR_DPCD_TEST** still applies. No future
+hardware experiment is authorized by this milestone.
+
 ## Milestone 2A Update
 
 The historical question table below describes the Milestone 1 baseline. A

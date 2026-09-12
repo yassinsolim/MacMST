@@ -30,6 +30,11 @@ an active external display but a null public CG service and no published
 IOFramebuffer/I2C interface, including the alternate registry search:
 **PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE**. It makes no public or private
 transaction, and every private RPC-safety gate remains unchanged.
+The public milestone is now integrated into main by merge
+`dd439c80f7b1190f0e033dcf1a19242de2bd3039`; both completed branches and the baseline
+tag remain. M2C on `research/dpdv-isolation-safety` adds G6/R6/R7 lifecycle and
+AFK release evidence plus mock-only process tests. Its separate result is
+**NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK**; the DPCD-read gate is unchanged.
 
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
@@ -48,6 +53,8 @@ transaction, and every private RPC-safety gate remains unchanged.
   gates, on-disk probe identity and the unresolved actual-access classification.
 - [Public DP-native investigation](public-dp-native.md): installed SDK ABI,
   pinned implementation comparisons, P1 mapping/capabilities, validation and limits.
+- [M2C isolated-open investigation](dpdv-isolation-safety.md): current close/death,
+  ownership, pre-selector effects, mock watchdog tests and the separate open-only gate.
 
 The user reports two physical monitors connected to one USB-C dock showing the
 same image. This is an input to investigate, not proof of the dock's transport,
