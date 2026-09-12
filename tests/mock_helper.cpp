@@ -38,7 +38,8 @@ int main(int argc, char** argv) {
         return 64;
     }
     const std::string_view scenario(argv[1]);
-    if (std::find(mock_scenarios.begin(), mock_scenarios.end(), scenario) == mock_scenarios.end()) {
+    if (std::find(mock_scenarios.begin(), mock_scenarios.end(), scenario) == mock_scenarios.end() &&
+        std::find(dpdv_mock_scenarios.begin(), dpdv_mock_scenarios.end(), scenario) == dpdv_mock_scenarios.end()) {
         return 64;
     }
     const rlimit no_core {0, 0};
@@ -57,6 +58,40 @@ int main(int argc, char** argv) {
     constexpr std::array<std::uint8_t, 11> ready {'m', 'o', 'c', 'k', '-', 'r', 'e', 'a', 'd', 'y', '\n'};
     if (!write_all(STDERR_FILENO, ready)) {
         return 74;
+    }
+    if (scenario.starts_with("dpdv-")) {
+        DpdvFrame frame;
+        frame.reason = DpdvReason::None;
+        frame.device_id = scenario == "dpdv-id-mismatch" ? 999 : 100;
+        frame.service_id = 200;
+        frame.transport_id = 300;
+        frame.phase = scenario == "dpdv-dry-run" ? DpdvPhase::DryRunReady : DpdvPhase::OpenAttempted;
+        frame.flags = scenario == "dpdv-dry-run" ? 0 : 1;
+        if (!write_all(STDOUT_FILENO, dpdv_response(frame))) {
+            return 74;
+        }
+        if (scenario == "dpdv-dry-run") {
+            return 0;
+        }
+        if (scenario == "dpdv-hang") {
+            hang();
+        }
+        frame.phase = scenario == "dpdv-denied" ? DpdvPhase::OpenFailed :
+            scenario == "dpdv-close-failed" ? DpdvPhase::CloseFailed : DpdvPhase::CloseSucceeded;
+        frame.flags = scenario == "dpdv-denied" ? 3 : 63;
+        frame.open_return = scenario == "dpdv-denied" ? 0xe00002c1U : 0;
+        frame.close_return = scenario == "dpdv-close-failed" ? 0xe00002bcU : 0;
+        auto response = dpdv_response(frame);
+        if (scenario == "dpdv-malformed") {
+            response[0] = 'X';
+        }
+        if (!write_all(STDOUT_FILENO, response)) {
+            return 74;
+        }
+        if (scenario == "dpdv-cleanup-hang") {
+            hang();
+        }
+        return 0;
     }
     if (scenario == "crash" || scenario == "sigterm" || scenario == "sigkill") {
         const int signal_number = scenario == "crash" ? SIGABRT : scenario == "sigterm" ? SIGTERM : SIGKILL;

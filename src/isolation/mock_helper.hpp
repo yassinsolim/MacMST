@@ -1,5 +1,7 @@
 #pragma once
 
+#include "isolation/dpdv_protocol.hpp"
+
 #include <array>
 #include <chrono>
 #include <cstddef>
@@ -16,6 +18,10 @@ inline constexpr std::array<std::uint8_t, 8> mock_header {'M', '2', 'C', 'M', 1,
 inline constexpr std::array<std::string_view, 13> mock_scenarios {
     "success", "failure", "crash", "sigterm", "sigkill", "hang", "malformed",
     "early-exit", "oversized", "cleanup-hang", "closed-pipes", "stderr-flood", "success-bad-exit"
+};
+inline constexpr std::array<std::string_view, 8> dpdv_mock_scenarios {
+    "dpdv-dry-run", "dpdv-success", "dpdv-denied", "dpdv-close-failed",
+    "dpdv-hang", "dpdv-cleanup-hang", "dpdv-malformed", "dpdv-id-mismatch"
 };
 
 inline std::array<std::uint8_t, mock_frame_size> mock_response(std::uint32_t status) {
@@ -70,8 +76,9 @@ struct MockResult {
     int termination_error = 0;
     std::optional<int> wait_status;
     std::optional<std::uint32_t> mock_ior_return;
+    std::optional<DpdvFrame> dpdv_reply;
     std::chrono::milliseconds elapsed {0};
-    std::array<std::uint8_t, 64> stdout_bytes {};
+    std::array<std::uint8_t, 128> stdout_bytes {};
     std::array<std::uint8_t, 1024> stderr_bytes {};
     std::size_t stdout_size = 0;
     std::size_t stderr_size = 0;
@@ -80,6 +87,10 @@ struct MockResult {
 };
 
 MockResult run_mock_helper(const char* executable, std::string_view scenario,
+    std::chrono::milliseconds deadline, std::chrono::milliseconds reap_grace);
+
+MockResult run_dpdv_helper(const char* executable, bool no_open,
+    std::uint64_t device_id, std::uint64_t service_id, std::uint64_t transport_id,
     std::chrono::milliseconds deadline, std::chrono::milliseconds reap_grace);
 
 }
