@@ -21,6 +21,13 @@ REGISTRY_CLASSES = (
     "IOMobileFramebufferShim",
     "IOFramebuffer",
     "IOI2CInterface",
+    "IOFramebufferI2CInterface",
+    "IOMobileFramebuffer",
+    "AppleCLCD",
+    "AppleCLCD2",
+    "IODisplay",
+    "IODisplayConnect",
+    "IODisplayPort",
     "IOPortTransportStateDisplayPort",
     "IOUSBHostDevice",
     "IOAVService",
@@ -41,6 +48,7 @@ REGISTRY_FIELDS = frozenset({
     "bDeviceSubClass", "bDeviceProtocol", "USB Product Name", "USB Vendor Name",
     "locationID", "USBSpeed", "PortNum", "DisplayVendorID", "DisplayProductID",
     "IOI2CTransactionTypes", "IOI2CBusType", "IOI2CBusID",
+    "IOI2CInterfaceID", "IOI2CSupportedCommFlags",
 })
 PROFILER_FIELDS = frozenset({
     "chip_type", "machine_model", "machine_name", "number_processors",
@@ -57,7 +65,7 @@ PROFILER_FIELDS = frozenset({
     "switch_type_key", "supported_link_widths_key", "link_width_key",
 })
 SENSITIVE_KEY = re.compile(r"serial|uuid|udid|address|token|password|secret|computer_name", re.I)
-DISPLAY_NODE = re.compile(r"DCP|DCPEXT|DPTX|AppleCLCD|IOMobileFramebuffer|IOAVService|IOPortTransportStateDisplayPort", re.I)
+DISPLAY_NODE = re.compile(r"DCP|DCPEXT|DPTX|AppleCLCD|IOMobileFramebuffer|IOAVService|IOPortTransportStateDisplayPort|IOFramebuffer|IOI2CInterface|IODisplay", re.I)
 
 
 def utc_now():
@@ -117,10 +125,14 @@ def inspect_sdk_surface(sdk_path):
     framework = sdk_path / "System/Library/Frameworks/IOKit.framework/Versions/A"
     stub = framework / "IOKit.tbd"
     header = framework / "Headers/i2c/IOI2CInterface.h"
+    cg_header = sdk_path / "System/Library/Frameworks/CoreGraphics.framework/Headers/CGDisplayConfiguration.h"
     evidence = {
         "sdk_path": str(sdk_path),
         "iokit_stub_sha256": hashlib.sha256(stub.read_bytes()).hexdigest(),
+        "ioi2c_header_path": str(header),
         "ioi2c_header_sha256": hashlib.sha256(header.read_bytes()).hexdigest(),
+        "cg_display_configuration_header_path": str(cg_header),
+        "cg_display_configuration_header_sha256": hashlib.sha256(cg_header.read_bytes()).hexdigest(),
         "symbol_name_matches": extract_display_symbol_names(stub.read_text()),
         "interpretation": "Textual symbol-name matches, not ABI declarations or proof of hardware capability.",
         "driver_metadata": [],

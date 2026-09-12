@@ -40,6 +40,11 @@ bus type 1 and DisplayPort bus type 2. Bus type is distinct from transaction typ
 The header is not self-contained: include CoreFoundation before it to declare
 `CFTypeRef` used by `IOI2CCopyInterfaceForID`. The initial compile-only check
 without that prerequisite failed; it did not involve any hardware operation.
+For C++/Objective-C++, wrap this header include in `extern "C"`: the installed
+header also lacks C++ linkage guards. A later strict link check exposed mangled
+count/copy symbols until that guard was added. Compile-only layout checks alone
+do not verify linkage. The probe uses the installed declarations, not redeclared
+prototypes, with this narrow language-linkage guard.
 The current installed declarations, not guessed function pointers, are:
 
 ```c

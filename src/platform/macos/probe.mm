@@ -5,6 +5,9 @@
 
 #include <CoreGraphics/CoreGraphics.h>
 #include <IOKit/IOKitLib.h>
+extern "C" {
+#include <IOKit/i2c/IOI2CInterface.h>
+}
 #include <dlfcn.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
@@ -12,12 +15,22 @@
 #include <array>
 #include <cerrno>
 #include <cmath>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace macmst::macos {
+
+namespace {
+bool unsigned_integer(id value, unsigned long long maximum) {
+    return [value isKindOfClass:[NSNumber class]] &&
+        CFGetTypeID((__bridge CFTypeRef)value) == CFNumberGetTypeID() &&
+        !CFNumberIsFloatType((__bridge CFNumberRef)value) &&
+        [value compare:@0] != NSOrderedAscending && [value unsignedLongLongValue] <= maximum;
+}
+}
 
 NSDictionary* select_registry_properties(NSDictionary* properties) {
     NSArray* allowed = @[
@@ -34,7 +47,8 @@ NSDictionary* select_registry_properties(NSDictionary* properties) {
         @"Tunneled", @"idVendor", @"idProduct", @"bcdUSB", @"bDeviceClass",
         @"bDeviceSubClass", @"bDeviceProtocol", @"USB Product Name", @"USB Vendor Name",
         @"locationID", @"USBSpeed", @"PortNum", @"DisplayVendorID", @"DisplayProductID",
-        @"IOI2CTransactionTypes", @"IOI2CBusType", @"IOI2CBusID"
+        @"IOI2CTransactionTypes", @"IOI2CBusType", @"IOI2CBusID",
+        @"IOI2CInterfaceID", @"IOI2CSupportedCommFlags"
     ];
     NSMutableDictionary* selected = [NSMutableDictionary dictionary];
     for (NSString* key in allowed) {
@@ -44,6 +58,27 @@ NSDictionary* select_registry_properties(NSDictionary* properties) {
         }
     }
     return selected;
+}
+
+NSDictionary* public_i2c_capabilities(id transaction_types) {
+    const bool valid = unsigned_integer(transaction_types, std::numeric_limits<unsigned long long>::max());
+    const auto mask = valid ? [transaction_types unsignedLongLongValue] : 0ULL;
+    NSMutableDictionary* result = [@{
+        @"property_state": valid ? @"VALID" : transaction_types == nil ? @"ABSENT" : @"INVALID",
+        @"transaction_types_raw": valid ? transaction_types : [NSNull null],
+        @"transaction_types_hex": valid ? [NSString stringWithFormat:@"0x%016llx", mask] : [NSNull null],
+        @"unknown_transaction_bits_hex": valid ? [NSString stringWithFormat:@"0x%016llx", mask & ~0x1fULL] : [NSNull null],
+        @"dp_native": valid ? ((mask & (1ULL << kIOI2CDisplayPortNativeTransactionType)) != 0 ?
+                               @"ADVERTISED" : @"NOT_ADVERTISED") : @"UNKNOWN"
+    } mutableCopy];
+    NSDictionary* types = @{@"none": @(kIOI2CNoTransactionType), @"simple": @(kIOI2CSimpleTransactionType),
+                           @"ddc_ci_reply": @(kIOI2CDDCciReplyTransactionType),
+                           @"combined": @(kIOI2CCombinedTransactionType),
+                           @"displayport_native": @(kIOI2CDisplayPortNativeTransactionType)};
+    for (NSString* name in types) {
+        result[name] = valid ? @((mask & (1ULL << [types[name] unsignedIntValue])) != 0) : [NSNull null];
+    }
+    return result;
 }
 
 namespace {
@@ -209,6 +244,8 @@ NSDictionary* collect_registry(NSMutableArray* errors) {
                          @"DCPDPControllerProxy", @"DCPDPDeviceProxy", @"DCPDPServiceProxy",
                          @"AppleDCPDPTXRemotePortProxy", @"AppleDCPDPTXRemotePortUFP",
                          @"IOMobileFramebufferShim", @"IOFramebuffer", @"IOI2CInterface",
+                         @"IOFramebufferI2CInterface", @"IOMobileFramebuffer", @"AppleCLCD", @"AppleCLCD2",
+                         @"IODisplay", @"IODisplayConnect", @"IODisplayPort",
                          @"IOPortTransportStateDisplayPort", @"IOUSBHostDevice", @"IOAVService"];
     NSMutableDictionary* inventory = [NSMutableDictionary dictionary];
     for (NSString* requested_class in classes) {
@@ -263,6 +300,120 @@ NSDictionary* collect_registry(NSMutableArray* errors) {
         }
     }
     return inventory;
+}
+
+NSDictionary* public_entry(io_registry_entry_t entry, NSMutableArray* errors) {
+    const bool redact = IOObjectConformsTo(entry, "IOUSBHostDevice");
+    NSMutableDictionary* result = [related_entry_identity(entry, redact, errors) mutableCopy];
+    io_string_t registry_path {};
+    const auto path_status = IORegistryEntryGetPath(entry, kIOServicePlane, registry_path);
+    CFMutableDictionaryRef properties_raw = nullptr;
+    const auto property_status = IORegistryEntryCreateCFProperties(entry, &properties_raw, kCFAllocatorDefault, 0);
+    NSDictionary* properties = CFBridgingRelease(properties_raw);
+    result[@"path"] = redact ? @"[USB registry path omitted]" : readable_string(registry_path);
+    result[@"path_status_code_raw"] = @(path_status);
+    result[@"property_status_code_raw"] = @(property_status);
+    result[@"properties"] = select_registry_properties(properties);
+    result[@"relationships"] = entry_relationships(entry, redact, errors);
+    id identifiers = properties[@kIOFBI2CInterfaceIDsKey];
+    result[@"i2c_interface_ids_state"] = identifiers == nil ? @"ABSENT" :
+        [identifiers isKindOfClass:[NSArray class]] ? @"ARRAY" : @"INVALID";
+    result[@"i2c_interface_ids_count"] = [identifiers isKindOfClass:[NSArray class]] ?
+        @([identifiers count]) : [NSNull null];
+    if (path_status != KERN_SUCCESS) {
+        add_error(errors, @"IORegistryEntryGetPath:public-interface", path_status);
+    }
+    if (property_status != KERN_SUCCESS) {
+        add_error(errors, @"IORegistryEntryCreateCFProperties:public-interface", property_status);
+    }
+    return result;
+}
+
+NSDictionary* collect_public_framebuffer(std::uint32_t identifier, NSMutableArray* errors) {
+    NSMutableArray* buses = [NSMutableArray array];
+    NSMutableDictionary* result = [@{
+        @"mapping_api": @"CGDisplayIOServicePort", @"mapping_api_status": @"PUBLIC_DEPRECATED",
+        @"mapping_completed": @NO, @"cg_service_port_raw": [NSNull null], @"service": [NSNull null],
+        @"service_retain_status_code_raw": [NSNull null], @"framebuffer_conforms": @NO,
+        @"count_attempted": @NO, @"count_status_code_raw": [NSNull null], @"count_status_hex": [NSNull null],
+        @"bus_count_raw": [NSNull null], @"buses": buses, @"stop_reason": @"NO_MAPPED_SERVICE"
+    } mutableCopy];
+    const auto finish = [&]() -> NSDictionary* {
+        result[@"target_still_active_external"] = @(CGDisplayIsBuiltin(identifier) == 0 && CGDisplayIsActive(identifier) != 0);
+        return result;
+    };
+    if (CGDisplayIsBuiltin(identifier) != 0 || CGDisplayIsActive(identifier) == 0) {
+        result[@"stop_reason"] = @"DISPLAY_CHANGED_BEFORE_MAPPING";
+        return finish();
+    }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    const io_service_t borrowed = CGDisplayIOServicePort(identifier);
+#pragma clang diagnostic pop
+    result[@"mapping_completed"] = @YES;
+    result[@"cg_service_port_raw"] = @(borrowed);
+    if (borrowed == IO_OBJECT_NULL) {
+        return finish();
+    }
+    const auto retain_status = IOObjectRetain(borrowed);
+    result[@"service_retain_status_code_raw"] = @(retain_status);
+    IoObject service(retain_status == KERN_SUCCESS ? borrowed : IO_OBJECT_NULL);
+    if (retain_status != KERN_SUCCESS) {
+        result[@"mapping_completed"] = @NO;
+        result[@"stop_reason"] = @"SERVICE_RETAIN_FAILED";
+        add_error(errors, @"IOObjectRetain:CGDisplayIOServicePort", retain_status);
+        return finish();
+    }
+    NSDictionary* description = public_entry(service.get(), errors);
+    result[@"service"] = description;
+    const bool framebuffer = IOObjectConformsTo(service.get(), "IOFramebuffer");
+    result[@"framebuffer_conforms"] = @(framebuffer);
+    if (!framebuffer) {
+        result[@"stop_reason"] = @"MAPPED_SERVICE_IS_NOT_IOFRAMEBUFFER";
+        return finish();
+    }
+    if (![description[@"property_status_code_raw"] isEqual:@0] ||
+        [description[@"i2c_interface_ids_state"] isEqual:@"INVALID"]) {
+        result[@"stop_reason"] = @"UNREADABLE_OR_INVALID_INTERFACE_IDS_PROPERTY";
+        return finish();
+    }
+    IOItemCount count = 0;
+    const auto count_status = IOFBGetI2CInterfaceCount(service.get(), &count);
+    result[@"count_attempted"] = @YES;
+    result[@"count_status_code_raw"] = @(count_status);
+    result[@"count_status_hex"] = [NSString stringWithFormat:@"0x%08x", static_cast<unsigned int>(count_status)];
+    result[@"bus_count_raw"] = @(count);
+    if (count_status != KERN_SUCCESS) {
+        result[@"stop_reason"] = @"INTERFACE_COUNT_FAILED";
+        return finish();
+    }
+    if (count > static_cast<IOItemCount>(kIOI2CBusNumberMask) + 1U) {
+        result[@"stop_reason"] = @"COUNT_EXCEEDS_PUBLIC_BUS_INDEX_RANGE";
+        add_error(errors, @"IOFBGetI2CInterfaceCount:bus-index-range", EOVERFLOW);
+        return finish();
+    }
+    result[@"stop_reason"] = count == 0 ? @"NO_BUSES" : @"ENUMERATION_COMPLETE";
+    for (IOOptionBits index = 0; index < count; ++index) {
+        if (CGDisplayIsBuiltin(identifier) != 0 || CGDisplayIsActive(identifier) == 0) {
+            result[@"stop_reason"] = @"DISPLAY_CHANGED_DURING_ENUMERATION";
+            return finish();
+        }
+        io_service_t interface_raw = IO_OBJECT_NULL;
+        const auto copy_status = IOFBCopyI2CInterfaceForBus(service.get(), index, &interface_raw);
+        IoObject interface(interface_raw);
+        const bool valid = copy_status == KERN_SUCCESS && interface.get() != IO_OBJECT_NULL;
+        NSDictionary* interface_info = valid ? public_entry(interface.get(), errors) : nil;
+        const bool conforms = valid && IOObjectConformsTo(interface.get(), kIOI2CInterfaceClassName);
+        id mask = [interface_info[@"property_status_code_raw"] isEqual:@0] ?
+            interface_info[@"properties"][@kIOI2CTransactionTypesKey] : nil;
+        [buses addObject:@{
+            @"index_raw": @(index), @"copy_status_code_raw": @(copy_status),
+            @"copy_status_hex": [NSString stringWithFormat:@"0x%08x", static_cast<unsigned int>(copy_status)],
+            @"interface_conforms": @(conforms), @"interface": valid ? interface_info : [NSNull null],
+            @"capabilities": public_i2c_capabilities(mask)
+        }];
+    }
+    return finish();
 }
 
 NSDictionary* inspect_symbols() {
@@ -398,7 +549,8 @@ std::string render_text(NSDictionary* report) {
         for (NSString* class_name in @[@"DCPAVServiceProxy", @"AppleDCPDPTXRemotePortProxy",
                                        @"DCPDPControllerProxy", @"DCPDPDeviceProxy", @"DCPDPServiceProxy",
                         @"AppleDCPDPTXRemotePortUFP", @"IOFramebuffer",
-                        @"IOI2CInterface", @"IOAVService"]) {
+                        @"IOI2CInterface", @"IOFramebufferI2CInterface", @"IOMobileFramebufferShim",
+                        @"AppleCLCD", @"AppleCLCD2", @"IODisplayConnect", @"IODisplayPort", @"IOAVService"]) {
          output << "  " << text_value(class_name) << " registry instances: " << query_count(registry, class_name) << '\n';
         }
          output << "\nExternal DisplayPort Candidates\n";
@@ -413,6 +565,34 @@ std::string render_text(NSDictionary* report) {
                  << "    Activity: " << text_value(candidate[@"activity_assessment"]) << '\n'
                  << "    Dock association: requires controlled capture comparison\n";
          }
+         NSDictionary* public_dp = report[@"public_displayport_interface"];
+         id enumeration_value = public_dp[@"enumeration"];
+         NSDictionary* enumeration = [enumeration_value isKindOfClass:[NSDictionary class]] ? enumeration_value : @{};
+         output << "\nPublic DisplayPort Interface\n"
+             << "  External display: " << text_value(public_dp[@"external_display_id_raw"]) << '\n'
+             << "  Selection: " << text_value(public_dp[@"selection_status"]) << '\n'
+             << "  IOFramebuffer target: " << text_value(public_dp[@"framebuffer_target"]) << '\n'
+             << "  CoreGraphics service port (raw): " << text_value(enumeration[@"cg_service_port_raw"]) << '\n'
+             << "  IOFB I2C enumeration: " << text_value(public_dp[@"i2c_enumeration"]) << '\n'
+             << "  Count IOReturn (raw): " << text_value(enumeration[@"count_status_code_raw"])
+             << "; " << text_value(enumeration[@"count_status_hex"]) << '\n'
+             << "  Bus count: " << text_value(public_dp[@"bus_count"]) << '\n'
+             << "  DP-native transaction type: " << text_value(public_dp[@"dp_native"]) << '\n';
+         const auto advertised = [](id value) {
+             return [value isEqual:@YES] ? "yes" : [value isEqual:@NO] ? "no" : "UNKNOWN";
+         };
+         for (NSDictionary* bus in enumeration[@"buses"]) {
+             NSDictionary* capabilities = bus[@"capabilities"];
+             output << "  Bus " << text_value(bus[@"index_raw"]) << ": copy IOReturn "
+                 << text_value(bus[@"copy_status_code_raw"]) << "; " << text_value(bus[@"copy_status_hex"]) << '\n'
+                 << "    Transaction mask: " << text_value(capabilities[@"transaction_types_hex"]) << '\n'
+                 << "    Simple: " << advertised(capabilities[@"simple"])
+                 << "; Combined: " << advertised(capabilities[@"combined"])
+                 << "; DDC/CI reply: " << advertised(capabilities[@"ddc_ci_reply"])
+                 << "; DisplayPort native: " << advertised(capabilities[@"displayport_native"]) << '\n';
+         }
+         output << "  Public path result: " << text_value(public_dp[@"result"])
+             << "\n  DPCD access: UNKNOWN\n  Interface opens: none; requests: none\n";
          output << "\nPrivate API Availability\n";
          for (NSString* symbol in @[@"IODPDeviceCreate", @"IODPDeviceCreateWithService",
                         @"IODPDeviceReadDPCD", @"IODPDeviceWriteDPCD"]) {
@@ -489,6 +669,108 @@ NSArray* external_dp_candidates(NSDictionary* registry, NSUInteger external_disp
     return candidates;
 }
 
+NSDictionary* public_displayport_interfaces(NSArray* displays, NSDictionary* registry,
+    bool observation_complete, const std::function<NSDictionary*(std::uint32_t)>& enumerate) {
+    NSMutableDictionary* report = [@{
+        @"scope": @"PUBLIC_ENUMERATION_ONLY", @"selection_status": @"INCOMPLETE_OBSERVATION",
+        @"active_external_display_count": [NSNull null], @"external_display_id_raw": [NSNull null],
+        @"framebuffer_target": @"UNKNOWN", @"i2c_enumeration": @"UNKNOWN", @"bus_count": [NSNull null],
+        @"dp_native": @"UNKNOWN", @"result": @"PUBLIC_PATH_UNRESOLVED", @"dpcd_access": @"UNKNOWN",
+        @"enumeration": [NSNull null], @"interface_open_attempted": @NO, @"request_attempted": @NO
+    } mutableCopy];
+    if (!observation_complete) {
+        return report;
+    }
+    NSMutableArray* external = [NSMutableArray array];
+    for (NSDictionary* display in displays) {
+        if ([display[@"built_in"] isEqual:@NO] && [display[@"active"] isEqual:@YES]) {
+            [external addObject:display];
+        }
+    }
+    report[@"active_external_display_count"] = @(external.count);
+    if (external.count != 1) {
+        report[@"selection_status"] = external.count == 0 ? @"NO_ACTIVE_EXTERNAL_DISPLAY" :
+                                                           @"AMBIGUOUS_ACTIVE_EXTERNAL_DISPLAYS";
+        return report;
+    }
+    id identifier = external[0][@"display_id_raw"];
+    if (!unsigned_integer(identifier, std::numeric_limits<std::uint32_t>::max()) ||
+        [identifier unsignedIntValue] == kCGNullDirectDisplay) {
+        report[@"selection_status"] = @"INVALID_DISPLAY_ID";
+        return report;
+    }
+    report[@"selection_status"] = @"SELECTED_ACTIVE_EXTERNAL";
+    report[@"external_display_id_raw"] = identifier;
+    NSDictionary* observation = enumerate([identifier unsignedIntValue]);
+    if (observation == nil) {
+        return report;
+    }
+    report[@"enumeration"] = observation;
+    if (![observation[@"target_still_active_external"] isEqual:@YES]) {
+        report[@"selection_status"] = @"DISPLAY_CHANGED_DURING_ENUMERATION";
+        return report;
+    }
+    const bool framebuffer = [observation[@"framebuffer_conforms"] isEqual:@YES];
+    report[@"framebuffer_target"] = framebuffer ? @"PRESENT" : @"ABSENT";
+    if (!framebuffer) {
+        report[@"i2c_enumeration"] = @"NOT_CALLED_NO_FRAMEBUFFER";
+        bool no_public_services = true;
+        for (NSString* name in @[@"IOFramebuffer", @"IOI2CInterface"]) {
+            NSDictionary* query = registry[name];
+            no_public_services &= [query[@"query_status_code_raw"] isEqual:@0] &&
+                [query[@"entries"] isKindOfClass:[NSArray class]] && [query[@"entries"] count] == 0;
+        }
+        if (no_public_services && [observation[@"mapping_completed"] isEqual:@YES]) {
+            report[@"result"] = @"PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE";
+        }
+        return report;
+    }
+    if (![observation[@"count_attempted"] isEqual:@YES]) {
+        return report;
+    }
+    if (![observation[@"count_status_code_raw"] isEqual:@0]) {
+        report[@"i2c_enumeration"] = @"ERROR";
+        if ([observation[@"count_status_code_raw"] isEqual:@(kIOReturnUnsupported)]) {
+            report[@"i2c_enumeration"] = @"UNSUPPORTED";
+            report[@"result"] = @"PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE";
+        }
+        return report;
+    }
+    id count = observation[@"bus_count_raw"];
+    if (!unsigned_integer(count, static_cast<unsigned long long>(kIOI2CBusNumberMask) + 1ULL)) {
+        return report;
+    }
+    report[@"bus_count"] = count;
+    if ([count unsignedIntegerValue] == 0) {
+        report[@"i2c_enumeration"] = @"NO_BUSES";
+        report[@"result"] = @"PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE";
+        return report;
+    }
+    report[@"i2c_enumeration"] = @"SUPPORTED";
+    NSArray* buses = observation[@"buses"];
+    if (![buses isKindOfClass:[NSArray class]] || buses.count != [count unsignedIntegerValue]) {
+        return report;
+    }
+    bool all_known = true;
+    bool native_advertised = false;
+    for (NSUInteger index = 0; index < buses.count; ++index) {
+        NSDictionary* bus = buses[index];
+        const bool valid = [bus[@"index_raw"] isEqual:@(index)] &&
+            [bus[@"copy_status_code_raw"] isEqual:@0] && [bus[@"interface_conforms"] isEqual:@YES];
+        NSString* native = bus[@"capabilities"][@"dp_native"];
+        all_known &= valid && ([native isEqual:@"ADVERTISED"] || [native isEqual:@"NOT_ADVERTISED"]);
+        native_advertised |= valid && [native isEqual:@"ADVERTISED"];
+    }
+    if (native_advertised) {
+        report[@"dp_native"] = @"ADVERTISED";
+        report[@"result"] = @"PUBLIC_DP_NATIVE_CANDIDATE";
+    } else if (all_known) {
+        report[@"dp_native"] = @"NOT_ADVERTISED";
+        report[@"result"] = @"PUBLIC_INTERFACE_PRESENT_NO_DP_NATIVE";
+    }
+    return report;
+}
+
 ProbeOutput collect_probe() {
     @autoreleasepool {
         NSMutableArray* errors = [NSMutableArray array];
@@ -506,6 +788,9 @@ ProbeOutput collect_probe() {
         }
         NSArray* candidates = external_dp_candidates(registry, external_display_count,
                                                      display_enumeration_ok && errors.count == 0);
+        NSDictionary* public_dp = public_displayport_interfaces(displays, registry,
+            display_enumeration_ok && errors.count == 0,
+            [&](std::uint32_t identifier) { return collect_public_framebuffer(identifier, errors); });
         NSDictionary* report = @{
             @"schema_version": @1,
             @"started_utc": started,
@@ -515,6 +800,7 @@ ProbeOutput collect_probe() {
             @"display_enumeration_ok": @(display_enumeration_ok),
             @"registry": registry,
             @"external_dp_candidates": candidates,
+            @"public_displayport_interface": public_dp,
             @"dpcd_transport": @{@"read_capability": @"UNVERIFIED", @"private_object_acquired": @NO},
             @"registry_source": @"IOServiceGetMatchingServices; IORegistryEntryCreateCFProperties; allowlisted properties only",
             @"symbol_visibility": inspect_symbols(),
