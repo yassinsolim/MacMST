@@ -3,6 +3,19 @@
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
 MST on M5 remains `UNKNOWN`.
 
+## M2F Update
+
+[M2F](dpdv-open-check.md) implements and audits the separately authorized isolated
+open/close helper, but the dry-run coordinator's fresh public preflight found zero
+active external displays and raw LinkRate=0/No Link. The mandatory stop occurred
+before any helper spawn or private operation. EXPERIMENT_NOT_RUN; no retry or
+display reconfiguration was attempted and no AFTER experiment state exists.
+
+The next separately authorized work must first re-establish active public display/
+HBR3 state and complete committed-code no-open target agreement. Do not run
+selector 0 or resume this stopped experiment automatically. The private userServer
+state remains unknown and NOT_READY_FOR_DPCD_TEST is unchanged.
+
 ## M2E.1 Update
 
 The [runtime userServer discriminator](dpdv-open-path.md#m2e1-runtime-userserver-discriminator)
