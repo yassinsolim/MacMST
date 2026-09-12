@@ -14,6 +14,7 @@ sys.path.insert(0, str(SOURCE.parent))
 import dyld_cache
 import kernel_image
 import call_graph
+import inspect_userserver
 
 SPEC = importlib.util.spec_from_file_location("inspect_iodp", SOURCE)
 analysis = importlib.util.module_from_spec(SPEC)
@@ -28,6 +29,87 @@ class StaticAnalysisParserTests(unittest.TestCase):
                 "instructions": [{"address_hex": hex(address + index * 4), "bytes_hex": raw[index * 4:index * 4 + 4].hex(),
                                   "instruction": "ret" if word == 0xd65f03c0 else "blraa x8, x16" if word == 0xd73f0910 else "decoded"}
                                  for index, word in enumerate(words)]}
+
+    def test_userserver_properties_preserve_names_not_sensitive_values(self):
+        properties = {"IOUserClasses": ["DCPDPDeviceProxy"], "IOAssociatedServices": [4294970467],
+                      "IOUserServerName": "com.apple.example", "Unit": 0, "IODPDeviceUserInterfaceSupported": True,
+                      "serial-number": "sensitive-serial", "EDID": b"sensitive-edid", "private-token": "secret"}
+        result = inspect_userserver.select_properties(properties)
+        self.assertEqual(result["property_names"], sorted(properties))
+        self.assertTrue(result["property_names_complete"])
+        self.assertEqual(result["values"]["IOAssociatedServices"], [4294970467])
+        self.assertNotIn("sensitive", str(result))
+        self.assertNotIn("secret", str(result))
+        for field, value in (("IOAssociatedServices", [True]), ("IOUserClasses", [b"blob"]),
+                             ("IOUserServerName", "/private/personal/path"), ("Unit", -1)):
+            result = inspect_userserver.select_properties({field: value})
+            self.assertEqual(result["values"], {})
+            self.assertEqual(result["relevant_values_unrepresented"], [field])
+        with self.assertRaises(ValueError):
+            inspect_userserver.select_properties({"bad\nname": 1})
+
+    def test_userserver_selection_requires_fresh_exact_external_provider(self):
+        target = {"entry_id_raw": 1234, "path": "IOService:/RTBuddy(DCPEXT0)/endpoint/DCPDPDeviceProxy",
+                  "properties": {"values": {"Location": "External", "Unit": 0, "IODPDeviceUserInterfaceSupported": True}}}
+        flag = "IODPDeviceUserInterfaceSupported"
+        self.assertEqual(inspect_userserver.select_exact([target], 1234, target["path"], flag), 0)
+        for records, entry_id in (([], 1234), ([target, target], 1234), ([target], 9999),
+                      ([{**target, "properties": None}], 1234)):
+            with self.assertRaises(ValueError):
+                inspect_userserver.select_exact(records, entry_id, target["path"], flag)
+        for field, value in (("Location", "Embedded"), ("Unit", False), (flag, False)):
+            changed = {**target, "properties": {"values": {**target["properties"]["values"], field: value}}}
+            with self.assertRaises(ValueError):
+                inspect_userserver.select_exact([changed], 1234, target["path"], flag)
+
+    def test_userserver_reader_preserves_errors_and_releases_partial_properties(self):
+        reader = inspect_userserver.RegistryReader.__new__(inspect_userserver.RegistryReader)
+        reader.calls = []
+        reader.iokit = mock.Mock()
+        reader.cf = mock.Mock()
+        def failed_copy(handle, properties, allocator, options):
+            properties._obj.value = 123
+            return -536870207
+        reader.iokit.IORegistryEntryCreateCFProperties.side_effect = failed_copy
+        result, properties = reader.properties(42)
+        self.assertEqual(result, -536870207)
+        self.assertIsNone(properties)
+        self.assertEqual(reader.calls[0]["ioreturn_hex"], "0xe00002c1")
+        reader.cf.CFRelease.assert_called_once()
+        self.assertEqual(reader.cf.CFRelease.call_args.args[0].value, 123)
+
+    def test_userserver_reader_only_serializes_allowlisted_values(self):
+        reader = inspect_userserver.RegistryReader.__new__(inspect_userserver.RegistryReader)
+        reader.dictionary_items = mock.Mock(return_value=[("EDID", 111), ("serial-number", 222),
+                                                         ("IOUserClasses", 333), ("IOClass", 444)])
+        reader.property_value = mock.Mock(side_effect=[None, "DCPDPDeviceProxy"])
+        properties = reader.property_dictionary(999)
+        self.assertEqual(reader.property_value.call_args_list, [mock.call(333), mock.call(444)])
+        selected = inspect_userserver.select_properties(properties)
+        self.assertEqual(selected["property_names"], ["EDID", "IOClass", "IOUserClasses", "serial-number"])
+        self.assertEqual(selected["relevant_values_unrepresented"], ["IOUserClasses"])
+        self.assertEqual(selected["values"], {"IOClass": "DCPDPDeviceProxy"})
+
+    def test_userserver_personality_retains_only_matching_technical_values(self):
+        properties = {"CFBundleIdentifier": "com.apple.driver.DCPDPFamilyProxy", "IOKitPersonalities": {
+            "DCPDPDeviceProxy": {"IOClass": "DCPDPDeviceProxy", "IOProviderClass": "AFKEndpointInterface",
+                                 "IOPropertyMatch": {"EPICName": "dcpdp-device-epic"}, "serial-number": "sensitive"},
+            "Other": {"IOClass": "Other", "private-token": "secret"}}}
+        with tempfile.TemporaryDirectory() as directory:
+            file = pathlib.Path(directory) / "Info.plist"
+            raw = plistlib.dumps(properties)
+            file.write_bytes(raw)
+            report = inspect_userserver.driver_personality(file)
+            self.assertEqual(report["sha256"], hashlib.sha256(raw).hexdigest())
+            self.assertEqual(list(report["personalities"]), ["DCPDPDeviceProxy"])
+            self.assertNotIn("sensitive", str(report))
+            self.assertNotIn("secret", str(report))
+            file.write_bytes(plistlib.dumps({**properties, "CFBundleIdentifier": "wrong"}))
+            with self.assertRaises(ValueError):
+                inspect_userserver.driver_personality(file)
+        selected = inspect_userserver.select_properties({"IOPropertyMatch": {"serial-number": "sensitive"}})
+        self.assertEqual(selected["values"], {})
+        self.assertEqual(selected["relevant_values_unrepresented"], ["IOPropertyMatch"])
 
     def test_call_graph_exports_exact_direct_sink_path(self):
         functions = {0x1000: self.graph_function(0x1000, [0x94000004, 0xd65f03c0]),
