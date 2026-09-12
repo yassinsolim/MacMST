@@ -63,6 +63,9 @@ if(BUILD_TESTING)
     add_test(NAME capture_privacy
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s tests -p test_capture_baseline.py -v)
     set_tests_properties(capture_privacy PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} LABELS unit)
+    add_test(NAME iodp_static_parsers
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s tests -p test_iodp_static.py -v)
+    set_tests_properties(iodp_static_parsers PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} LABELS unit)
     if(APPLE)
         add_test(NAME cli_contract
             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/test_probe_cli.py $<TARGET_FILE:macmst>)
