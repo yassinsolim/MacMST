@@ -13,6 +13,12 @@ See [the lower RPC contract](dcp-dpcd-rpc-03.md),
 [external differential](external-dock-diff.md). The B03 observations below remain
 historical evidence, not a claim that the current topology is internal-only.
 
+The later [public-only enumeration](public-dp-native.md) closes the public-route
+question for P1: **PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE**. The active external
+CG display returns no service and no public framebuffer/I2C interfaces are found
+elsewhere. No arbitrary service was passed to an IOFB API; no interface was
+opened and no request sent. This leaves the private-path gates above unchanged.
+
 `VERIFIED_ON_M5` (E014): **IODPDeviceReadDPCD resolves in the running probe**,
 along with IODPDeviceCreateWithService, IODPDeviceWriteDPCD, and
 IODPServiceGetDevice. One Embedded DCPDPDeviceProxy and one Embedded
@@ -31,7 +37,7 @@ is not a demonstrated native AUX transport. **Do not call a guessed prototype.**
 | Interface | Evidence | What Remains Unknown |
 | --- | --- | --- |
 | Public CoreGraphics/registry APIs | VERIFIED_ON_M5: the probe enumerates logical displays and selected registry properties without IOServiceOpen/IOConnect calls. | These APIs do not expose live AUX in this implementation. |
-| Public IOI2C API | PRIMARY_SOURCE S03: native transaction type 4; framebuffer/bus interface required; IOI2CSendRequest return and request.result are distinct. | No IOFramebuffer/IOI2CInterface match in B03; applicability to another attached M5 path unknown. |
+| Public IOI2C API | PRIMARY_SOURCE S24/S25: current SDK type 4, advertisement bit 0x10, exact request ABI and public enumeration; VERIFIED_ON_M5 E084-E085: active external CG service is null and public interfaces absent in P1. | No usable public route on this captured M5 topology. Other topology/OS exposure and native hardware capability remain unknown; no transaction tested. |
 | Private IOAVService I2C | PRIMARY_SOURCE S06/S07: chip-address/register calls used for DDC; VERIFIED_ON_M5 E013: functions resolve. | Actual I2C-over-AUX operation on this M5/dock; routing and permission requirements. |
 | Private IODPDevice DPCD | VERIFIED_ON_M5 E014/E040: symbol and External client class; PRIMARY_SOURCE E041-E049: CF lifecycle, bound caller, machine ABI and selector-0 host routing. | Complete reply, bounded wait, caching, actual permissions and native read-only DCP/AUX behavior. |
 | DCP/EPIC services | PRIMARY_SOURCE S04/S05: EDID-copy and PHY/link-control protocols in Asahi/m1n1. | Exact M5 firmware ABI and whether a native read method is exposed via macOS. |

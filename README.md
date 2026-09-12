@@ -29,6 +29,10 @@ immediate parent/child identities, published port/link fields, USB candidates,
 symbol visibility, and conservative External device/service candidates. Pairings
 and single-active-context associations are labeled `INFERRED`, not proven physical
 routes. DPCD read capability remains `UNVERIFIED`; no private object is acquired.
+Public DisplayPort diagnostics select only one active external display, inspect
+the public CG service mapping, and conditionally enumerate framebuffer I2C buses
+and transaction masks. No I2C interface is opened and no request is sent. Missing
+targets, zero counts, API errors and unknown masks are reported separately.
 A USB candidate is not automatically the dock.
 Exit codes: 0 for a collected report, 1 for observation/report failure, 2 for
 invalid arguments. Exit 0 does not establish any bus or MST functionality.
@@ -76,6 +80,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | IODP read ABI | Substantially reconstructed through static analysis. |
 | DPDV selector-0 path | Reconstructed through the host-side read RPC. |
 | DCP RPC safety | Under investigation; critical gates remain unresolved. |
+| Public framebuffer/I2C route | Unavailable on the recorded active M5 external path; no type-4 advertisement observed. |
 | Native DPCD access | Not yet exercised. |
 | MST source capability | Unknown. |
 
@@ -97,8 +102,17 @@ MST source support remains unknown.
 The `research/dcp-rpc-safety` follow-up revalidates the External path and adds
 deadline-free admission waits, conditional recovery triggers, concrete endpoint
 cleanup and fresh signing/policy evidence. Its [explicit readiness matrix](docs/research/dcp-dpcd-rpc-03.md#readiness-gates)
-keeps reply completeness, bounded waiting and cancellation blocked. The published
-`research-baseline-v0.1` tag is unchanged; this work has not been merged into main.
+keeps reply completeness, bounded waiting and cancellation blocked. It was
+integrated into main by merge `2ffc77d9d532502495fca5d88291d42eed61e45b`; the
+`research-baseline-v0.1` tag and the completed research branch are retained.
+
+The separate `research/public-dp-native` investigation reports
+**PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE** for the active M5 external display:
+public CG mapping returns null and independent registry queries find no
+IOFramebuffer/I2C interfaces. No count-call IOReturn or zero mask is fabricated
+when no target exists. See [the public-path evidence and limits](docs/research/public-dp-native.md).
+This branch does not change the private-path gates or claim absent native AUX/MST
+hardware, and has not been merged into main.
 
 For a fresh clone, first build the probe and create your own public capture:
 
@@ -138,6 +152,7 @@ before comparing findings. No Apple binary is distributed by this project.
 - [ABI-02 lifecycle, dispatch and remaining safety gates](docs/research/iodpdevice-abi-02.md)
 - [RPC-03 request/reply, wait and cancellation contract](docs/research/dcp-dpcd-rpc-03.md)
 - [DPDV authorization analysis](docs/research/dpdv-authorization.md)
+- [Public DisplayPort-native API and M5 enumeration](docs/research/public-dp-native.md)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
 

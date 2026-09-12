@@ -22,7 +22,14 @@ The `research/dcp-rpc-safety` branch builds on the published RPC-03 report rathe
 than repeating the host ABI work. G5/R4/R5 add fresh target/signing provenance,
 direct notification/recovery callers, pre-send admission waits and concrete
 endpoint cleanup. The [explicit matrix](dcp-dpcd-rpc-03.md#readiness-gates) requires
-every gate to be PASS. The baseline tag and main history remain unchanged.
+every gate to be PASS. This completed milestone is now integrated by merge
+`2ffc77d9d532502495fca5d88291d42eed61e45b`; its branch and baseline tag are retained.
+
+The subsequent `research/public-dp-native` branch is enumeration-only. P1 observes
+an active external display but a null public CG service and no published
+IOFramebuffer/I2C interface, including the alternate registry search:
+**PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE**. It makes no public or private
+transaction, and every private RPC-safety gate remains unchanged.
 
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
@@ -39,6 +46,8 @@ every gate to be PASS. The baseline tag and main history remain unchanged.
   short replies, no-deadline waits, failure/cancellation and all 13 readiness gates.
 - [DPDV authorization](dpdv-authorization.md): class-local versus outer policy
   gates, on-disk probe identity and the unresolved actual-access classification.
+- [Public DP-native investigation](public-dp-native.md): installed SDK ABI,
+  pinned implementation comparisons, P1 mapping/capabilities, validation and limits.
 
 The user reports two physical monitors connected to one USB-C dock showing the
 same image. This is an input to investigate, not proof of the dock's transport,
