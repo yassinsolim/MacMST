@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import pathlib
 import plistlib
 import struct
@@ -12,6 +13,7 @@ SOURCE = pathlib.Path(__file__).resolve().parents[1] / "tools/inspect_iodp.py"
 sys.path.insert(0, str(SOURCE.parent))
 import dyld_cache
 import kernel_image
+import call_graph
 
 SPEC = importlib.util.spec_from_file_location("inspect_iodp", SOURCE)
 analysis = importlib.util.module_from_spec(SPEC)
@@ -19,6 +21,99 @@ SPEC.loader.exec_module(analysis)
 
 
 class StaticAnalysisParserTests(unittest.TestCase):
+    @staticmethod
+    def graph_function(address, words):
+        raw = b"".join(word.to_bytes(4, "little") for word in words)
+        return {"address_hex": hex(address), "size": len(raw), "bytes_sha256": hashlib.sha256(raw).hexdigest(),
+                "instructions": [{"address_hex": hex(address + index * 4), "bytes_hex": raw[index * 4:index * 4 + 4].hex(),
+                                  "instruction": "ret" if word == 0xd65f03c0 else "blraa x8, x16" if word == 0xd73f0910 else "decoded"}
+                                 for index, word in enumerate(words)]}
+
+    def test_call_graph_exports_exact_direct_sink_path(self):
+        functions = {0x1000: self.graph_function(0x1000, [0x94000004, 0xd65f03c0]),
+                     0x1010: self.graph_function(0x1010, [0x14000004]),
+                     0x1020: self.graph_function(0x1020, [0xd65f03c0])}
+        result = call_graph.bounded_call_graph(functions.__getitem__, [0x1000], {0x1020})["roots"][0]
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["status"], "SINK_PATH_PRESENT")
+        self.assertEqual([edge["callsite_hex"] for edge in result["sink_paths"][0]["path"]], ["0x1000", "0x1010"])
+
+    def test_call_graph_keeps_indirect_calls_and_unknown_boundaries_open(self):
+        functions = {0x1000: self.graph_function(0x1000, [0xd73f0910, 0x94000003, 0xd65f03c0])}
+        result = call_graph.bounded_call_graph(functions.__getitem__, [0x1000], set())["roots"][0]
+        self.assertFalse(result["complete"])
+        self.assertEqual({gap["reason"] for gap in result["gaps"]},
+                         {"UNRESOLVED_INDIRECT_CONTROL_FLOW", "MISSING_OR_INVALID_FUNCTION"})
+
+    def test_call_graph_bounds_cycles_and_keeps_conditional_paths(self):
+        functions = {0x1000: self.graph_function(0x1000, [0x54000080, 0x97ffffff, 0xd65f03c0]),
+                 0x1010: self.graph_function(0x1010, [0xd65f03c0])}
+        result = call_graph.bounded_call_graph(functions.__getitem__, [0x1000], {0x1010})["roots"][0]
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["sink_paths"][0]["path"][0]["kind"], "CONDITIONAL_TAIL")
+        limited = call_graph.bounded_call_graph(functions.__getitem__, [0x1000], set(), depth_limit=0)["roots"][0]
+        self.assertEqual(limited["gaps"][0]["reason"], "TRAVERSAL_LIMIT")
+
+    def test_call_graph_ignores_unreachable_bytes_not_missing_bytes(self):
+        function = self.graph_function(0x1000, [0xd65f03c0, 0xd73f0910])
+        self.assertEqual(call_graph.function_edges(function)["unresolved"], [])
+        for field, value in (("size", 4), ("bytes_sha256", "0" * 64), ("address_hex", "0x1001")):
+            with self.assertRaises(ValueError):
+                call_graph.function_edges({**function, field: value})
+        function["instructions"][0]["instruction"] = "UNDECODED"
+        self.assertEqual(call_graph.function_edges(function)["unresolved"][0]["reason"], "UNDECODED_INSTRUCTION")
+
+    def test_call_graph_fallthrough_and_unsupported_control_fail_closed(self):
+        function = self.graph_function(0x1000, [0xd503201f])
+        self.assertEqual(call_graph.function_edges(function)["unresolved"][0]["reason"], "FALLTHROUGH_OUTSIDE_FUNCTION")
+        with self.assertRaises(ValueError):
+            call_graph.bounded_call_graph(lambda address: function, [], set())
+        with self.assertRaises(ValueError):
+            call_graph.bounded_call_graph(lambda address: function, [0x1001], set())
+
+    def test_graph_vtable_receipt_rejects_ambiguity_and_bad_fixups(self):
+        pointer = {"pointer_format": 8, "slot_address_hex": "0x3010", "target_address_hex": "0x1020",
+                   "raw_bytes_hex": "2000000000000080"}
+        table = {"symbol": "__ZTVExample", "address_hex": "0x3000", "raw_bytes_hex": "00" * 16 + pointer["raw_bytes_hex"],
+                 "bindings": [{"offset_from_primary_address_point": 0, "pointer": pointer, "exact_symbol_matches": ["target"]}]}
+        receipt = call_graph.resolve_vtable_slot([table], "__ZTVExample", 0)
+        self.assertEqual(receipt["target_hex"], "0x1020")
+        functions = {0x1000: self.graph_function(0x1000, [0xd73f0910, 0xd65f03c0]),
+                 0x1020: self.graph_function(0x1020, [0xd65f03c0])}
+        result = call_graph.bounded_call_graph(functions.__getitem__, [0x1000], {0x1020}, virtual_edges={0x1000: receipt})["roots"][0]
+        self.assertFalse(result["complete"])
+        self.assertEqual(result["gaps"][0]["reason"], "RECEIVER_CONTEXT_REQUIRES_PROOF")
+        self.assertEqual(result["sink_paths"][0]["path"][0]["kind"], "CONTEXTUAL_VTABLE")
+        for tables, offset in (([table, table], 0), ([table], 8), ([table], 1)):
+            with self.assertRaises(ValueError):
+                call_graph.resolve_vtable_slot(tables, "__ZTVExample", offset)
+        for field, value in (("pointer_format", 9), ("slot_address_hex", "0x3018"), ("raw_bytes_hex", "00" * 8)):
+            with self.assertRaises(ValueError):
+                call_graph.resolve_vtable_slot([{**table, "bindings": [{**table["bindings"][0], "pointer": {**pointer, field: value}}]}], "__ZTVExample", 0)
+
+    def test_graph_rejects_undeclared_sink_and_retains_conditional_kinds(self):
+        for word in (0x54000080, 0x54000090, 0x34000080, 0x36000080):
+            functions = {0x1000: self.graph_function(0x1000, [word, 0xd65f03c0])}
+            result = call_graph.bounded_call_graph(functions.__getitem__, [0x1000], {0x1010})["roots"][0]
+            self.assertFalse(result["complete"])
+            self.assertEqual(result["sink_paths"], [])
+            self.assertEqual(result["gaps"][0]["reason"], "MISSING_OR_INVALID_FUNCTION")
+        function = self.graph_function(0x1000, [0x94000004, 0xd65f03c0])
+        result = call_graph.bounded_call_graph(lambda address: function, [0x1000], {0x1010})["roots"][0]
+        self.assertFalse(result["complete"])
+        self.assertEqual(result["gaps"][0]["detail"], "Target is not an exact function start")
+
+    def test_graph_virtual_options_fail_closed_before_capture(self):
+        for arguments in (
+            ["--kernel-graph-vtable-edge", "0x1000", "__ZTVExample", "0"],
+            ["--server", "--kernel-graph-vtable-edge", "0x1000", "__ZTVExample", "0"],
+            ["--server", "--kernel-graph-root", "0x1000", "--kernel-graph-vtable-edge", "invalid", "__ZTVExample", "0"],
+        ):
+            with mock.patch.object(sys, "argv", ["inspect_iodp.py", "--baseline", "unused", *arguments]), mock.patch("sys.stderr"):
+                with self.assertRaises(SystemExit) as raised:
+                    analysis.main()
+                self.assertEqual(raised.exception.code, 2)
+
     def test_user_client_lifecycle_selection_is_scoped(self):
         for name in ("_iokit_task_terminate", "_iokit_connect_no_senders", "_is_io_service_close",
                      "__ZN12IOUserClient10clientDiedEv", "__ZN12IOUserClient13noMoreSendersEv",
@@ -108,11 +203,18 @@ class StaticAnalysisParserTests(unittest.TestCase):
     def test_kernel_selection_requires_static_server_mode(self):
         for option, value in (("--kernel-symbol", "_example"), ("--kernel-vtable", "__ZTVExample"),
                               ("--kernel-image", "example"), ("--kernel-string", "example"),
-                              ("--kernel-address", "0x1000"), ("--kernel-callers-of", "_example")):
+                              ("--kernel-address", "0x1000"), ("--kernel-callers-of", "_example"),
+                              ("--kernel-graph-root", "0x1000"), ("--kernel-graph-sink", "0x1000")):
             with mock.patch.object(sys, "argv", ["inspect_iodp.py", "--baseline", "unused", option, value]), mock.patch("sys.stderr"):
                 with self.assertRaises(SystemExit) as raised:
                     analysis.main()
                 self.assertEqual(raised.exception.code, 2)
+
+    def test_graph_sink_requires_root(self):
+        with mock.patch.object(sys, "argv", ["inspect_iodp.py", "--baseline", "unused", "--server", "--kernel-graph-sink", "0x1000"]), mock.patch("sys.stderr"):
+            with self.assertRaises(SystemExit) as raised:
+                analysis.main()
+            self.assertEqual(raised.exception.code, 2)
 
     def test_function_starts_are_bounded_and_terminated(self):
         self.assertEqual(kernel_image.decode_function_starts(bytes.fromhex("801004080000"), 0x1000), [0x1800, 0x1804, 0x180c])

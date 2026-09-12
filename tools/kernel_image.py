@@ -8,6 +8,7 @@ import subprocess
 import uuid
 
 from dyld_cache import adrp_add_target, direct_branch_target
+from call_graph import bounded_call_graph, resolve_vtable_slot
 
 
 def decode_function_starts(raw, base):
@@ -441,7 +442,7 @@ class KernelCachePointers:
                 "raw_bytes_hex": bytes(page[page_offset:page_offset + 8]).hex()}
 
 
-def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), extra_images=(), extra_strings=(), extra_addresses=(), callers_of=(), lifecycle=False):
+def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), extra_images=(), extra_strings=(), extra_addresses=(), callers_of=(), lifecycle=False, graph_roots=(), graph_sinks=(), graph_virtual_edges=()):
     if file.stat().st_size > 64 * 1024 * 1024:
         raise ValueError("Kernel container exceeds static inspection limit")
     original = file.read_bytes()
@@ -469,7 +470,8 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
                 names_by_address.setdefault(symbol["address"], set()).add(symbol["name"])
     defined_names = {symbol["name"] for symbols in inventories.values() for symbol in symbols
                      if symbol["address"] and symbol["section"]}
-    missing = (set(extra_symbols) | set(extra_vtables) | set(callers_of)) - defined_names
+    graph_tables = {symbol for callsite, symbol, slot_offset in graph_virtual_edges}
+    missing = (set(extra_symbols) | set(extra_vtables) | set(callers_of) | graph_tables) - defined_names
     if missing:
         raise ValueError("Requested kernel definitions not found: " + ", ".join(sorted(missing)))
     call_targets = {symbol["address"] for symbols in inventories.values() for symbol in symbols
@@ -617,7 +619,7 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
         if symbol["name"] not in ("__ZTV16DCPDPDeviceProxy", "__ZTV26DCPDPDeviceProxyUserClient",
                        "__ZTV6OSData", "__ZTV13IOCommandGate", "__ZTV15IOAVCommandGate",
                        "__ZTV20AFKEndpointInterface", "__ZTV20AFKEPInterfaceKextV2",
-                       "__ZTV16AFKEPInterfaceV2", *extra_vtables):
+                       "__ZTV16AFKEPInterfaceV2", *extra_vtables, *graph_tables):
             continue
         start = symbol["address"]
         end = min(item["address"] for item in symbols
@@ -637,12 +639,71 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
             selected_binding = any(method in name for method in virtual_methods for name in matches)
             selected_binding = selected_binding or any(rpc_memory_or_wait_symbol(name) for name in matches)
             selected_binding = selected_binding or any(rpc_endpoint_symbol(name) for name in matches)
-            selected_binding = selected_binding or symbol["name"] in extra_vtables
+            selected_binding = selected_binding or symbol["name"] in extra_vtables or symbol["name"] in graph_tables
             if selected_binding:
                 bindings.append({"offset_from_primary_address_point": address - start - 16,
                                  "pointer": pointer, "exact_symbol_matches": matches})
         vtables.append({"symbol": symbol["name"], "address_hex": hex(start), "raw_bytes_hex": raw.hex(),
                         "bindings": bindings, "nonpointer_or_unresolved_slots": unbound})
+    graph = None
+    if graph_roots:
+        graph_bodies = {}
+        graph_ranges = []
+        for image in images:
+            starts, _ = macho_function_starts(data, image["fileset_header_offset"])
+            graph_ranges.extend((section, starts, image) for section in image["sections"] if section["section"] == "__text")
+
+        def load_graph_function(address):
+            key = hex(address)
+            if key in graph_bodies:
+                return graph_bodies[key]
+            if len(graph_bodies) >= 512:
+                raise ValueError("Global graph body limit reached")
+            matches = [(section, starts, image) for section, starts, image in graph_ranges
+                       if section["address"] <= address < section["address"] + section["size"]]
+            if len(matches) != 1:
+                raise ValueError("Graph target lacks a unique selected executable section")
+            section, starts, image = matches[0]
+            index = bisect.bisect_left(starts, address)
+            if index >= len(starts) or starts[index] != address:
+                raise ValueError("Graph target is not a declared function start")
+            end = min(starts[index + 1] if index + 1 < len(starts) else section["address"] + section["size"],
+                      section["address"] + section["size"])
+            if not 0 < end - address <= 32768 or (end - address) % 4:
+                raise ValueError("Graph target has invalid or excessive function bounds")
+            file_offset = section["file_offset"] + address - section["address"]
+            raw = bytes(bounded_slice(data, file_offset, end - address))
+            body = {"address_hex": key, "size": len(raw), "file_offset": file_offset,
+                    "bytes_sha256": hashlib.sha256(raw).hexdigest(), "bundle_id": image["bundle_id"],
+                    "image_uuid": image["uuid"], "symbols": sorted(names_by_address.get(address, ())),
+                    "instructions": [decoder.decode(address + offset, raw[offset:offset + 4])
+                                     for offset in range(0, len(raw), 4)]}
+            graph_bodies[key] = body
+            return body
+
+        virtual_edges = {}
+        for callsite, symbol, slot_offset in graph_virtual_edges:
+            if callsite in virtual_edges or callsite < 0 or callsite % 4 or callsite >= 1 << 64:
+                raise ValueError("Invalid or duplicate graph virtual callsite")
+            matches = [(section, starts) for section, starts, image in graph_ranges
+                       if section["address"] <= callsite < section["address"] + section["size"]]
+            if len(matches) != 1:
+                raise ValueError("Virtual callsite lacks a unique executable section")
+            section, starts = matches[0]
+            index = bisect.bisect_right(starts, callsite) - 1
+            if index < 0 or starts[index] < section["address"]:
+                raise ValueError("Virtual callsite lacks a declared containing function")
+            function = load_graph_function(starts[index])
+            instruction = function["instructions"][(callsite - starts[index]) // 4]
+            if int.from_bytes(bytes.fromhex(instruction["bytes_hex"]), "little") & 0xfe000000 != 0xd6000000 or not instruction["instruction"].split()[0].startswith(("br", "blr")):
+                raise ValueError("Selected virtual edge is not an indirect call or tail branch")
+            virtual_edges[callsite] = {**resolve_vtable_slot(vtables, symbol, slot_offset),
+                                      "containing_function_sha256": function["bytes_sha256"]}
+        graph = bounded_call_graph(load_graph_function, graph_roots, graph_sinks, virtual_edges=virtual_edges)
+        graph["function_bodies"] = graph_bodies
+        graph["requested_virtual_edges"] = [{"callsite_hex": hex(callsite), **edge} for callsite, edge in virtual_edges.items()]
+    elif graph_sinks or graph_virtual_edges:
+        raise ValueError("Graph sinks require at least one graph root")
     command = ["/usr/sbin/ioreg", "-a", "-r", "-c", "DCPDPDeviceProxy", "-d", "1"]
     observed = plistlib.loads(subprocess.check_output(command))
     routing = select_external_client_routing(observed)
@@ -652,6 +713,7 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
             "active_kernel_uuid": active_uuid, "image_kernel_uuid": kernel_uuid,
             "kernel_uuid_matches": True, "images": images, "dp_device_dispatch": dispatch,
             "proxy_virtual_bindings": vtables,
+            "call_graph": graph,
             "requested_symbols": sorted(set(extra_symbols)), "requested_vtables": sorted(set(extra_vtables)),
             "requested_images": sorted(set(extra_images)),
             "requested_strings": sorted(set(extra_strings)),

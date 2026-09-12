@@ -25,7 +25,8 @@ FOCUS = frozenset({
     "_IODPServiceCreate", "_IODPServiceCreateWithLocation", "_IODPServiceGetAVService",
     "___IODPDeviceFree", "___IODPServiceRegister", "___IODPServiceFree",
     "___IOAVDeviceRegister", "___IOAVDeviceFree", "___IODPControllerRegister", "___IODPControllerFree",
-    "_IOServiceOpen", "_IOServiceClose", "_IOConnectCallMethod",
+    "_IOServiceOpen", "_IOServiceClose", "_IOConnectCallMethod", "_IOObjectRetain",
+    "_IOObjectRelease", "_IORegistryEntryCreateCFProperty",
 })
 CALLER_METHODS = frozenset({
     "+[PS190IODPDevice allDevices]",
@@ -316,13 +317,27 @@ def main():
                         help="Capture declared functions with a direct B/BL to this exact defined symbol; requires --server.")
     parser.add_argument("--kernel-lifecycle", action="store_true",
                         help="Capture bounded IOUserClient task-death/close ownership methods; requires --server.")
+    parser.add_argument("--kernel-graph-root", action="append", default=[], type=lambda value: int(value, 0),
+                        help="Export bounded direct-call paths from this declared function start; requires --server.")
+    parser.add_argument("--kernel-graph-sink", action="append", default=[], type=lambda value: int(value, 0),
+                        help="Stop graph traversal at this exact sink address; requires --kernel-graph-root.")
+    parser.add_argument("--kernel-graph-vtable-edge", nargs=3, action="append", default=[],
+                        metavar=("CALLSITE", "VTABLE", "OFFSET"),
+                        help="Follow a declared vtable slot in a selected receiver context; context remains a proof gap. Requires a graph root.")
     parser.add_argument("--reference-root", type=pathlib.Path,
                         help="Hash reference source files already downloaded under artifacts/sources; never execute them.")
     parser.add_argument("--signing-probe", type=pathlib.Path,
                         help="Statically record allowlisted codesign identity for a local probe executable; never run or sign it.")
     args = parser.parse_args()
-    if (args.kernel_symbol or args.kernel_vtable or args.kernel_image or args.kernel_string or args.kernel_address or args.kernel_callers_of or args.kernel_lifecycle) and not args.server:
+    if (args.kernel_symbol or args.kernel_vtable or args.kernel_image or args.kernel_string or args.kernel_address or args.kernel_callers_of or args.kernel_lifecycle or args.kernel_graph_root or args.kernel_graph_sink or args.kernel_graph_vtable_edge) and not args.server:
         parser.error("kernel selection options require --server")
+    if (args.kernel_graph_sink or args.kernel_graph_vtable_edge) and not args.kernel_graph_root:
+        parser.error("kernel graph sinks require a graph root")
+    try:
+        graph_virtual_edges = [(int(callsite, 0), symbol, int(offset, 0))
+                               for callsite, symbol, offset in args.kernel_graph_vtable_edge]
+    except ValueError:
+        parser.error("graph callsite and vtable offset must be integers")
     if sys.platform != "darwin":
         parser.error("requires macOS dyld_info")
     repository = pathlib.Path(__file__).resolve().parents[1]
@@ -414,16 +429,15 @@ def main():
                 image_data["missing_focus_symbols"] = sorted(FOCUS - selected.keys())
                 strings = section_bytes(inspect(["-section_bytes", "__TEXT", "__cstring", image]))
                 image_data["relevant_cstrings_raw"] = raw_strings(strings)
-            else:
-                stubs = section_bytes(inspect(["-section_bytes", "__TEXT", "__auth_stubs", image]))
-                targets = {int(item["direct_branch_target_hex"], 16) for function in functions.values()
-                           for item in function["raw_byte_llvm_crosscheck"] if item["direct_branch_target_hex"]}
-                image_data["referenced_auth_stubs"] = {
-                    hex(target): [decoder.decode(target + offset, bytes(stubs[target + offset + index] for index in range(4)))
-                                  for offset in range(0, 16, 4)] for target in sorted(targets)
-                    if all(target + index in stubs for index in range(16))}
-                image_data["authenticated_call_bindings"] = resolve_call_bindings(
-                    cache, functions, image_data["referenced_auth_stubs"], export_addresses)
+            stubs = section_bytes(inspect(["-section_bytes", "__TEXT", "__auth_stubs", image]))
+            targets = {int(item["direct_branch_target_hex"], 16) for function in functions.values()
+                       for item in function["raw_byte_llvm_crosscheck"] if item["direct_branch_target_hex"]}
+            image_data["referenced_auth_stubs"] = {
+                hex(target): [decoder.decode(target + offset, bytes(stubs[target + offset + index] for index in range(4)))
+                              for offset in range(0, 16, 4)] for target in sorted(targets)
+                if all(target + index in stubs for index in range(16))}
+            image_data["authenticated_call_bindings"] = resolve_call_bindings(
+                cache, functions, image_data["referenced_auth_stubs"], export_addresses)
             images.append(image_data)
             print(pathlib.Path(image).name + ": " + str(len(selected)) + " selected function/caller blocks")
         if args.server:
@@ -433,7 +447,8 @@ def main():
                 raise ValueError("Boot image selection is ambiguous; provide evidence rather than guessing")
             server_evidence = collect_server_evidence(files[0], decoder, args.kernel_symbol, args.kernel_vtable,
                                                       args.kernel_image, args.kernel_string, args.kernel_address,
-                                                      args.kernel_callers_of, args.kernel_lifecycle)
+                                                      args.kernel_callers_of, args.kernel_lifecycle,
+                                                      args.kernel_graph_root, args.kernel_graph_sink, graph_virtual_edges)
             print("Kernel UUID matched; captured selected static server methods.")
     finally:
         decoder.close()
@@ -444,6 +459,7 @@ def main():
         "tool_source_sha256": hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),
         "cache_parser_source_sha256": hashlib.sha256(pathlib.Path(__file__).with_name("dyld_cache.py").read_bytes()).hexdigest(),
         "kernel_parser_source_sha256": hashlib.sha256(pathlib.Path(__file__).with_name("kernel_image.py").read_bytes()).hexdigest(),
+        "call_graph_source_sha256": hashlib.sha256(pathlib.Path(__file__).with_name("call_graph.py").read_bytes()).hexdigest(),
         "cache_components": cache.components, "export_binding_evidence": export_evidence,
         "server_evidence": server_evidence,
         "probe_signing_evidence": signing_evidence,
