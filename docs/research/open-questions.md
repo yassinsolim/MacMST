@@ -3,6 +3,19 @@
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
 MST on M5 remains `UNKNOWN`.
 
+## M2E.1 Update
+
+The [runtime userServer discriminator](dpdv-open-path.md#m2e1-runtime-userserver-discriminator)
+verified the selected native kernel class/personality, measured the field-chain
+offsets and checked public markers against writer/teardown contracts. No mandatory
+equivalent marker was established: membership can disappear before pointer clearing,
+and class provenance is not private field state. USER_SERVER_RUNTIME_STATE_UNRESOLVED.
+
+The one remaining fact is the live provider userServer chain at factory entry.
+Direct privileged observation is rejected; this milestone stops static expansion.
+No native-path gates are advanced, no M2F contract/backend is produced, and both
+NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK and NOT_READY_FOR_DPCD_TEST remain unchanged.
+
 ## M2E Update
 
 The [M2E proof](dpdv-open-path.md) resolves the native gate's workloop origin and
