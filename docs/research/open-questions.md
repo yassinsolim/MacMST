@@ -1,0 +1,104 @@
+# Open Questions And Next Experiment
+
+Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
+MST on M5 remains `UNKNOWN`.
+
+## Milestone 2A Update
+
+The historical question table below describes the Milestone 1 baseline. A
+controlled connected/disconnected/reconnected ZMUIPNG hub experiment now confirms
+one external logical display and repeatable External DCPEXT0 DP/AV object
+appearance. See [external-dock-diff.md](external-dock-diff.md) and E025-E031.
+
+Questions 3 and 9 now have a correlated USB-C/External service path, but no MST
+branch identity. Questions 5/6/8 now have the [IODP API inventory and local wrapper
+analysis](iodpdevice-api.md), not an executed native read. Questions 10-14 still
+lack hardware transport/MST evidence. The status is **NOT_READY_FOR_DPCD_TEST**.
+[ABI-02](iodpdevice-abi-02.md) now resolves CF lifecycle, authenticated caller
+bindings, and the DPDV/selector-0 host path to a DCP register RPC. The next
+discriminator is lower RPC reply validation, bounded waiting and native read-only
+firmware semantics. No further cable cycling is needed for the recorded
+association unless the topology changes; no private read has been executed.
+
+[RPC-03](dcp-dpcd-rpc-03.md) now traces AFK submission/replies and host zero-fill,
+but finds a no-deadline uninterruptible wait and a no-op abort hook. The raw 500
+unit, complete firmware reply/read-only contract and actual process authorization
+remain unresolved. G4 revalidates the display path with new IDs, while explicitly
+recording USB count 9 versus 10 rather than claiming every attachment is unchanged.
+
+## Research Question Coverage
+
+| # | Question | Current Answer And Next Discriminator |
+| --- | --- | --- |
+| 1 | What display engines exist on M5? | VERIFIED_ON_M5: dcp0/dcpext0/dcpext1 expert objects; UNKNOWN physical engine/packetizer inventory. Trace specific M5 hardware/firmware implementation, not just names. |
+| 2 | How are external displays represented through DCP/DCPEXT? | VERIFIED_ON_M5: two DCPEXT paths and four remote-port proxies. PRIMARY_SOURCE: Asahi EPIC/PHY model. Actual connected external mapping remains UNKNOWN. |
+| 3 | Which registry objects correspond to the active USB-C path? | UNKNOWN: only the inactive built-in HDMI transport object was observed. Correlate a controlled dock topology. |
+| 4 | How does macOS communicate with DP sinks? | PRIMARY_SOURCE: DP native/I2C AUX protocols, public IOI2C API and private AV/DP symbol families. UNKNOWN exact active M5 external call path. |
+| 5 | What does DCPAVServiceProxy expose? | VERIFIED_ON_M5: Embedded/Unit=0 and user-interface-supported flag. PRIMARY_SOURCE: AV service and EDID-copy protocol. Actual user-client call behavior remains UNKNOWN. |
+| 6 | What does IOAVService expose? | VERIFIED_ON_M5: selected I2C/EDID/property/link symbols resolve. PRIMARY_SOURCE: DDC library declarations. Functions were not invoked. |
+| 7 | Can userspace perform I2C-over-AUX? | PRIMARY_SOURCE: reproducible IOAVService DDC implementations exist. UNKNOWN success/routing on this M5/dock; no DDC commands sent. |
+| 8 | Can userspace perform native AUX? | HYPOTHESIS: IODPDeviceReadDPCD is a viable candidate; VERIFIED_ON_M5 symbol presence. UNKNOWN ABI, target binding, live native behavior, permissions. |
+| 9 | Is the dock visible as an MST branch? | UNKNOWN: the reported connected topology was not observed. No branch-capability field was measured. |
+| 10 | Can the dock's DPCD space be accessed? | UNKNOWN: no native transport call, and current DP device is Embedded. |
+| 11 | Can DP_MSTM_CAP at 0x021 be read? | HYPOTHESIS dependent on question 8; decoder and exact constants are ready. A future approved one-byte read is the test, not an I2C-offset substitution. |
+| 12 | Can MST sideband messages be sent? | UNKNOWN. PRIMARY_SOURCE: native DPCD message-buffer addresses are known. Writing sideband/setup state is explicitly outside this phase. |
+| 13 | Is there an M5 MST packetizer? | UNKNOWN. Neither the number of DCP objects nor a sink's MST flag nor the DPCD API establishes it. |
+| 14 | Is there dormant DCP firmware MST functionality? | UNKNOWN. Firmware code was not inspected; no source-specific evidence. Asahi's No MST statement is recorded with its missing M5 scope. |
+
+## Historical Priority Order
+
+1. **P0: a valid measured topology.** Identify the dock and expose/correlate an
+   External AV/DP service. Without this, probing the existing Embedded device risks
+   answering the wrong question about the internal panel.
+2. **P1: native read ABI and permissions.** Trace IODPDeviceReadDPCD and
+   CreateWithService in the installed implementation. Verify types, lengths,
+   read semantics and user-client binding; do not infer from export names.
+3. **P1: first approved DPCD read.** Only after the first two gates and lifecycle/
+   dispatch verification, plan/request approval for exactly one byte at 0x000.
+   Additional addresses, including 0x021, must wait for a successful first-read
+   evaluation and a separate decision.
+4. **P2: branch identity and topology.** A receiver MST bit may establish branch
+   capability, but vendor/chip identity may still require additional evidence.
+   MST sideband discovery needs a separate state-changing-experiment approval.
+5. **P2: source and firmware capability.** Investigate source stream scheduling,
+   payload allocation/ACT handling, packetizer implementation, and DCP control
+   interfaces. This is separate from proving native AUX or receiver capability.
+
+## M2-01 Plan (Completed)
+
+The original plan below was completed in C1/D1/C2. See
+[the recorded results](external-dock-diff.md); it is not a request to repeat it.
+
+**M2-01: correlate one explicitly identified two-monitor dock with External
+DCPDP/AV objects, without invoking private APIs.**
+
+Hypothesis: the intended connected dock topology will expose an External
+DCPDPDeviceProxy/ServiceProxy or a distinguishable alternative display service
+whose path and appearance correlate with the new external logical display.
+
+Prerequisites: the owner confirms the dock make/model, cable, physical USB-C
+port, power state, monitor models and occupied outputs. No serial numbers are
+needed. Physical connection/disconnection is an owner-approved action; the agent
+does not change it automatically. No display settings, firmware or security
+settings are changed.
+
+1. Preserve a disconnected/current snapshot using the existing collector.
+2. The owner connects/powers the specified dock and both monitors, waits for the
+   visible display state to settle, and confirms what each physical screen shows.
+3. Run `python3 tools/capture_baseline.py --probe build/macmst`. Compare the two
+   snapshots' logical displays, DCPDP/AV Location/Unit/paths, USB descriptors,
+   and published transport fields. Keep new raw values and capture hashes.
+
+Expected observation: a correlated External service and external logical display
+appear. The reported mirroring hypothesis predicts one external logical display
+for the two physical screens, but that is not assumed in advance.
+
+Disconfirming/alternative observations: still no external display; only Embedded
+objects; a different service family; multiple independently enumerated displays;
+or evidence of a different transport. These outcomes change the next investigation
+step rather than proving MST impossible. No zero-result query is a silicon verdict.
+
+Stop if the topology remains ambiguous, permissions fail, the display behavior
+changes unexpectedly, or a tool requests hardware/state-changing access. Success
+means **target identity and reproducibility**, not MST capability. The next gated
+native-AUX experiment is specified in [aux-access.md](aux-access.md#smallest-safe-discriminating-experiment).
