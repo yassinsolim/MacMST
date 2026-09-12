@@ -20,6 +20,13 @@ discriminator is lower RPC reply validation, bounded waiting and native read-onl
 firmware semantics. No further cable cycling is needed for the recorded
 association unless the topology changes; no private read has been executed.
 
+The milestone branch now adds G5/R4/R5: admission can block before firmware
+receives a command, notification-driven error recovery is conditional, and
+endpoint list/task cleanup is not a proven cancellation response. Current
+authorization remains category E. Use [the normalized readiness matrix](dcp-dpcd-rpc-03.md#readiness-gates)
+for the next decision, not the count of reconstructed functions. No private
+operation is authorized by publishing or completing this static milestone.
+
 [RPC-03](dcp-dpcd-rpc-03.md) now traces AFK submission/replies and host zero-fill,
 but finds a no-deadline uninterruptible wait and a no-op abort hook. The raw 500
 unit, complete firmware reply/read-only contract and actual process authorization

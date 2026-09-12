@@ -1,5 +1,6 @@
 import importlib.util
 import pathlib
+import plistlib
 import struct
 import sys
 import tempfile
@@ -18,6 +19,46 @@ SPEC.loader.exec_module(analysis)
 
 
 class StaticAnalysisParserTests(unittest.TestCase):
+    def test_signing_identity_omits_paths_and_entitlement_values(self):
+        metadata = "Identifier=macmst\nFormat=Mach-O thin (arm64)\nSignature=adhoc\nCDHash=" + "a" * 40
+        metadata += "\nExecutable=/private-machine-path/macmst\nAuthority=private authority\n"
+        raw = plistlib.dumps({"com.apple.security.app-sandbox": False, "private-entitlement": "secret fixture"})
+        evidence = analysis.parse_signing_evidence(metadata, raw)
+        self.assertEqual(evidence["identity"]["Identifier"], "macmst")
+        self.assertFalse(evidence["app_sandbox_entitlement"])
+        self.assertEqual(evidence["entitlement_key_count"], 2)
+        self.assertEqual(evidence["authorization"], "UNRESOLVED_NOT_TESTED")
+        for omitted in ("private-machine-path", "private authority", "private-entitlement", "secret fixture"):
+            self.assertNotIn(omitted, str(evidence))
+
+    def test_signing_identity_rejects_ambiguous_or_malformed_input(self):
+        metadata = "Identifier=macmst\nFormat=Mach-O thin (arm64)\nSignature=adhoc\nCDHash=" + "a" * 40
+        evidence = analysis.parse_signing_evidence(metadata, b"")
+        self.assertEqual(evidence["entitlement_output_status"], "NO_DATA_REPORTED")
+        self.assertIsNone(evidence["app_sandbox_entitlement"])
+        for text, raw in ((metadata + "\nIdentifier=other", b""), ("", b""),
+                          (metadata.replace("a" * 40, "a" * 41), b""),
+                          (metadata, plistlib.dumps([])),
+                          (metadata, plistlib.dumps({"com.apple.security.app-sandbox": "true"})),
+                          (metadata, b"x" * (1024 * 1024 + 1))):
+            with self.assertRaises(ValueError):
+                analysis.parse_signing_evidence(text, raw)
+
+    def test_direct_call_references_preserve_calls_and_tail_branches(self):
+        raw = bytes.fromhex("04000094 ffffff17 20000054")
+        result = kernel_image.direct_call_references(raw, 0x1000, {0x1010, 0x1000})
+        self.assertEqual([(item["instruction_address_hex"], item["target_address_hex"], item["branch_kind"])
+                          for item in result], [("0x1000", "0x1010", "BL"), ("0x1004", "0x1000", "B")])
+        self.assertEqual(kernel_image.direct_call_references(raw, 0x1000, {0x100c}), [])
+
+    def test_direct_call_references_reject_invalid_ranges_and_excess(self):
+        for raw, base in ((b"\0", 0x1000), (bytes(4), -4), (bytes(4), 0x1001), (bytes(8), (1 << 64) - 4)):
+            with self.assertRaises(ValueError):
+                kernel_image.direct_call_references(raw, base, set())
+        with self.assertRaises(ValueError):
+            kernel_image.direct_call_references(bytes.fromhex("00000094") * 4097, 0,
+                                                set(range(0, 4097 * 4, 4)))
+
     def test_reference_sources_reject_escaping_symlinks(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as external:
             root = pathlib.Path(directory)
@@ -52,7 +93,7 @@ class StaticAnalysisParserTests(unittest.TestCase):
     def test_kernel_selection_requires_static_server_mode(self):
         for option, value in (("--kernel-symbol", "_example"), ("--kernel-vtable", "__ZTVExample"),
                               ("--kernel-image", "example"), ("--kernel-string", "example"),
-                              ("--kernel-address", "0x1000")):
+                              ("--kernel-address", "0x1000"), ("--kernel-callers-of", "_example")):
             with mock.patch.object(sys, "argv", ["inspect_iodp.py", "--baseline", "unused", option, value]), mock.patch("sys.stderr"):
                 with self.assertRaises(SystemExit) as raised:
                     analysis.main()

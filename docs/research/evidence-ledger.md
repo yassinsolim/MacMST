@@ -8,6 +8,10 @@ the earlier unresolved client-lifecycle/binding/host-dispatch statements without
 turning static evidence into a successful hardware experiment.
 RPC-03 entries E053-E069 add lower AFK, reply-initialization, wait/cancellation
 and authorization findings. They do not promote the private transport to tested.
+The milestone-branch follow-up adds E070-E075 for fresh target observations,
+direct recovery callers, admission waits and concrete endpoint cleanup.
+E076-E077 refresh signing and policy provenance without asserting access.
+E078-E079 record the unchanged source-mapping scope and explicit final gate states.
 
 ## Captures
 
@@ -45,6 +49,19 @@ and authorization findings. They do not promote the private transport to tested.
     capture: 26 IOKit blocks, six PS190 blocks, 206 declared-boundary kernel
     function blocks, exact AFK/gate/policy vtables and 14 reference-file hashes.
     Report SHA-256 `b80b5f6b1d9553ce1ee1b292f68102369d0c7e3d29cfdd6ab80ff3c9c199b263`.
+- **G5**: `artifacts/probes/20260912T093139Z/`, one fresh public probe through
+    the existing collector, 33 commands and zero failures; External display/path
+    still present, USB count six versus G4's nine. No cable cycle.
+- **R4**: `artifacts/probes/iodp-static-20260912T095457Z/`, branch follow-up
+    with 204 selected kernel blocks, five direct recovery/acquisition references
+    and exact lifecycle vtables. Report SHA-256
+    `1262f818b09a562b22c4649c97d94e77a5c865148268793cd2a9dc8d5c72ab1f`.
+    Kernel UUID and original/decoded hashes still match R3.
+- **R5**: `artifacts/probes/iodp-static-20260912T100306Z/`, current static
+    authorization refresh and allowlisted codesign identity bound to G5's probe
+    hash. Report SHA-256
+    `3eb1ce95df7815e9e719e12baa9d9e14c6ea34f0aad5a0560723949925cd2e2f`.
+    Its 191 function records shared with R3 have identical byte hashes.
 
 UTC dates are 2026-09-12; the local work date is 2026-09-11. Captures are ignored
 by Git and available locally. They are selected raw technical values, not complete
@@ -131,6 +148,16 @@ are sequential, not atomic, and transient registry/display IDs are not stable ID
 | E067 | The built probe is ad-hoc/linker-signed with no displayed entitlements; actual DPDV authorization for a future process remains category E because mandatory/system/filter policy inputs are unresolved. | UNKNOWN | Read-only codesign output, R3 _sb_evaluate_internal and outer open; authorization report | Inspect signing only; never test by opening | Identity observed; permission neither granted nor disproved |
 | E068 | R3 kernel UUID and original/decoded hashes match A2; the collector now uses declared function starts, preserves duplicate definitions, resolves exact requested addresses/strings and hashes 14 source files. | VERIFIED_ON_M5 | R3 metadata, focused parser tests and independent source blob IDs | Static capture command in RPC report | High for tooling/provenance, not hardware transport behavior |
 | E069 | The 13-gate first-read bar remains unmet: bounded/cancel-safe waits, complete firmware reply/read-only semantics and actual authorization are unresolved. No private transport was implemented or invoked. | UNKNOWN | RPC-03 readiness table and authorization category E | Withhold M2-02; future single byte at 0x000 only after separate gates/approval | NOT_READY_FOR_DPCD_TEST |
+| E070 | G5 revalidates one external 1920x1080@60 display, External DCPEXT0 Unit 0 DP device/service/support flags and active HPD-High port 4; USB inventory is six versus G4's nine. | VERIFIED_ON_M5 | G5, freshly observed IDs 4294970467/4294970463, no stale handle use | Existing public capture command once; compare paths/properties | High for snapshot; not proof every physical attachment is unchanged |
+| E071 | The selected enqueue callback reaches an admission loop that sleeps with deadline zero while the uint8 reservation count +145 is >= limit +144; release decrements and wakes. | PRIMARY_SOURCE | R4 BL 0xfffffe0009276f18 to acquireCommand; blocks 0xfffffe000928549c/0xfffffe0009285590; AFKWorkloop::sleep | Direct-call capture plus exact gate bindings | High; pre-send wait is not bounded by the opaque firmware argument 500 |
+| E072 | Notification raw 4 calls createErrorResponses; report raw 19 does so only after dispatch with a nonzero final flag. Report raw 20 routes through notification 4. | PRIMARY_SOURCE | R4 handleNotification 0xfffffe000928362c, handleClientReport 0xfffffe0009283ffc, vtable+8 | Raw branches/call sites; no live event generation | High for conditions, not a guarantee every removal/firmware fault produces them |
+| E073 | Disconnect completion in raw phase 2 is gated by equality of uint16 counters +74/+76; the return indicates phase, not independent cancellation success. | PRIMARY_SOURCE | R4 willDisconnectTransition block 0xfffffe0009285128 and callers | Preserve exact fields/conditions without guessed physical enum names | High for conditional ordering; no time bound |
+| E074 | Endpoint close releases local/remote command lists and clears queued tasks; some cleanup paths do not invoke normal response callbacks. tryClose has queued work and conditional power assertions. | PRIMARY_SOURCE | R4 closeHelper/handleClose/cleanupRemoteContext/clearAll and verified callback/virtual targets | RPC follow-up ownership/close trace | High for examined cleanup; not proof of firmware cancellation or waiter completion |
+| E075 | Ordinary callback/reference ownership is evidenced, but a lost reply can retain resources and exceptional close/disconnect ordering lacks a proven late-callback and stranded-wait guarantee. | INFERRED | E060/E061/E071-E074; raw stack CommandContext passed through retained blocks | Static lifetime analysis; no forced close, wake or fault injection | Specific risk, not a demonstrated leak or use-after-free |
+| E076 | R5 statically records the unchanged ad-hoc probe's identity/CDHash and zero entitlement data reported by codesign; its binary SHA-256 matches G5. | VERIFIED_ON_M5 | R5 probe_signing_evidence, probe SHA-256 3968fe8e43d04013e1e91110e3a206890b65a5d48b86327e4109f435dac1ddda | --signing-probe build/macmst uses codesign --display only | High for on-disk observation; not runtime sandbox state or access permission |
+| E077 | R5 refreshes identical outer-open/MACF/sandbox code bytes, but applicable policy inputs and actual DPDV access remain category E, policy-dependent/statically unresolved. | UNKNOWN | R5/R3 comparison, 191 shared function hashes; dpdv-authorization.md | Static policy/signing analysis, no open attempt | High for gate existence; actual authorization unproven |
+| E078 | Current Asahi Linux/m1n1 HEADs still match the pinned S19 revisions; hash-checked EPIC/DPAV/DPTX sources preserve the envelope mapping but supply no equivalent DPCD-read implementation or raw-500 units in the inspected scope. | PRIMARY_SOURCE | Current commit queries, 14 pinned file hashes, existing S19 mapping and targeted local text search | Reuse pinned sources, do not import Linux timeout behavior as macOS evidence | Strong format mapping, deliberately bounded negative search |
+| E079 | The explicit PASS/FAIL/UNKNOWN matrix fails reply completeness, bounded wait and cancellation guarantees; authorization, firmware/read-only and full side-effect/write-free gates remain unknown. | UNKNOWN | E070-E078 plus established ABI evidence; RPC report Readiness Gates | Every critical gate must be PASS before a separately approved one-byte test | NOT_READY_FOR_DPCD_TEST |
 
 ## Primary And Reproducible Source Catalog
 
@@ -157,6 +184,8 @@ are sequential, not atomic, and transient registry/display IDs are not stable ID
 | S19 | Current AsahiLinux/linux `77cb8f24c2381a8abb7272d7bbdec548d6426a8a`; m1n1 `b4654b32941d51afdb77579d63e7cb1aa6c03ecc` | [Linux afk.h](https://github.com/AsahiLinux/linux/blob/77cb8f24c2381a8abb7272d7bbdec548d6426a8a/drivers/gpu/drm/apple/afk.h), epic_service_call; afk.c afk_send_command/afk_service_call; dpavservep.c; dptxep.c/h; [m1n1 epic.py](https://github.com/AsahiLinux/m1n1/blob/b4654b32941d51afdb77579d63e7cb1aa6c03ecc/proxyclient/m1n1/fw/afk/epic.py), EPICStandardService; dcpav.py | Strong envelope mapping, distinct EDID/port/control operations; no equivalent read command found in inspected scope. Linux's timeout and late-ack policy are not macOS guarantees. |
 | S20 | apple-oss-distributions/dyld, `fd8d0c4d52320ebf64db34f3cb280310d905c5ae` | [mach_o/FunctionStarts.cpp](https://github.com/apple-oss-distributions/dyld/blob/fd8d0c4d52320ebf64db34f3cb280310d905c5ae/mach_o/FunctionStarts.cpp), valid, forEachFunctionStart | uint64 delta arithmetic and terminator/padding contract; local executable-section validation supplies additional bounded parsing. |
 | S21 | R3 local kernel/AppleFirmwareKit/sandbox images on macOS 26.6.2 | AppleFirmwareKit UUID `339ECC76-9A70-3F09-A740-09E5C89B1794`; sandbox `D4780E99-68D4-3902-8072-5151727ABD4C`; AFK enqueue/parser/abort/vtables, DCP response handlers, OSData/gates, stripped open/MACF routines and named sandbox hooks; exact code hashes in R3 | Current host-side implementation and provenance. No firmware handler, runtime authorization, bounded private transaction or MST source capability established. |
+| S22 | R4 on `research/dcp-rpc-safety`, same kernel/AppleFirmwareKit identities as R3 | AFKEPInterfaceV2::handleNotification/handleClientReport/acquireCommand/releaseCommand/handleClose/cleanupRemoteContext; AFKEPInterfaceKextV2::closeHelper/tryClose callbacks; EventSourceV2::dispatchNotification/clearAll; direct B/BL bytes and declared function bounds | Conditional recovery and concrete ownership/cleanup. Does not prove a wall-clock deadline, cancel-safe firmware request or universal teardown ordering. |
+| S23 | R5 on `research/dcp-rpc-safety`, same kernel/sandbox identities as R3 | Static codesign display of the existing macmst binary; outer open 0xfffffe000c037b80, MACF dispatchers, _hook_iokit_check_open/service and _sb_evaluate_internal; exact instruction/binary hashes | Fresh on-disk identity and unchanged policy code, not current task policy or permission to invoke DPDV. |
 
 Search results were treated as leads and followed to relevant code/definitions.
 Searches for `IOAVServiceReadAUX`/`IOAVServiceReadDPCD` found no match; that was not
@@ -180,6 +209,7 @@ restrictions are preserved; no negative M5 MST claim follows from this result.
 
 RPC-03's [RPC safety report](dcp-dpcd-rpc-03.md) and
 [authorization report](dpdv-authorization.md) distinguish initialized host tail
-bytes from a complete/live DPCD reply. The current status is E069, not a new
+bytes from a complete/live DPCD reply. The published baseline status was E069;
+the milestone-branch matrix is E079, not a new
 hardware-functionality claim. G4 also records the USB-count delta rather than
 silently treating the entire topology as unchanged.

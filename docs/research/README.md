@@ -18,6 +18,12 @@ no local reply deadline and a no-op abort hook. Complete-reply/firmware semantic
 and actual process authorization remain unestablished.
 **NOT_READY_FOR_DPCD_TEST** remains the result.
 
+The `research/dcp-rpc-safety` branch builds on the published RPC-03 report rather
+than repeating the host ABI work. G5/R4/R5 add fresh target/signing provenance,
+direct notification/recovery callers, pre-send admission waits and concrete
+endpoint cleanup. The [explicit matrix](dcp-dpcd-rpc-03.md#readiness-gates) requires
+every gate to be PASS. The baseline tag and main history remain unchanged.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -194,6 +200,10 @@ new cable cycle, updater execution, security change, or firmware write occurred.
 
 ## M2A-RPC-03 Verification
 
+This is the original pre-publication verification record. The milestone branch's
+separate 37-test run, G5/R4/R5 provenance and 161-artifact verification are recorded
+in [RPC-03 validation](dcp-dpcd-rpc-03.md#validation).
+
 | Command / Check | Result |
 | --- | --- |
 | `cmake --build build` | PASS, strict build already up to date. Native source and probe unchanged. |
@@ -214,9 +224,10 @@ duplicate names by address, supports exact string/address captures, and records
 undecoded instructions explicitly. Three allocation/growth instructions remain
 undecoded; no claim depends on pretending otherwise. Source captures remain ignored.
 
-The full current 32-file project was read before completing the investigation;
-two research reports were added. Git remains main without a HEAD, with 34
-untracked project files. No files were staged, committed, pushed or reverted.
+The full then-current 32-file project was read before completing that investigation;
+two research reports were added. At that pre-publication point, Git was still on
+main without a HEAD, with 34 untracked project files. No files had yet been staged,
+committed, pushed or reverted in that investigation.
 No model/global VS Code configuration, firmware or security setting was changed.
 
 The result is [RPC-03's gated safety assessment](dcp-dpcd-rpc-03.md#readiness-gates)
