@@ -23,6 +23,7 @@ def function_edges(function):
     visited = set()
     edges = []
     unresolved = []
+    conditions = []
     while pending:
         address = pending.pop()
         if address in visited:
@@ -50,13 +51,27 @@ def function_edges(function):
                 pending.append(address + 4)
             continue
         conditional = None
-        if word & 0xff000000 == 0x54000000 or word & 0x7e000000 == 0x34000000:
+        predicate = None
+        if word & 0xff000000 == 0x54000000:
             immediate = (word >> 5) & 0x7ffff
             conditional = address + (immediate - 0x80000 if immediate & 0x40000 else immediate) * 4
+            predicate = {"kind": "CONDITION_FLAGS", "condition_code": word & 0xf,
+                         "consistent_branch": bool(word & 0x10)}
+        elif word & 0x7e000000 == 0x34000000:
+            immediate = (word >> 5) & 0x7ffff
+            conditional = address + (immediate - 0x80000 if immediate & 0x40000 else immediate) * 4
+            predicate = {"kind": "COMPARE_ZERO", "register": word & 0x1f,
+                         "width_bits": 64 if word & 0x80000000 else 32,
+                         "branch_if": "NONZERO" if word & 0x01000000 else "ZERO"}
         elif word & 0x7e000000 == 0x36000000:
             immediate = (word >> 5) & 0x3fff
             conditional = address + (immediate - 0x4000 if immediate & 0x2000 else immediate) * 4
+            predicate = {"kind": "TEST_BIT", "register": word & 0x1f,
+                         "bit_index": ((word >> 31) << 5) | ((word >> 19) & 0x1f),
+                         "branch_if": "BIT_SET" if word & 0x01000000 else "BIT_CLEAR"}
         if conditional is not None:
+            conditions.append({**evidence, "predicate": predicate,
+                               "taken_hex": hex(conditional), "fallthrough_hex": hex(address + 4)})
             if start <= conditional < end:
                 pending.append(conditional)
             else:
@@ -77,6 +92,7 @@ def function_edges(function):
             continue
         pending.append(address + 4)
     return {"edges": sorted(edges, key=lambda edge: int(edge["callsite_hex"], 16)),
+            "conditions": sorted(conditions, key=lambda condition: int(condition["callsite_hex"], 16)),
             "unresolved": unresolved, "reachable_instruction_count": len(visited)}
 
 

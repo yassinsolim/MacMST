@@ -103,6 +103,35 @@ class StaticAnalysisParserTests(unittest.TestCase):
         self.assertFalse(result["complete"])
         self.assertEqual(result["gaps"][0]["detail"], "Target is not an exact function start")
 
+    def test_graph_records_owner_and_gate_branch_predicates(self):
+        cases = (
+            (0x34000043, {"kind": "COMPARE_ZERO", "register": 3, "width_bits": 32, "branch_if": "ZERO"}),
+            (0xb5000049, {"kind": "COMPARE_ZERO", "register": 9, "width_bits": 64, "branch_if": "NONZERO"}),
+            (0x3400005f, {"kind": "COMPARE_ZERO", "register": 31, "width_bits": 32, "branch_if": "ZERO"}),
+            (0x37000043, {"kind": "TEST_BIT", "register": 3, "bit_index": 0, "branch_if": "BIT_SET"}),
+            (0xb6f80049, {"kind": "TEST_BIT", "register": 9, "bit_index": 63, "branch_if": "BIT_CLEAR"}),
+            (0x54000041, {"kind": "CONDITION_FLAGS", "condition_code": 1, "consistent_branch": False}),
+            (0x54000051, {"kind": "CONDITION_FLAGS", "condition_code": 1, "consistent_branch": True}),
+        )
+        for word, predicate in cases:
+            with self.subTest(word=hex(word)):
+                function = self.graph_function(0x1000, [word, 0xd65f03c0, 0xd65f03c0])
+                result = call_graph.function_edges(function)
+                self.assertEqual(result["reachable_instruction_count"], 3)
+                self.assertEqual(result["conditions"], [{"callsite_hex": "0x1000",
+                    "bytes_hex": word.to_bytes(4, "little").hex(), "instruction": "decoded",
+                    "predicate": predicate, "taken_hex": "0x1008", "fallthrough_hex": "0x1004"}])
+
+    def test_graph_predicates_preserve_backward_targets_and_unreachable_code(self):
+        for word in (0x54ffffe0, 0x34ffffe2, 0x3607ffe3):
+            function = self.graph_function(0x1000, [0xd503201f, word, 0xd65f03c0])
+            result = call_graph.function_edges(function)
+            self.assertEqual(result["reachable_instruction_count"], 3)
+            self.assertEqual(result["conditions"][0]["taken_hex"], "0x1000")
+            self.assertEqual(result["conditions"][0]["fallthrough_hex"], "0x1008")
+        function = self.graph_function(0x1000, [0xd65f03c0, 0x34000040])
+        self.assertEqual(call_graph.function_edges(function)["conditions"], [])
+
     def test_graph_virtual_options_fail_closed_before_capture(self):
         for arguments in (
             ["--kernel-graph-vtable-edge", "0x1000", "__ZTVExample", "0"],
