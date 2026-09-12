@@ -118,6 +118,74 @@ def resolve_vtable_slot(vtables, symbol, offset):
             "receiver_scope": "Analyst-selected receiver context; pointer binding alone does not prove this receiver reaches this callsite."}
 
 
+def classify_frontiers(graph, scope, kernel_uuid):
+    classes = {"RELEVANT_TO_OPEN_HARDWARE_EFFECT", "RELEVANT_TO_OPEN_EXTERNAL_WAIT",
+               "RELEVANT_TO_PROVIDER_OWNERSHIP", "RESOURCE_MANAGEMENT_ONLY",
+               "UNRELATED_GENERIC_FRAMEWORK", "UNKNOWN"}
+    scope = {"schema_version": 1, "kernel_uuid": kernel_uuid, "functions": []} if scope is None else scope
+    if not isinstance(scope, dict) or set(scope) != {"schema_version", "kernel_uuid", "functions"}:
+        raise ValueError("Invalid frontier-scope document")
+    if type(scope["schema_version"]) is not int or scope["schema_version"] != 1 or scope["kernel_uuid"] != kernel_uuid:
+        raise ValueError("Frontier scope version or kernel UUID mismatch")
+    if not isinstance(scope["functions"], list) or len(scope["functions"]) > 128:
+        raise ValueError("Invalid or excessive frontier classifications")
+    receipts = {}
+    graph_roots = {root["root_hex"] for root in graph["roots"]}
+    for receipt in scope["functions"]:
+        required = {"address_hex", "bytes_sha256", "classification", "evidence"}
+        if not isinstance(receipt, dict) or not required <= set(receipt) or set(receipt) - required - {"callsite_hex", "include_descendants", "root_addresses_hex"}:
+            raise ValueError("Invalid frontier classification fields")
+        if not all(isinstance(receipt[field], str) for field in required):
+            raise ValueError("Frontier classification values must be strings")
+        address = hex(int(receipt["address_hex"], 16))
+        function = graph["function_bodies"].get(address)
+        if function is None or function["address_hex"] != address or function["bytes_sha256"] != receipt["bytes_sha256"]:
+            raise ValueError("Frontier function missing or hash mismatch")
+        function_edges(function)
+        callsite = receipt.get("callsite_hex")
+        if callsite is not None:
+            if not isinstance(callsite, str):
+                raise ValueError("Frontier callsite must be a string")
+            callsite = hex(int(callsite, 16))
+            if not any(instruction["address_hex"] == callsite for instruction in function["instructions"]):
+                raise ValueError("Frontier callsite is not a captured instruction")
+        if receipt["classification"] not in classes or not isinstance(receipt["evidence"], str) or not 1 <= len(receipt["evidence"]) <= 2048:
+            raise ValueError("Invalid frontier relevance or evidence")
+        if type(receipt.get("include_descendants", False)) is not bool or (address, callsite) in receipts:
+            raise ValueError("Invalid descendant scope or duplicate classification")
+        if "root_addresses_hex" in receipt:
+            roots = receipt["root_addresses_hex"]
+            if not isinstance(roots, list) or not roots or not all(isinstance(root, str) for root in roots):
+                raise ValueError("Invalid frontier root context")
+            roots = [hex(int(root, 16)) for root in roots]
+            if len(set(roots)) != len(roots) or not set(roots) <= graph_roots:
+                raise ValueError("Frontier root context is missing or ambiguous")
+            receipt = {**receipt, "root_addresses_hex": roots}
+        receipts[address, callsite] = {**receipt, "address_hex": address, "callsite_hex": callsite}
+    for root in graph["roots"]:
+        counts = collections.Counter()
+        for gap in root["gaps"]:
+            candidates = [(gap["address_hex"], gap.get("callsite_hex"), False)]
+            candidates.extend((edge["from_hex"], edge["callsite_hex"], True) for edge in reversed(gap["path"]))
+            selected = None
+            for address, callsite, ancestor in candidates:
+                for candidate in (receipts.get((address, callsite)), receipts.get((address, None))):
+                    if candidate is not None and root["root_hex"] in candidate.get("root_addresses_hex", graph_roots) and (not ancestor or candidate.get("include_descendants", False)):
+                        selected = candidate
+                        break
+                if selected is not None:
+                    break
+            gap["relevance"] = selected["classification"] if selected else "UNKNOWN"
+            gap["relevance_receipt"] = selected
+            counts[gap["relevance"]] += 1
+        root["frontier_relevance_counts"] = dict(sorted(counts.items()))
+        root["relevant_or_unknown_frontier_count"] = sum(count for classification, count in counts.items()
+            if classification not in {"RESOURCE_MANAGEMENT_ONLY", "UNRELATED_GENERIC_FRAMEWORK"})
+    graph["frontier_scope"] = {"kernel_uuid": kernel_uuid, "classifications": list(receipts.values()),
+        "scope": "Analyst-reviewed relevance receipts bound to captured bytes, not automatic semantic proof. Original graph completeness and paths are unchanged; unmatched frontiers remain UNKNOWN."}
+    return graph
+
+
 def bounded_call_graph(load_function, roots, sinks, node_limit=64, depth_limit=8, virtual_edges=None):
     if not roots or len(roots) > 32 or not 1 <= node_limit <= 512 or not 0 <= depth_limit <= 32:
         raise ValueError("Invalid call-graph traversal bounds")

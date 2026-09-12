@@ -132,6 +132,87 @@ class StaticAnalysisParserTests(unittest.TestCase):
         function = self.graph_function(0x1000, [0xd65f03c0, 0x34000040])
         self.assertEqual(call_graph.function_edges(function)["conditions"], [])
 
+    def test_frontier_scope_keeps_unknowns_and_original_completeness(self):
+        functions = {0x1000: self.graph_function(0x1000, [0x94000004, 0xd65f03c0]),
+                     0x1010: self.graph_function(0x1010, [0xd73f0910, 0xd65f03c0])}
+        graph = call_graph.bounded_call_graph(functions.__getitem__, [0x1000], set())
+        graph["function_bodies"] = {hex(address): body for address, body in functions.items()}
+        call_graph.classify_frontiers(graph, None, "kernel-identity")
+        self.assertEqual(graph["roots"][0]["gaps"][0]["relevance"], "UNKNOWN")
+        scope = {"schema_version": 1, "kernel_uuid": "kernel-identity", "functions": [{
+            "address_hex": "0x1000", "bytes_sha256": functions[0x1000]["bytes_sha256"],
+            "classification": "RESOURCE_MANAGEMENT_ONLY", "include_descendants": True,
+            "evidence": "Synthetic reviewed allocation-only context."}]}
+        call_graph.classify_frontiers(graph, scope, "kernel-identity")
+        root = graph["roots"][0]
+        self.assertEqual(root["gaps"][0]["relevance"], "RESOURCE_MANAGEMENT_ONLY")
+        self.assertEqual(root["relevant_or_unknown_frontier_count"], 0)
+        self.assertFalse(root["complete"])
+        self.assertEqual(root["status"], "CALL_GRAPH_INCOMPLETE")
+        scope["functions"].append({"address_hex": "0x1010", "callsite_hex": "0x1010",
+            "bytes_sha256": functions[0x1010]["bytes_sha256"], "classification": "RELEVANT_TO_PROVIDER_OWNERSHIP",
+            "evidence": "Synthetic specific provider callback supersedes ancestor classification."})
+        call_graph.classify_frontiers(graph, scope, "kernel-identity")
+        self.assertEqual(root["gaps"][0]["relevance"], "RELEVANT_TO_PROVIDER_OWNERSHIP")
+        self.assertEqual(root["relevant_or_unknown_frontier_count"], 1)
+
+    def test_frontier_scope_rejects_stale_and_ambiguous_receipts(self):
+        function = self.graph_function(0x1000, [0xd73f0910, 0xd65f03c0])
+        graph = call_graph.bounded_call_graph(lambda address: function, [0x1000], set())
+        graph["function_bodies"] = {"0x1000": function}
+        receipt = {"address_hex": "0x1000", "bytes_sha256": function["bytes_sha256"],
+                   "classification": "UNKNOWN", "evidence": "Unresolved synthetic callback."}
+        scope = {"schema_version": 1, "kernel_uuid": "kernel-identity", "functions": [receipt]}
+        for malformed in ({**scope, "kernel_uuid": "other-kernel"}, {**scope, "schema_version": True},
+                          {**scope, "functions": [receipt, receipt]}, {**scope, "extra": "ignored"}):
+            with self.assertRaises(ValueError):
+                call_graph.classify_frontiers(graph, malformed, "kernel-identity")
+        for field, value in (("address_hex", "0x1010"), ("bytes_sha256", "0" * 64),
+                             ("callsite_hex", "0x1001"), ("classification", "HARMLESS"),
+                             ("evidence", ""), ("include_descendants", 1),
+                             ("address_hex", 4096), ("callsite_hex", []), ("classification", [])):
+            with self.assertRaises(ValueError):
+                call_graph.classify_frontiers(graph, {**scope, "functions": [{**receipt, field: value}]}, "kernel-identity")
+
+    def test_frontier_scope_does_not_transfer_state_between_roots(self):
+        functions = {0x1000: self.graph_function(0x1000, [0x94000004, 0xd65f03c0]),
+                     0x1010: self.graph_function(0x1010, [0xd73f0910, 0xd65f03c0])}
+        graph = call_graph.bounded_call_graph(functions.__getitem__, [0x1000, 0x1010], set())
+        graph["function_bodies"] = {hex(address): body for address, body in functions.items()}
+        receipt = {"address_hex": "0x1010", "bytes_sha256": functions[0x1010]["bytes_sha256"],
+                   "classification": "RESOURCE_MANAGEMENT_ONLY", "evidence": "Synthetic unused-state context only.",
+                   "root_addresses_hex": ["0x1000"]}
+        scope = {"schema_version": 1, "kernel_uuid": "kernel-identity", "functions": [receipt]}
+        call_graph.classify_frontiers(graph, scope, "kernel-identity")
+        self.assertEqual(graph["roots"][0]["gaps"][0]["relevance"], "RESOURCE_MANAGEMENT_ONLY")
+        self.assertEqual(graph["roots"][1]["gaps"][0]["relevance"], "UNKNOWN")
+        specific = {**receipt, "callsite_hex": "0x1010", "classification": "RELEVANT_TO_PROVIDER_OWNERSHIP",
+                "root_addresses_hex": ["0x1010"]}
+        call_graph.classify_frontiers(graph, {**scope, "functions": [receipt, specific]}, "kernel-identity")
+        self.assertEqual(graph["roots"][0]["gaps"][0]["relevance"], "RESOURCE_MANAGEMENT_ONLY")
+        self.assertEqual(graph["roots"][1]["gaps"][0]["relevance"], "RELEVANT_TO_PROVIDER_OWNERSHIP")
+        for roots in ([], ["0x9990"], ["0x1000", "0x1000"], [4096]):
+            with self.assertRaises(ValueError):
+                call_graph.classify_frontiers(graph, {**scope, "functions": [{**receipt, "root_addresses_hex": roots}]}, "kernel-identity")
+
+    def test_graph_scope_cli_fails_closed_before_collection(self):
+        for arguments in (["--kernel-graph-scope", "unused"], ["--server", "--kernel-graph-scope", "unused"]):
+            with mock.patch.object(sys, "argv", ["inspect_iodp.py", "--baseline", "unused", *arguments]), mock.patch("sys.stderr"):
+                with self.assertRaises(SystemExit) as raised:
+                    analysis.main()
+                self.assertEqual(raised.exception.code, 2)
+        with tempfile.TemporaryDirectory() as directory:
+            scope = pathlib.Path(directory) / "scope.json"
+            for content in (b"not-json", b"null", b" " * 262145):
+                scope.write_bytes(content)
+                arguments = ["inspect_iodp.py", "--baseline", "unused", "--server", "--kernel-graph-root", "0x1000",
+                             "--kernel-graph-scope", str(scope)]
+                with mock.patch.object(sys, "argv", arguments), mock.patch("sys.stderr"), mock.patch.object(analysis, "collect_server_evidence") as collect:
+                    with self.assertRaises(SystemExit) as raised:
+                        analysis.main()
+                    self.assertEqual(raised.exception.code, 2)
+                    collect.assert_not_called()
+
     def test_graph_virtual_options_fail_closed_before_capture(self):
         for arguments in (
             ["--kernel-graph-vtable-edge", "0x1000", "__ZTVExample", "0"],
