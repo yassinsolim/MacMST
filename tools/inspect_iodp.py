@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 
-from dyld_cache import DyldCache, adrp_add_target, authenticated_stub_slot
+from dyld_cache import DyldCache, adrp_add_target, authenticated_stub_slot, direct_branch_target
 from kernel_image import collect_server_evidence
 
 
@@ -206,18 +206,6 @@ def raw_strings(values):
     return result
 
 
-def direct_branch_target(instruction, address):
-    if len(instruction) != 4:
-        raise ValueError("A64 instruction must be four bytes")
-    word = int.from_bytes(instruction, "little")
-    if word & 0x7c000000 != 0x14000000:
-        return None
-    immediate = word & 0x03ffffff
-    if immediate & 0x02000000:
-        immediate -= 0x04000000
-    return address + immediate * 4
-
-
 def raw_instruction(values, address):
     if not all(address + offset in values for offset in range(4)):
         return None
@@ -274,10 +262,12 @@ def main():
     parser.add_argument("--kernel-string", action="append", default=[], help="Capture declared functions referencing this exact kernel C string; requires --server.")
     parser.add_argument("--kernel-address", action="append", default=[], type=lambda value: int(value, 0),
                         help="Capture this exact declared function start in the matched image; requires --server.")
+    parser.add_argument("--kernel-callers-of", action="append", default=[],
+                        help="Capture declared functions with a direct B/BL to this exact defined symbol; requires --server.")
     parser.add_argument("--reference-root", type=pathlib.Path,
                         help="Hash reference source files already downloaded under artifacts/sources; never execute them.")
     args = parser.parse_args()
-    if (args.kernel_symbol or args.kernel_vtable or args.kernel_image or args.kernel_string or args.kernel_address) and not args.server:
+    if (args.kernel_symbol or args.kernel_vtable or args.kernel_image or args.kernel_string or args.kernel_address or args.kernel_callers_of) and not args.server:
         parser.error("kernel selection options require --server")
     if sys.platform != "darwin":
         parser.error("requires macOS dyld_info")
@@ -387,7 +377,8 @@ def main():
             if len(files) != 1:
                 raise ValueError("Boot image selection is ambiguous; provide evidence rather than guessing")
             server_evidence = collect_server_evidence(files[0], decoder, args.kernel_symbol, args.kernel_vtable,
-                                                      args.kernel_image, args.kernel_string, args.kernel_address)
+                                                      args.kernel_image, args.kernel_string, args.kernel_address,
+                                                      args.kernel_callers_of)
             print("Kernel UUID matched; captured selected static server methods.")
     finally:
         decoder.close()

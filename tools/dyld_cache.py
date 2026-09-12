@@ -3,6 +3,18 @@ import pathlib
 import struct
 
 
+def direct_branch_target(instruction, address):
+    if len(instruction) != 4:
+        raise ValueError("A64 instruction must be four bytes")
+    word = int.from_bytes(instruction, "little")
+    if word & 0x7c000000 != 0x14000000:
+        return None
+    immediate = word & 0x03ffffff
+    if immediate & 0x02000000:
+        immediate -= 0x04000000
+    return address + immediate * 4
+
+
 def cache_mappings(data, file_size):
     if len(data) < 24 or data[:16].rstrip(b"\0") not in (b"dyld_v1  arm64e", b"dyld_v1   arm64e"):
         raise ValueError("Unsupported or truncated arm64e cache header")

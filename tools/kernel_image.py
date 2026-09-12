@@ -7,7 +7,7 @@ import struct
 import subprocess
 import uuid
 
-from dyld_cache import adrp_add_target
+from dyld_cache import adrp_add_target, direct_branch_target
 
 
 def decode_function_starts(raw, base):
@@ -58,6 +58,25 @@ def literal_address_references(raw, base, targets):
         if target in targets:
             result.append({"instruction_address_hex": hex(base + offset), "instruction_bytes_hex": pair.hex(),
                            "target_address_hex": hex(target)})
+    return result
+
+
+def direct_call_references(raw, base, targets):
+    if base < 0 or base % 4 or len(raw) % 4 or base + len(raw) > 1 << 64:
+        raise ValueError("Invalid or unaligned direct-call code range")
+    result = []
+    for index, (word,) in enumerate(struct.iter_unpack("<I", raw)):
+        if word & 0x7c000000 != 0x14000000:
+            continue
+        offset = index * 4
+        instruction = raw[offset:offset + 4]
+        target = direct_branch_target(instruction, base + offset)
+        if target not in targets:
+            continue
+        if len(result) >= 4096:
+            raise ValueError("Excessive direct-call references")
+        result.append({"instruction_address_hex": hex(base + offset), "instruction_bytes_hex": instruction.hex(),
+                       "target_address_hex": hex(target), "branch_kind": "BL" if word & 0x80000000 else "B"})
     return result
 
 
@@ -409,7 +428,7 @@ class KernelCachePointers:
                 "raw_bytes_hex": bytes(page[page_offset:page_offset + 8]).hex()}
 
 
-def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), extra_images=(), extra_strings=(), extra_addresses=()):
+def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), extra_images=(), extra_strings=(), extra_addresses=(), callers_of=()):
     if file.stat().st_size > 64 * 1024 * 1024:
         raise ValueError("Kernel container exceeds static inspection limit")
     original = file.read_bytes()
@@ -437,9 +456,11 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
                 names_by_address.setdefault(symbol["address"], set()).add(symbol["name"])
     defined_names = {symbol["name"] for symbols in inventories.values() for symbol in symbols
                      if symbol["address"] and symbol["section"]}
-    missing = (set(extra_symbols) | set(extra_vtables)) - defined_names
+    missing = (set(extra_symbols) | set(extra_vtables) | set(callers_of)) - defined_names
     if missing:
         raise ValueError("Requested kernel definitions not found: " + ", ".join(sorted(missing)))
+    call_targets = {symbol["address"] for symbols in inventories.values() for symbol in symbols
+                    if symbol["address"] and symbol["section"] and symbol["name"] in callers_of}
     images = []
     requested_addresses = set(extra_addresses)
     if any(address < 0 or address >= 1 << 64 or address % 4 for address in requested_addresses):
@@ -505,6 +526,24 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
                 if not any(symbol["address"] == start for symbol in selected):
                     selected.append({"name": "literal-reference@" + hex(start), "address": start,
                                      "section": section_index, "type": 0xe})
+        call_references = []
+        for section_index, section in enumerate(sections, 1):
+            if section["section"] != "__text" or not call_targets:
+                continue
+            raw = bytes(bounded_slice(data, section["file_offset"], section["size"]))
+            for reference in direct_call_references(raw, section["address"], call_targets):
+                address = int(reference["instruction_address_hex"], 16)
+                index = bisect.bisect_right(starts, address) - 1
+                if index < 0 or starts[index] < section["address"]:
+                    raise ValueError("Direct caller is outside a declared function in its section")
+                start = starts[index]
+                reference["containing_function_hex"] = hex(start)
+                reference["exact_target_symbols"] = sorted(names_by_address[int(reference["target_address_hex"], 16)])
+                reference["exact_caller_symbols"] = sorted(names_by_address.get(start, ()))
+                call_references.append(reference)
+                if not any(symbol["address"] == start for symbol in selected):
+                    selected.append({"name": "direct-caller@" + hex(start), "address": start,
+                                     "section": section_index, "type": 0xe})
         functions = {}
         for symbol in selected:
             if symbol["section"] > len(sections):
@@ -537,7 +576,7 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
                        "sections": sections, "relevant_symbols": selected, "functions": functions,
                        "function_starts_evidence": starts_evidence,
                        "selected_literals": {hex(address): item for address, item in literals.items()},
-                       "literal_references": references})
+                       "literal_references": references, "direct_call_references": call_references})
     if matched_addresses != requested_addresses:
         raise ValueError("Explicit kernel address not found in the requested images")
     tables = [symbol for symbols in inventories.values() for symbol in symbols
@@ -603,6 +642,8 @@ def collect_server_evidence(file, decoder, extra_symbols=(), extra_vtables=(), e
             "requested_images": sorted(set(extra_images)),
             "requested_strings": sorted(set(extra_strings)),
             "requested_addresses_hex": [hex(address) for address in sorted(requested_addresses)],
+            "requested_callers_of": sorted(set(callers_of)),
+            "direct_caller_scope": "Direct B/BL references in selected images only; absent references do not rule out indirect callbacks.",
             "observed_external_client_routing": {"command": command, "entries": routing},
             "scope": "Read-only decompression and static instruction analysis; no inspected kernel code is executed or loaded."}
 
