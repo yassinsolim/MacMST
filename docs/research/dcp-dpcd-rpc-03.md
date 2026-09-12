@@ -1,5 +1,178 @@
 # M2A-RPC-03: DCP DPCD Read Safety Contract
 
+## Milestone Branch Follow-up
+
+The published baseline already contained the original RPC-03 investigation below.
+This follow-up runs on `research/dcp-rpc-safety`, created from
+`2512e2f34ec5fc2b2f03102ecfb44951dad3c517`. Local/remote main and the annotated
+`research-baseline-v0.1` tag were verified before branching and remain unchanged.
+It reuses the established host ABI and adds the missing direct-caller evidence
+for command admission, recovery notifications and endpoint cleanup.
+
+| New Record | Scope |
+| --- | --- |
+| G5, `artifacts/probes/20260912T093139Z/` | One fresh invocation of the existing public probe through the collector; 33 read-only commands, zero failures. |
+| R4, `artifacts/probes/iodp-static-20260912T095457Z/` | Static lifetime follow-up: 204 selected kernel blocks, five direct recovery/acquisition references and six requested vtables. |
+| R4 report SHA-256 | `1262f818b09a562b22c4649c97d94e77a5c865148268793cd2a9dc8d5c72ab1f` |
+| R4 completion | 2026-09-12T09:55:00Z; current kernel UUID and container/decoded hashes equal R3. |
+
+`VERIFIED_ON_M5`: G5 again has one external active 1920x1080@60 display and the
+same External DCPEXT0 / Unit 0 DP device/service paths with both interface flags.
+Port 4 remains active, HPD 2 / High, two lanes, raw LinkRate 4 / published HBR3,
+SinkCount 1, Tunneled false. The freshly observed IDs happen to remain
+`4294970467` / `4294970463`; no old handle or ID was used for selection.
+**USB inventory changed from nine in G4 to six in G5.** This is a material
+inventory difference, not evidence that the external DP route changed or that
+every physical attachment remained identical. No cable cycle was performed.
+The original owner-reported hub association remains an inference from C1/D1/C2,
+not a new physical identification from G5.
+
+R4 uses `--kernel-callers-of` to preserve exact B/BL bytes, target definitions
+and containing LC_FUNCTION_STARTS-bounded functions. It does not resolve every
+indirect callback, and absence of a direct caller is not absence of a path.
+The first caller-capture tests passed before real-image use. Intermediate
+captures are retained; R3 remains the original baseline evidence.
+
+Reproduce the new static selection on the recorded build using G5 (or a new
+locally generated baseline). These commands never open a private display client:
+
+```sh
+python3 tools/inspect_iodp.py \
+  --baseline artifacts/probes/20260912T093139Z --server \
+  --reference-root artifacts/sources/rpc03 \
+  --kernel-callers-of __ZN16AFKEPInterfaceV220createErrorResponsesEv \
+  --kernel-callers-of __ZN16AFKEPInterfaceV224willDisconnectTransitionEv \
+  --kernel-callers-of __ZN16AFKEPInterfaceV214acquireCommandEv \
+  --kernel-vtable __ZTV16AFKEPInterfaceV2 \
+  --kernel-vtable __ZTV27AFKEPInterfaceEventSourceV2 \
+  --kernel-vtable __ZTV20AFKEPInterfaceKextV2 \
+  --kernel-vtable __ZTV26AFKEndpointInterfaceClient \
+  --kernel-vtable __ZTV10DCPAVProxy \
+  --kernel-vtable __ZTV26DCPDPDeviceProxyUserClient \
+  --kernel-symbol __ZN27AFKEPInterfaceEventSourceV220dispatchNotificationEN5AFKEP12NotificationEPNSt3__16atomicIhEE \
+  --kernel-symbol __ZN20AFKEPInterfaceKextV211handleCloseEP9IOServicej \
+  --kernel-symbol __ZN20AFKEPInterfaceKextV213stateCompleteEN5AFKEP12NotificationEPNSt3__16atomicIhEE \
+  --kernel-symbol __ZN20AFKEPInterfaceKextV214doNotificationEN5AFKEP12NotificationE \
+  --kernel-symbol __ZN20AFKEPInterfaceKextV218handleNotificationEN5AFKEP12NotificationEPNSt3__16atomicIhEE \
+  --kernel-symbol __ZN20AFKEPInterfaceKextV219deliverNotificationEN5AFKEP12NotificationEPNSt3__16atomicIhEE \
+  --kernel-symbol __ZN20AFKEPInterfaceKextV211closeHelperEv \
+  --kernel-symbol __ZN20AFKEPInterfaceKextV211closeHelperEv.cold.1 \
+  --kernel-symbol ____ZN20AFKEPInterfaceKextV211closeHelperEv_block_invoke \
+  --kernel-symbol __ZN16AFKEPInterfaceV211handleCloseEv \
+  --kernel-symbol __ZN16AFKEPInterfaceV211handleCloseEv.cold.1 \
+  --kernel-symbol ____ZN16AFKEPInterfaceV211handleCloseEv_block_invoke \
+  --kernel-symbol __ZN16AFKEPInterfaceV220cleanupRemoteContextEv \
+  --kernel-symbol __ZN27AFKEPInterfaceEventSourceV28clearAllEv \
+  --kernel-address 0xfffffe0009275858 \
+  --kernel-address 0xfffffe00092758e0 \
+  --kernel-address 0xfffffe0009275ad4 \
+  --kernel-address 0xfffffe0009278dbc
+```
+
+The address selections require the recorded image identities. They are not
+portable entry points or permission to invoke them. Reference files remain
+ignored; the tool only hashes them. Source comparisons reused the 14 pinned
+files after hash verification, and current Asahi Linux/m1n1 HEADs still equal
+the revisions in the mapping table below.
+
+### Admission Before The Reply Wait
+
+`PRIMARY_SOURCE`: the selected enqueue callback at `0xfffffe0009276e1c` calls
+`AFKEPInterfaceV2::acquireCommand` at `0xfffffe0009276f18` (bytes `3a390094`).
+Before that call it can sleep on the endpoint with deadline zero when the endpoint
+is not inactive and two local state snapshots equal 3 and 1. Those snapshots
+are not assigned hardware meanings without further evidence.
+
+The acquisition block at `0xfffffe000928549c` reads an eight-bit reservation
+limit at interface+144 and reservation count at +145. Its complete decision is:
+
+```text
+while u8(interface + 145) >= u8(interface + 144):
+    interface.workloop_at_8.sleep(interface + 144, deadline=0)
+increment_u8(interface + 145)
+```
+
+The matching release block at `0xfffffe0009285590` decrements +145 and wakes
+the event at +144. There is no local timeout or alternate error return in the
+acquisition loop. `AFKWorkloop::sleep` at `0xfffffe000927bbd8` explicitly selects
+gate+512 when its deadline is zero and gate+528 otherwise; the former is the
+already established uninterruptible/no-deadline overload. Thus a firmware-side
+meaning for raw 500 would not bound admission **before** firmware receives the
+request, even if it later proved to be a firmware execution timeout.
+
+### Conditional Recovery Notifications
+
+Two direct callers of `createErrorResponses` were found in the selected images:
+
+| Caller / Call Site | Condition | Established Result |
+| --- | --- | --- |
+| AFKEPInterfaceV2::handleNotification, `0xfffffe000928362c`; BL `0xfffffe0009283664` | Notification argument equals raw 4; handler requires its AFK gate. | Calls createErrorResponses before dispatching the notification. |
+| AFKEPInterfaceV2::handleClientReport, `0xfffffe0009283ffc`; BL `0xfffffe000928419c` | After report dispatch, report type equals raw 19 and the final boolean argument is nonzero. | Calls createErrorResponses. |
+
+Raw report type 20 sets bit 7 in the interface flags at +24 and invokes the
+notification handler with raw 4. The concrete interface vtable+8 resolves to
+the above handleNotification. This is a code-backed association between these
+values, not a proved mapping from every physical HPD drop, firmware crash or
+USB detach to notification 4.
+
+`createErrorResponses` repeatedly routes a synthesized `0xe00002d7` Offline
+response through the normal tag-matching handler until the local command list
+is empty. If this path and response delivery run successfully, waiting reads
+can receive errors. This strengthens **conditional recovery**, not cancellation
+or a time bound. Neither the notification's arrival nor workloop progress is
+guaranteed by these branches.
+
+The disconnect-transition block at `0xfffffe0009285128` checks raw phase +26
+equals 2, then calls its completion slot only when the two uint16 counters at
++74 and +76 are equal. The enclosing function returns whether the phase was 2,
+not an independent assertion that every request was cancelled. The counters
+and callback are evidence of ordering, not a replacement for a deadline.
+
+### Request Ownership And Endpoint Close
+
+| Resource | Normal Ownership Evidence | Cancellation Limit |
+| --- | --- | --- |
+| Caller byte/private CF object | Caller keeps storage and its object alive through the synchronous call; ordinary CF cleanup is unchanged. | Concurrent CFRelease is not safe cancellation and is not proposed. |
+| DCP OSData message | DP read holds it across send/wait and releases it on returned success/error. | A stranded thread retains the message; permanent leak behavior is not demonstrated. |
+| Stack CommandContext | Adapter callback stores the context pointer; DCP response handler writes status/size and wakes before the stack frame returns normally. | Callback retention does not heap-own that stack context; abnormal return needs quiescence not established by abort. |
+| AFK reservation and command | Admission increments the count; local command is queued with an eight-bit tag after successful send; response removes it. | No-op abort does not remove a command or release its reservation. |
+| Callback blocks/client | AFK retains the queued block, releases it on normal delivery; AFKEndpointInterfaceClient::free at `0xfffffe000926eb54` releases stored blocks and service reference. | Reference counts alone do not guarantee an error response reaches a waiting stack frame. |
+| Notification task/endpoint | Notification dispatcher allocates/queues a task; KextV2 deliverNotification retains the endpoint around the transition and later releases it. | A queued task still requires event-source progress. |
+
+The endpoint close path now has additional concrete evidence:
+
+1. `AFKEPInterfaceKextV2::close` (`0xfffffe0009275984`) runs a gated callback.
+   When an EPIC client exists and the client-collection count is <=1, the callback
+   calls closeHelper, wakes the endpoint event, then delegates to its base close.
+2. closeHelper (`0xfffffe000927553c`) calls the AFK interface handleClose, runs a
+   property-setting loop while the uint32 at endpoint+344 is nonzero, and schedules
+   event-source cleanup. No finite bound is shown for that property loop.
+3. `AFKEPInterfaceV2::handleClose` (`0xfffffe0009285040`) invokes
+   cleanupRemoteContext on its workloop and reaches the concrete tryClose slot.
+4. Despite its name, `cleanupRemoteContext` (`0xfffffe0009283a70`) releases both
+   the remote list at +56 and local command list at +40, resets tails, and zeros
+   the reservation count at +145. Its body has no normal response callback or
+   commandSleep wake. List cleanup is therefore not proof that pending reads
+   were completed. The release implementations and transport may have additional
+   lifetime effects; no universal firmware-quiescence guarantee is inferred.
+5. The closeHelper callback (`0xfffffe0009275ad4`) removes the event source,
+   calls clearAll and releases it. `clearAll` (`0xfffffe000925e660`) drains task
+   allocations under its lock; notification tasks run state completion, while
+   data-bearing tasks release their allocations. It does not turn every discarded
+   response task into a normal DCP response callback.
+6. The concrete tryClose path queues an async request. The callback at
+   `0xfffffe0009275858` has conditional assertPowerState/deassertPowerState calls
+   and delegates to the AFK base tryClose slot. A successful enqueue or cleanup
+   is not a demonstrated synchronous transaction cancellation.
+
+These facts do not demonstrate a use-after-free on the ordinary path. They do
+identify the exact lifetime concern: close/disconnect ordering must prevent a
+late callback into an expired stack context and must not strand an uninterruptible
+wait after discarding its command/task. The examined code provides conditional
+error delivery, ownership and cleanup, **not** a cancel-safe bounded API for
+arbitrary firmware failure or concurrent application teardown. No fault injection,
+forced wake, concurrent close, or abnormal termination experiment was performed.
+
 ## Decision And Scope
 
 **NOT_READY_FOR_DPCD_TEST**

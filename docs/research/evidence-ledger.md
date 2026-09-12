@@ -8,6 +8,8 @@ the earlier unresolved client-lifecycle/binding/host-dispatch statements without
 turning static evidence into a successful hardware experiment.
 RPC-03 entries E053-E069 add lower AFK, reply-initialization, wait/cancellation
 and authorization findings. They do not promote the private transport to tested.
+The milestone-branch follow-up adds E070-E075 for fresh target observations,
+direct recovery callers, admission waits and concrete endpoint cleanup.
 
 ## Captures
 
@@ -45,6 +47,14 @@ and authorization findings. They do not promote the private transport to tested.
     capture: 26 IOKit blocks, six PS190 blocks, 206 declared-boundary kernel
     function blocks, exact AFK/gate/policy vtables and 14 reference-file hashes.
     Report SHA-256 `b80b5f6b1d9553ce1ee1b292f68102369d0c7e3d29cfdd6ab80ff3c9c199b263`.
+- **G5**: `artifacts/probes/20260912T093139Z/`, one fresh public probe through
+    the existing collector, 33 commands and zero failures; External display/path
+    still present, USB count six versus G4's nine. No cable cycle.
+- **R4**: `artifacts/probes/iodp-static-20260912T095457Z/`, branch follow-up
+    with 204 selected kernel blocks, five direct recovery/acquisition references
+    and exact lifecycle vtables. Report SHA-256
+    `1262f818b09a562b22c4649c97d94e77a5c865148268793cd2a9dc8d5c72ab1f`.
+    Kernel UUID and original/decoded hashes still match R3.
 
 UTC dates are 2026-09-12; the local work date is 2026-09-11. Captures are ignored
 by Git and available locally. They are selected raw technical values, not complete
@@ -131,6 +141,12 @@ are sequential, not atomic, and transient registry/display IDs are not stable ID
 | E067 | The built probe is ad-hoc/linker-signed with no displayed entitlements; actual DPDV authorization for a future process remains category E because mandatory/system/filter policy inputs are unresolved. | UNKNOWN | Read-only codesign output, R3 _sb_evaluate_internal and outer open; authorization report | Inspect signing only; never test by opening | Identity observed; permission neither granted nor disproved |
 | E068 | R3 kernel UUID and original/decoded hashes match A2; the collector now uses declared function starts, preserves duplicate definitions, resolves exact requested addresses/strings and hashes 14 source files. | VERIFIED_ON_M5 | R3 metadata, focused parser tests and independent source blob IDs | Static capture command in RPC report | High for tooling/provenance, not hardware transport behavior |
 | E069 | The 13-gate first-read bar remains unmet: bounded/cancel-safe waits, complete firmware reply/read-only semantics and actual authorization are unresolved. No private transport was implemented or invoked. | UNKNOWN | RPC-03 readiness table and authorization category E | Withhold M2-02; future single byte at 0x000 only after separate gates/approval | NOT_READY_FOR_DPCD_TEST |
+| E070 | G5 revalidates one external 1920x1080@60 display, External DCPEXT0 Unit 0 DP device/service/support flags and active HPD-High port 4; USB inventory is six versus G4's nine. | VERIFIED_ON_M5 | G5, freshly observed IDs 4294970467/4294970463, no stale handle use | Existing public capture command once; compare paths/properties | High for snapshot; not proof every physical attachment is unchanged |
+| E071 | The selected enqueue callback reaches an admission loop that sleeps with deadline zero while the uint8 reservation count +145 is >= limit +144; release decrements and wakes. | PRIMARY_SOURCE | R4 BL 0xfffffe0009276f18 to acquireCommand; blocks 0xfffffe000928549c/0xfffffe0009285590; AFKWorkloop::sleep | Direct-call capture plus exact gate bindings | High; pre-send wait is not bounded by the opaque firmware argument 500 |
+| E072 | Notification raw 4 calls createErrorResponses; report raw 19 does so only after dispatch with a nonzero final flag. Report raw 20 routes through notification 4. | PRIMARY_SOURCE | R4 handleNotification 0xfffffe000928362c, handleClientReport 0xfffffe0009283ffc, vtable+8 | Raw branches/call sites; no live event generation | High for conditions, not a guarantee every removal/firmware fault produces them |
+| E073 | Disconnect completion in raw phase 2 is gated by equality of uint16 counters +74/+76; the return indicates phase, not independent cancellation success. | PRIMARY_SOURCE | R4 willDisconnectTransition block 0xfffffe0009285128 and callers | Preserve exact fields/conditions without guessed physical enum names | High for conditional ordering; no time bound |
+| E074 | Endpoint close releases local/remote command lists and clears queued tasks; some cleanup paths do not invoke normal response callbacks. tryClose has queued work and conditional power assertions. | PRIMARY_SOURCE | R4 closeHelper/handleClose/cleanupRemoteContext/clearAll and verified callback/virtual targets | RPC follow-up ownership/close trace | High for examined cleanup; not proof of firmware cancellation or waiter completion |
+| E075 | Ordinary callback/reference ownership is evidenced, but a lost reply can retain resources and exceptional close/disconnect ordering lacks a proven late-callback and stranded-wait guarantee. | INFERRED | E060/E061/E071-E074; raw stack CommandContext passed through retained blocks | Static lifetime analysis; no forced close, wake or fault injection | Specific risk, not a demonstrated leak or use-after-free |
 
 ## Primary And Reproducible Source Catalog
 
@@ -157,6 +173,7 @@ are sequential, not atomic, and transient registry/display IDs are not stable ID
 | S19 | Current AsahiLinux/linux `77cb8f24c2381a8abb7272d7bbdec548d6426a8a`; m1n1 `b4654b32941d51afdb77579d63e7cb1aa6c03ecc` | [Linux afk.h](https://github.com/AsahiLinux/linux/blob/77cb8f24c2381a8abb7272d7bbdec548d6426a8a/drivers/gpu/drm/apple/afk.h), epic_service_call; afk.c afk_send_command/afk_service_call; dpavservep.c; dptxep.c/h; [m1n1 epic.py](https://github.com/AsahiLinux/m1n1/blob/b4654b32941d51afdb77579d63e7cb1aa6c03ecc/proxyclient/m1n1/fw/afk/epic.py), EPICStandardService; dcpav.py | Strong envelope mapping, distinct EDID/port/control operations; no equivalent read command found in inspected scope. Linux's timeout and late-ack policy are not macOS guarantees. |
 | S20 | apple-oss-distributions/dyld, `fd8d0c4d52320ebf64db34f3cb280310d905c5ae` | [mach_o/FunctionStarts.cpp](https://github.com/apple-oss-distributions/dyld/blob/fd8d0c4d52320ebf64db34f3cb280310d905c5ae/mach_o/FunctionStarts.cpp), valid, forEachFunctionStart | uint64 delta arithmetic and terminator/padding contract; local executable-section validation supplies additional bounded parsing. |
 | S21 | R3 local kernel/AppleFirmwareKit/sandbox images on macOS 26.6.2 | AppleFirmwareKit UUID `339ECC76-9A70-3F09-A740-09E5C89B1794`; sandbox `D4780E99-68D4-3902-8072-5151727ABD4C`; AFK enqueue/parser/abort/vtables, DCP response handlers, OSData/gates, stripped open/MACF routines and named sandbox hooks; exact code hashes in R3 | Current host-side implementation and provenance. No firmware handler, runtime authorization, bounded private transaction or MST source capability established. |
+| S22 | R4 on `research/dcp-rpc-safety`, same kernel/AppleFirmwareKit identities as R3 | AFKEPInterfaceV2::handleNotification/handleClientReport/acquireCommand/releaseCommand/handleClose/cleanupRemoteContext; AFKEPInterfaceKextV2::closeHelper/tryClose callbacks; EventSourceV2::dispatchNotification/clearAll; direct B/BL bytes and declared function bounds | Conditional recovery and concrete ownership/cleanup. Does not prove a wall-clock deadline, cancel-safe firmware request or universal teardown ordering. |
 
 Search results were treated as leads and followed to relevant code/definitions.
 Searches for `IOAVServiceReadAUX`/`IOAVServiceReadDPCD` found no match; that was not
