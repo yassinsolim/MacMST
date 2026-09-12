@@ -94,6 +94,12 @@ Complete-reply/firmware semantics and actual process authorization remain unreso
 **NOT_READY_FOR_DPCD_TEST**. No native AUX or DPCD transaction has been executed;
 MST source support remains unknown.
 
+The `research/dcp-rpc-safety` follow-up revalidates the External path and adds
+deadline-free admission waits, conditional recovery triggers, concrete endpoint
+cleanup and fresh signing/policy evidence. Its [explicit readiness matrix](docs/research/dcp-dpcd-rpc-03.md#readiness-gates)
+keeps reply completeness, bounded waiting and cancellation blocked. The published
+`research-baseline-v0.1` tag is unchanged; this work has not been merged into main.
+
 For a fresh clone, first build the probe and create your own public capture:
 
 ```sh

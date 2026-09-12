@@ -11,6 +11,7 @@ and authorization findings. They do not promote the private transport to tested.
 The milestone-branch follow-up adds E070-E075 for fresh target observations,
 direct recovery callers, admission waits and concrete endpoint cleanup.
 E076-E077 refresh signing and policy provenance without asserting access.
+E078-E079 record the unchanged source-mapping scope and explicit final gate states.
 
 ## Captures
 
@@ -155,6 +156,8 @@ are sequential, not atomic, and transient registry/display IDs are not stable ID
 | E075 | Ordinary callback/reference ownership is evidenced, but a lost reply can retain resources and exceptional close/disconnect ordering lacks a proven late-callback and stranded-wait guarantee. | INFERRED | E060/E061/E071-E074; raw stack CommandContext passed through retained blocks | Static lifetime analysis; no forced close, wake or fault injection | Specific risk, not a demonstrated leak or use-after-free |
 | E076 | R5 statically records the unchanged ad-hoc probe's identity/CDHash and zero entitlement data reported by codesign; its binary SHA-256 matches G5. | VERIFIED_ON_M5 | R5 probe_signing_evidence, probe SHA-256 3968fe8e43d04013e1e91110e3a206890b65a5d48b86327e4109f435dac1ddda | --signing-probe build/macmst uses codesign --display only | High for on-disk observation; not runtime sandbox state or access permission |
 | E077 | R5 refreshes identical outer-open/MACF/sandbox code bytes, but applicable policy inputs and actual DPDV access remain category E, policy-dependent/statically unresolved. | UNKNOWN | R5/R3 comparison, 191 shared function hashes; dpdv-authorization.md | Static policy/signing analysis, no open attempt | High for gate existence; actual authorization unproven |
+| E078 | Current Asahi Linux/m1n1 HEADs still match the pinned S19 revisions; hash-checked EPIC/DPAV/DPTX sources preserve the envelope mapping but supply no equivalent DPCD-read implementation or raw-500 units in the inspected scope. | PRIMARY_SOURCE | Current commit queries, 14 pinned file hashes, existing S19 mapping and targeted local text search | Reuse pinned sources, do not import Linux timeout behavior as macOS evidence | Strong format mapping, deliberately bounded negative search |
+| E079 | The explicit PASS/FAIL/UNKNOWN matrix fails reply completeness, bounded wait and cancellation guarantees; authorization, firmware/read-only and full side-effect/write-free gates remain unknown. | UNKNOWN | E070-E078 plus established ABI evidence; RPC report Readiness Gates | Every critical gate must be PASS before a separately approved one-byte test | NOT_READY_FOR_DPCD_TEST |
 
 ## Primary And Reproducible Source Catalog
 
@@ -206,6 +209,7 @@ restrictions are preserved; no negative M5 MST claim follows from this result.
 
 RPC-03's [RPC safety report](dcp-dpcd-rpc-03.md) and
 [authorization report](dpdv-authorization.md) distinguish initialized host tail
-bytes from a complete/live DPCD reply. The current status is E069, not a new
+bytes from a complete/live DPCD reply. The published baseline status was E069;
+the milestone-branch matrix is E079, not a new
 hardware-functionality claim. G4 also records the USB-count delta rather than
 silently treating the entire topology as unchanged.

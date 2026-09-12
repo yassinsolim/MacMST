@@ -1,5 +1,9 @@
 # M2A-RPC-03: DCP DPCD Read Safety Contract
 
+**Current gate: NOT_READY_FOR_DPCD_TEST.** The milestone-branch follow-up below
+adds evidence, not permission to invoke the private interface. The explicit
+[readiness matrix](#readiness-gates) treats every listed gate as required.
+
 ## Milestone Branch Follow-up
 
 The published baseline already contained the original RPC-03 investigation below.
@@ -142,8 +146,9 @@ and callback are evidence of ordering, not a replacement for a deadline.
 The endpoint close path now has additional concrete evidence:
 
 1. `AFKEPInterfaceKextV2::close` (`0xfffffe0009275984`) runs a gated callback.
-   When an EPIC client exists and the client-collection count is <=1, the callback
-   calls closeHelper, wakes the endpoint event, then delegates to its base close.
+   When the EPIC client is null or the client-collection count is <=1, the callback
+   calls closeHelper; a nonnull client with count >1 skips that helper. It then
+   wakes the endpoint event and delegates to its base close in either case.
 2. closeHelper (`0xfffffe000927553c`) calls the AFK interface handleClose, runs a
    property-setting loop while the uint32 at endpoint+344 is nonzero, and schedules
    event-source cleanup. No finite bound is shown for that property loop.
@@ -644,24 +649,33 @@ unresolved. M5 source MST packetizer/support is still `UNKNOWN`.
 
 ## Readiness Gates
 
-| # | Required Gate | Assessment |
-| --- | --- | --- |
-| 1 | Repeatable External target selection | Strong existing correlation and fresh path/flag validation; USB delta must not be hidden. |
-| 2 | Object construction established | Strong ABI-02 static evidence, retained. |
-| 3 | Cleanup established | Strong ordinary CF/client lifetime evidence; exceptional pending-request behavior remains a separate gate. |
-| 4 | Authorization known and satisfiable without weakening security | **UNKNOWN** for the eventual process under mandatory/system/sandbox policies; see authorization report. |
-| 5 | Selector-0 client contract | Strong exact binding and checked dispatch. |
-| 6 | Sufficient request/reply contract | Layout and host behavior established; complete-response semantics not guaranteed. |
-| 7 | Bounded wait | **Blocking:** no local deadline; no independently established lower bound. |
-| 8 | Failure cleanup understood | Ordinary send/reply failures understood; cancellation/lost-reply/late-callback cases **not established**. |
-| 9 | No uninitialized one-byte output on short reply | Host tail initialization established; full malformed/OOL producer guarantee **not established**. No blanket safety claim. |
-| 10 | Credibly read-only operation | Host read request established; firmware operation and power consequences **UNKNOWN**. |
-| 11 | No dangerous open/start reconfiguration | No explicit link reconfiguration in examined concrete client chain; general indirect effects not universally proved. |
-| 12 | Address 0x000 appropriate | PRIMARY_SOURCE: DP_DPCD_REV in the pinned Linux DP definitions; appropriate capability byte. |
-| 13 | No write operation anywhere in selected path | No host DPCD-write call found; firmware path and possible power effects prevent an end-to-end guarantee. |
+`PASS` means the precisely scoped claim has supporting evidence, not runtime
+transport success. `FAIL` means the required guarantee is absent in the examined
+selected path and a concrete conflicting behavior is identified. `UNKNOWN`
+means evidence is insufficient. Every gate is critical: overall READY requires
+**all** rows to be PASS. No majority vote, plausibility threshold or successful
+compilation can override a FAIL or UNKNOWN.
 
-These gaps are not waived because the host ABI is understood. The no-deadline
-wait and no-op cancellation alone are sufficient to withhold the experiment.
+| Gate | State | Evidence And Scope |
+| --- | --- | --- |
+| External target | PASS | E070/G5 plus original C1/D1/C2: fresh exact External path/Unit, one external display, support flags and active HPD-High transport; USB delta explicitly recorded. |
+| Construction ABI | PASS | E041-E043 and unchanged R3/R5 bytes: direct-service CF construction and DPDV mechanism established statically. |
+| Cleanup | PASS | E041/E043: ordinary returned-call CF/registry/connection ownership established; pending-request cancellation is a separate failing gate below. |
+| Authorization | UNKNOWN | E076-E077/R5: on-disk identity known, category E; applicable task/system/per-client policy not proved satisfiable. |
+| Selector contract | PASS | E044-E048: exact selector 0, checked 1/0/0/variable contract and concrete DP read dispatch. |
+| RPC semantics | UNKNOWN | E055-E056/E062: serialized host contract is known; firmware meaning, physical implementation and raw 500 units remain unresolved. |
+| Reply completeness | FAIL | E057-E058: no end-to-end complete-DPCD-length check; host-success short replies can retain initialized but unsupported zero bytes. OOL producer guarantees remain unknown. |
+| Wait bounded | FAIL | E059/E071: admission and reply waits use zero/no deadlines and uninterruptible primitives; no finite lower-layer bound established. |
+| Cancellation | FAIL | E060/E072-E075: selected abort is a no-op; conditional error delivery and close/list cleanup do not guarantee callback quiescence or waiter completion. |
+| Open side effects | UNKNOWN | E064: no explicit DP reconfiguration in the concrete client init/start chain; general indirect effects and full lifecycle power implications not universally established. |
+| Read-only semantics | UNKNOWN | E063/E074: host read RPC is established, but firmware behavior and conditional endpoint power work prevent an end-to-end read-only claim. |
+| First address safety | PASS | S01/DP_DPCD_REV at 0x000 is an appropriate capability byte; this says nothing about transport safety. |
+| No writes in complete selected path | UNKNOWN | No host DPCD-write call in the examined read branch; the unexamined firmware implementation cannot be declared write-free. |
+
+**Overall: NOT_READY_FOR_DPCD_TEST.** The observed no-deadline waits and no-op
+abort alone are sufficient blockers. Exactly one byte does not remove admission,
+response, teardown or authorization requirements. The normalized gate states
+supersede the older prose-only assessment, not the evidence it cited.
 
 ## Proposed M2-02 (Not Implemented)
 
@@ -704,14 +718,34 @@ plausible byte nor a failed call alone decides physical AUX or MST capability.
 
 ## Validation
 
-The focused static suite has **33 passing tests**, including source-root escape
+The published baseline had **33 passing static tests**, including source-root escape
 and oversized-file rejection. R3 completed successfully. Both strict and
 sanitized builds passed; all seven unit entries, the single public hardware
 entry and all seven sanitizer-configuration entries passed. All 139 selected
 artifact hashes, 14 reference-source hashes and three tool-source hashes match;
 the probe binary and eight core/capture source files are unchanged from G4.
 
-Local links/anchors/fences, ledger IDs, whitespace and editor diagnostics passed.
-Exact commands and limits are in [README.md](README.md#m2a-rpc-03-verification).
-These results validate software and named public observations, not private
-transport or firmware behavior. No generated capture was committed or pushed.
+The milestone branch was validated separately on 2026-09-12 after the R4/R5
+tooling changes. No baseline test result is substituted for these results:
+
+| Command | Result |
+| --- | --- |
+| `cmake --build build` | PASS; strict configured build, up to date. |
+| `ctest --test-dir build -L unit --output-on-failure` | PASS, 7/7 deterministic entries. |
+| `ctest --test-dir build -L hardware --output-on-failure` | PASS, 1/1 existing public-only probe entry. |
+| `cmake --build build-sanitized` | PASS; existing ASan/UBSan configuration, up to date. |
+| `ctest --test-dir build-sanitized -L unit --output-on-failure` | PASS, 7/7 entries; Python tests use their normal interpreter. |
+| `python3 -m unittest discover -s tests -p 'test_iodp_static.py' -v` | PASS, 37 methods, including direct callers and signing privacy/rejection. |
+
+All **161 selected artifact hashes**, 14 pinned source hashes, and three current
+R5 tool-source hashes verified. G5's probe binary hash equals R5's signing record
+and the unchanged built probe; eight core/capture source hashes verified. Native
+sources, CMake and the public capture tool are unchanged from published commit
+`2512e2f34ec5fc2b2f03102ecfb44951dad3c517`. R4 retains the earlier tool hashes;
+the later signing addition is identified by R5 rather than rewriting R4.
+
+Local links/anchors/fences, all 13 matrix states, ledger E001-E079/S01-S23,
+whitespace and editor diagnostics passed. Historical commands and limits remain
+in [README.md](README.md#m2a-rpc-03-verification). These results validate software
+and named public observations, not private transport or firmware behavior. No
+generated capture, upstream source copy or Apple binary is included in the commits.
