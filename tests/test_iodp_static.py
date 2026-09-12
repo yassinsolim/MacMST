@@ -111,6 +111,21 @@ class StaticAnalysisParserTests(unittest.TestCase):
         self.assertEqual(selected["values"], {})
         self.assertEqual(selected["relevant_values_unrepresented"], ["IOPropertyMatch"])
 
+    def test_userserver_inspector_binds_only_public_registry_apis(self):
+        iokit = mock.Mock()
+        core_foundation = mock.Mock()
+        with mock.patch.object(inspect_userserver.ctypes, "CDLL", side_effect=[iokit, core_foundation]) as load:
+            inspect_userserver.RegistryReader()
+        self.assertEqual(load.call_args_list, [
+            mock.call("/System/Library/Frameworks/IOKit.framework/IOKit"),
+            mock.call("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")])
+        self.assertEqual(set(iokit._mock_children), {
+            "IOServiceMatching", "IOServiceGetMatchingServices", "IOIteratorNext", "IOObjectRelease",
+            "IORegistryEntryGetRegistryEntryID", "IORegistryEntryGetPath", "IORegistryEntryCreateCFProperties",
+            "IORegistryEntryGetParentIterator", "IORegistryEntryGetChildIterator", "IORegistryEntryInPlane",
+            "IORegistryGetRootEntry", "IOObjectCopyClass", "IOObjectCopyBundleIdentifierForClass",
+            "IOObjectCopySuperclassForClass"})
+
     def test_call_graph_exports_exact_direct_sink_path(self):
         functions = {0x1000: self.graph_function(0x1000, [0x94000004, 0xd65f03c0]),
                      0x1010: self.graph_function(0x1010, [0x14000004]),

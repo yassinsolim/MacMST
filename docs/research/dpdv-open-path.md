@@ -1,5 +1,346 @@
 # M2E: Experiment-Specific DPDV Open/Close Proof
 
+## M2E.1 Runtime userServer Discriminator
+
+This follow-up concerns only the selected External provider's
+`service->reserved->uvars->userServer` state and direct consequences. M2D/M2E
+findings below remain historical evidence; no private open or transport call is
+authorized. M2E was integrated with `--no-ff` as
+`ce28518eb301592ed6dd3d2b75d152b1a8e54970`; this work is on
+`research/dpdv-userserver-discriminator` from that base.
+
+G9 is artifacts/probes/20260912T143703Z: one existing public collector run,
+40 commands, zero failures. It selects one External Unit 0 DCPDP device/service
+under RTBuddy(DCPEXT0), with supported interfaces, an active display path and HPD
+High. Device/service IDs 4294970467/4294970463 are freshly observed snapshot
+identifiers, not reused handles. Raw lanes=2 and LinkRate=4 retain Apple's HBR3
+description; the public result remains PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE.
+Report SHA-256 is
+`746dcd2d2faa16f4e48a74c2e5364c01c81ebfe92f4be80430c8e208a82f6c32`;
+manifest SHA-256 is
+`8cc1e1b265a7aead767fa6bf2e8995a09caafc01384ab0ea36d4e715343c27e1`.
+
+**Runtime discriminator: USER_SERVER_RUNTIME_STATE_UNRESOLVED.** No tested public
+observable is equivalent to the private field's value. Native implementation and
+matching provenance are verified; a null userServer is not. Static expansion stops
+at this discriminator, without reopening the earlier open/close graph.
+
+### Field Layout And Lifetime
+
+The concrete service is DCPDPDeviceProxy, inheriting DCPAVProxy/IOService state.
+The first `reserved` below is IOService's ExpansionData pointer, not a similarly
+named IORegistryEntry or subclass expansion field. Current arm64e loads/stores
+cross-check the layout independently of source structure packing.
+
+| Field | Current Offset | Pinned Source Evidence | Current-Image Evidence | Confidence |
+| --- | --- | --- | --- | --- |
+| IOService::reserved | service +40 bytes | IOService.h, IOService::ExpansionData and reserved member; IOService.cpp init overloads | Factory load 0xfffffe000bf96508; dictionary init store 0xfffffe000bfa98dc; writer load 0xfffffe000c0619c4 | High, exact current offsets; live contents unobserved. |
+| ExpansionData::uvars | expansion +40 bytes | IOService.h, OSObjectUserVars* uvars | Factory load 0xfffffe000bf96510; publication 0xfffffe000c0619c8, raw `001500f9` | High, independent load/store agreement. |
+| OSObjectUserVars::userServer | uvars +0 bytes | IOUserServer.h, first member IOUserServer* | Factory load 0xfffffe000bf96518; assignment 0xfffffe000c0619cc, raw `150000f9` | High, source type and current bytes agree; no runtime pointer read. |
+| Retained IOUserServer reference | pointer at uvars +0 | serviceAttach retains this after assignment; serviceFree releases/nulls it | Retain virtual call 0xfffffe000c0619f4; free loads at 0xfffffe000c066bb0 and releases at 0xfffffe000c066bd0 | Explicit ownership transitions, not a class/provenance inference. |
+| Nulling userServer | uvars +0 | OSSafeReleaseNULL(uvars->userServer) | 0xfffffe000c066bd4, raw `9f0200f9`, STR XZR,[X20] | High, current explicit clear. |
+| Erasing uvars before freeing allocation | expansion +40 | IOFreeType uses os_ptr_load_and_erase | 0xfffffe000c066c3c, raw `1f1500f9`, STR XZR,[X8,#40] | High, current explicit clear before free. |
+
+IOMallocType's pinned contract returns zeroed memory. IOService init allocates
+ExpansionData if absent, so uvars begins null on that initialization route.
+serviceAttach allocates zeroed OSObjectUserVars, publishes it, stores this as
+userServer, then retains the server. Publication is not atomic with the later
+registry markers. serviceStop does not clear this pointer; it can outlive the
+server's active-service membership. serviceFree ends that lifetime by clearing
+the retained reference and erasing/freeing the uvars allocation. Native object
+initialization is not itself a non-null user-server attachment.
+
+### Writer Set
+
+**WRITER_SET_INCOMPLETE.** The complete pinned source archive supplies one named
+non-null writer of this particular field and its explicit clearing path. That is
+not promoted to a complete typed writer proof for the different running binary.
+
+The writer-only search covers all 5,698 regular files in the pinned archive,
+including hidden/ignored files; there are no archive symlinks. Its three identifier
+queries find 263 lines in six files: IOService.h, IOUserServer.h, IOService.cpp,
+IOServicePM.cpp, IOUserClient.cpp and IOUserServer.cpp. Definitions, aliases from
+varsForObject, constructors, RPC/object-instantiation code and the matched uses
+were examined for this field. No additional named non-null store, restoration or
+whole-uvars replacement was identified in that source set.
+
+| Mutation / Related Operation | Source And Current Evidence | Scope |
+| --- | --- | --- |
+| Initial zeroed ExpansionData | IOService init overloads / IOMallocType; current dictionary init 0xfffffe000bfa9890 | Initializes the chain's uvars to null, not an established live-instance invariant forever. |
+| W1: serviceAttach | service->reserved->uvars = vars; vars->userServer = this. Current body 0xfffffe000c061954, 2,400 bytes, SHA-256 `73d77df848da78cc35d5c32b64793eb1e566f53b3d62a1065cd6832210963e34` | One identified non-null writer; also replaces the uvars pointer. |
+| C1: serviceFree | Releases/nulls userServer, erases/frees uvars. Current body 0xfffffe000c066a18, 640 bytes, SHA-256 `1b6ffdba8c3d8edd094a20f911a12052604b7f5a34f4ecfb2bcec6864cee76ed` | Identified clear/reset and allocation-lifetime end. |
+| serviceStop | Removes service membership and marks stopped without clearing userServer. Current body 0xfffffe000c052a5c, 2,140 bytes, SHA-256 `454fca0cd5bd02b382358888d5824fab3e811fb409baa4566f5f8e6db075a42d` | Observable removal is not pointer clearing. |
+| IODispatchQueue, OSAction, IOEventLink and IOWorkGroup assignments | Separate ivars->userServer fields in IOUserServer.cpp; queue copies from the service, OSAction's assignment is on a non-IOService target | Not additional writers to IOService::reserved->uvars->userServer. |
+| varsForObject / object instantiation | Returns a service's uvars alias; inspected uses populate userMeta/queue state and inspect server identity | No additional named userServer store found; alias analysis is not claimed globally complete. |
+
+A separate current-image scan inspected 376 fileset __text sections, totaling
+58,438,640 bytes, for direct B/BL references to W1 and C1. It found exactly:
+
+| Caller | Callsite / Raw Instruction | Target | Interpretation |
+| --- | --- | --- | --- |
+| IOService::startCandidate, 0xfffffe000bfa5718 | 0xfffffe000bfa5ef0 / `99ee0294` | W1 0xfffffe000c061954 | Matching/start route after obtaining a user server. |
+| Source-correlated IOService::Create_Impl, 0xfffffe000c063d58 | 0xfffffe000c064130 / `09f6ff97` | W1 0xfffffe000c061954 | Child-service creation using an existing provider's server. |
+| IOService::free, 0xfffffe000bfa98f8 | 0xfffffe000bfa99fc / `07f40294` | C1 0xfffffe000c066a18 | Conditional user-server cleanup before base resource destruction. |
+
+This scan traverses no call graph. It does not enumerate indirect calls or prove
+that every raw store at offset zero belongs to this type. Such stores are common
+to unrelated objects, and aliased/pointer-copy writes cannot be excluded solely
+by matching offsets or named symbols. Proprietary/current-image code is not fully
+represented by the pinned XNU source. These specific limits preclude
+SOLE_WRITER_PROVEN; unrelated fields do not justify MULTIPLE_WRITERS either.
+
+### serviceAttach Contract
+
+The identified writer receives an IOUserServer `this`, an IOService `service`,
+and a provider used for diagnostics. Its source/current prefix imposes no
+DCPDPDeviceProxy class exclusion. The direct callers impose their own conditions.
+It allocates and publishes uvars, assigns/retains the server, allocates the uvars
+lock, and saves originalProperties. Under the server's fLock, a service not yet
+in fServices is added, its registry ID is added to the server's IOAssociatedServices,
+and an IOUserClasses array is set on the service. It can optionally rename the
+service from IOUserClass and load module metadata if the relevant fields exist.
+Those optional paths were inspected statically, never invoked.
+
+Crucially, the pointer stores precede marker publication. IOUserClasses and
+IOAssociatedServices updates are inside the new-membership branch, and their
+setProperty return values are not converted into a rollback of the pointer.
+The function's success result therefore is not an atomic pointer/marker contract.
+It also does not attach the service beneath an IOUserServer in a registry plane;
+the server relationship is retained state and bookkeeping, not a mandatory parent.
+
+The pinned serviceStop counterexample is concrete: it removes the service's ID
+from IOAssociatedServices and sets stopped, but leaves userServer non-null until
+serviceFree. Generic IORegistryEntry::removeProperty removes a dictionary entry
+under the property lock without touching uvars. Making a collection immutable
+does not make its containing property key undeletable. No special lifetime rule
+for these marker keys was established. No property-setting/removal API was called.
+
+### Mandatory Observable Tests
+
+No candidate met MANDATORY_EQUIVALENT. The required implication is pointer
+non-null -> observable present for the entire relevant lifetime, not merely
+"successful publication usually records a marker". A marker on a different
+object and a nullable/failed read are not treated as a pointer measurement.
+
+| Candidate | Classification | Contract / Lifetime Test | Exact Public Observation |
+| --- | --- | --- | --- |
+| IOUserClasses on the selected service | ONE_WAY_ONLY | A successful new-membership publication sets an array, but after the pointer store; no atomicity, checked publication success or protected-key lifetime. This is a publication implication, not an equivalent live-state predicate. | Name absent from all 17 returned provider property names. |
+| Selected ID in IOUserServer::IOAssociatedServices | NON_DIAGNOSTIC | Stored on another object after assignment; serviceStop removes the ID before userServer is cleared. | Four visible servers expose arrays; none contains the selected ID. |
+| IOUserServerName / IOUserClass / DriverKit personality markers | NON_DIAGNOSTIC | Server-name matching is one caller condition, not an unconditional write by serviceAttach; Create copies optional metadata from an existing server. Keys are not a read of uvars. | Absent on the selected provider; native matching fields present. |
+| IOClass / MetaClass bundle / IOMatchedAtBoot / personality publisher | NON_DIAGNOSTIC | Establishes implementation and matching provenance; generic serviceAttach/Create accepts IOService subclasses and does not encode a null-userServer theorem. | DCPDPDeviceProxy, native kernel bundle, boot-matched true, matching native publisher. |
+| IOService parent / registry-plane membership | NON_DIAGNOSTIC | serviceAttach does not require an IOUserServer parent or special plane; it records an internal server reference and service list. | Expected native ancestry; only IOService membership among eight reported planes; no provider children. |
+| A publicly visible server/process responsible for this instance | UNKNOWN | Matching enumerates exposed services, not every retained private reference or unpublished/stopped server. Lack of a correlated server is not a null test. | No public association to the selected ID; no responsible process identity can be attributed. |
+
+IORegistryEntry::serializeProperties snapshots the property table, not arbitrary
+private fields. Successful copies establish the public names/allowed values that
+were observed, not a synthesized hasUserServer result. The source's hasUserServer
+call in IOUserClient property handling is a setter path, not an available public
+getter; it was not exercised. No marker absence is promoted to USER_SERVER_NULL_PROVEN.
+
+### Public Instance And Driver Provenance
+
+U10 is artifacts/probes/userserver-20260912T144907Z/userserver.json. It uses public
+IOService matching, registry property/path/ID/relationship reads, plane membership
+and IOObjectCopyClass/CopySuperclassForClass/CopyBundleIdentifierForClass. All 85
+recorded IOKit IOReturns are raw 0 / 0x00000000. The class-copy APIs return nullable
+CF objects rather than IOReturns; null is not fabricated as a success status.
+Snapshots are explicitly non-atomic and reject a changed/ambiguous G9 target.
+
+The selected provider's complete property-name list is:
+
+```text
+BranchDeviceID BranchIEEEOUI CFBundleIdentifier CFBundleIdentifierKernel IOClass
+IODPDeviceUserInterfaceSupported IOMatchCategory IOMatchedAtBoot
+IOPersonalityPublisher IOProbeScore IOPropertyMatch IOProviderClass
+IOUserClientClass Location SinkDeviceID SinkIEEEOUI Unit
+```
+
+Only technically relevant values are retained. Branch/sink identity values,
+EDID, serial values, private blobs and unrelated personality data are omitted.
+The initial public attempt failed to serialize one whole property dictionary
+despite successful IOKit reads; it was retained as incomplete, not absence evidence.
+The final inspector enumerates CF dictionary keys directly and serializes only
+allowlisted values; an unrepresentable relevant value remains explicitly unknown.
+
+| Selected Instance Evidence | Result |
+| --- | --- |
+| Public actual class / superclass | DCPDPDeviceProxy / DCPAVProxy |
+| Public MetaClass bundle and registry bundle IDs | com.apple.driver.DCPDPFamilyProxy |
+| Running-collection implementation | DCPDPFamilyProxy UUID `7732A096-166C-312F-8AEB-BF0DED28C5C3`, in the kernel collection whose UUID matches the running kernel |
+| Registry personality | IOMatchedAtBoot=true, IOPersonalityPublisher=com.apple.driver.DCPDPFamilyProxy, IOProviderClass=AFKEndpointInterface, IOPropertyMatch={EPICName: dcpdp-device-epic} |
+| Direct parent | AFKEPInterfaceKextV2, EPICName=dcpdp-device-epic, EPICLocation=External, EPICUnit=0 |
+| Minimal ancestry | DCPDPDeviceProxy -> AFKEPInterfaceKextV2 -> AFKEPInterfaceServiceKextV2 -> DCPEndpointV2 -> RTBuddyEndpointService -> RTBuddy(DCPEXT0) |
+| Matching on-disk personality | DCPDPFamilyProxy.kext, DCPDPDeviceProxy personality with matching IOClass/provider/EPICName; no user-server-name requirement |
+| Exact provider children / planes | Child iterator succeeds with none; IOService=true, other seven exposed planes=false |
+| User-server enumeration | Four exposed IOUserServer objects; all property reads succeed, none lists selected registry ID 4294970467 |
+
+The known implementation is in the kernel collection and its installed metadata
+is a .kext, not a .dext supplying that MetaClass. This does not prove a DriverKit
+server cannot be associated with that same native object. The public APIs provide
+no positive association of a DriverKit process with this instance, and the four
+unrelated visible servers are not treated as its owners.
+
+### Assignment Reachability
+
+**USER_SERVER_ATTACHMENT_POSSIBLE**, scoped to the class contract: no exclusion
+for this IOService subclass was found in the identified writer/Create paths.
+This is not a claim that the selected instance actually took such a path.
+
+| Path / Condition | Classification | Instance-Relevant Conclusion |
+| --- | --- | --- |
+| startCandidate with the recorded native personality's absent IOUserServerName, without added/changed matching properties | PROVABLY_NOT_REACHABLE | That conditional input does not take its user-server branch. The current dictionary is not an immutable record of all historical matching inputs. |
+| Actual historical startCandidate for this selected provider | UNKNOWN | Current native boot/personality evidence is consistent with native setup, but does not prove the pointer or every historical input/assignment. |
+| Create_Impl through a provider with existing uvars and suitable originalProperties | GENERIC_ONLY | Requires provider==this and uvars, allocates the named IOService class, calls init/attach and serviceAttach. No DCPDP-specific class denial; selected parent's private precondition not observed. |
+| DCPDP native allocation/init alone | PROVABLY_NOT_REACHABLE | Zeroed inherited initialization is not the identified non-null writer; later attach/matching state is separate. |
+| Additional indirect writer/aliased field mutation in current code | UNKNOWN | Direct-call and pinned-source searches do not certify the complete typed writer set. No unrelated graph expansion was undertaken to disguise this limit. |
+
+Both known non-null assignment routes can occur in provider setup, before a future
+newUserClient call. The factory only reads the chain; observing its native code
+does not observe the selected provider's pre-existing state.
+
+### Discriminator Decision
+
+The conjunction needed for a logical null proof is not established: the compiled
+writer set is incomplete, no mandatory equivalent observable was proved, and the
+actual prior assignment history is not exposed. Conversely, no positive current
+pointer or exact server association proves non-null. These are limits of this
+one field discriminator, not reasons to reopen generic open/close analysis.
+
+**USER_SERVER_RUNTIME_STATE_UNRESOLVED**
+
+No new native-path consequences are applied. Provider ownership, open-created
+AFK/DCP work, zero-selector provider-close messaging and post-start denial retain
+their M2E states. The native never-used-gate result is unchanged, and no selector
+risk is newly declared PASS or NOT_APPLICABLE.
+
+**Open-check result: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.**
+
+**Global gate: NOT_READY_FOR_DPCD_TEST.** All original DPCD gate states remain
+unchanged. No M2F implementation, execution or READY-only experiment contract is
+produced. No kernel memory, debugger, kext/dext load, exploit, firmware, boot
+argument or security configuration was used or changed.
+
+**Recommendation C:** Direct privileged kernel-state inspection would be required
+to observe this private field itself with the present evidence; that route is
+rejected. The one unresolved fact is its live value for the selected provider at
+factory entry. This is not a claim that a future logical theorem is impossible;
+no validated public equivalent was established here. Static expansion stops.
+
+### Discriminator Provenance
+
+| Capture / Source | SHA-256 Or Identity |
+| --- | --- |
+| U10 public instance report, userserver-20260912T144907Z | `1170607a568077da01f5cd9c043b94c43bc699f7b01fd02f5690fe7acf6bf8ac` |
+| [Public inspector](../../tools/inspect_userserver.py), captured source | `4412edc07b8ca573dfbf9db5e97c08131d19105a9903f69b255b89a1fd2b297d` |
+| R10 static field report, iodp-static-20260912T144803Z | `041f2566b7aef30fef1b5a16b198e6aae01595c62f666afecceff60ebd3d8bb5` |
+| Direct-caller receipt, iodp-static-20260912T144019Z/userserver-writer-callers.json | `b5b5a314b89e1d880431c087189d571a98365fd37928a9f8de350cb731fe2d56` |
+| Complete-source search receipt, iodp-static-20260912T144803Z/userserver-source-search.json | `7782022720f68f561a0d938ed13f44f88931b77f25baa7bc76e1ed0b8477b84a` |
+| Complete pinned XNU archive, artifacts/sources/m2e1/xnu-f6217f8.tar.gz | `0763146d2b5459b070d802aaba9526cead7fb0d55d0d51ba0069818030150b15` |
+| Installed DCPDPFamilyProxy.kext/Contents/Info.plist | `a86c1bbf768e49fd43aa8893952a908ec4937d88df7fdb8b84dfff9d67a8c24c` |
+
+R10 has no graph roots and `call_graph=null`. It retains 191 selected static
+kernel blocks from the existing collector, including the bounded field/caller
+additions, not hundreds of new generic graph bodies. Kernel UUID is
+`447D769E-1CB7-3086-A0B4-32226837B587`; container SHA-256
+`b20d50fc8f445a5c578ac63bd974efeb6ae48a97116800301071891795fb26d9` and decoded
+SHA-256 `f516560c295e10d62c3d219237d23c5900664107b2115dad590eaa259516d05f`
+match M2E. The existing static tool/cache/kernel/graph source hashes are unchanged.
+The rejected oversized IOUserServer vtable selection was not bypassed; successful
+captures use only the needed native class tables and exact writer/reset bodies.
+
+All source claims are pinned to
+`f6217f891ac0bb64f3d375211650a4c1ff8ca1ea`, not asserted as exact running-source
+identity. Relevant source paths, symbols and hashes are:
+
+| Pinned XNU File | Symbols / SHA-256 |
+| --- | --- |
+| [iokit/IOKit/IOService.h](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/iokit/IOKit/IOService.h) | IOService::ExpansionData/reserved/uvars; `6836c77797589eee184bb944154f02d09986aeeaa669c101018b548cbcdc4416` |
+| [iokit/IOKit/IOUserServer.h](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/iokit/IOKit/IOUserServer.h) | OSObjectUserVars/userServer; `953c51565b9f3a50d2f06a07b8f93900950610e400ecae23eed5c8f2da874dc4` |
+| [iokit/IOKit/IOLib.h](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/iokit/IOKit/IOLib.h) | IOMallocType, IOFreeType; `b559799320d858ba010f0568ae66ed7316434798ac562b7196c35cdc9151ce1c` |
+| [iokit/Kernel/IOUserServer.cpp](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/iokit/Kernel/IOUserServer.cpp) | serviceAttach, serviceStop, serviceFree, varsForObject, Create_Impl and separate ivars writers; `7b6c08e382f48b62166c8bceaa65668d10db201c683ce5836746ffb81028d579` |
+| [iokit/Kernel/IOService.cpp](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/iokit/Kernel/IOService.cpp) | init/free/startCandidate/newUserClient; `8791d87936ced84d6529a2becf6b78db31c0db7acd0aa6da4708a73b8cb50176` |
+| [iokit/Kernel/IORegistryEntry.cpp](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/iokit/Kernel/IORegistryEntry.cpp) | serializeProperties/removeProperty/setProperty; `50e1ea9a8aca9618fe71b7eaa8d95b63b96561d59d332147bfd5280a51d18bc8` |
+
+Raw captures, the full source archive and downloaded source copies remain ignored;
+no Apple binary or upstream source copy is distributed by the research commits.
+
+### Discriminator Reproduction
+
+Use a fresh public baseline when reproducing on another session; the example
+directory is G9, not a reusable provider ID. The public inspector independently
+matches the live External objects and rejects mismatches. It does not open a
+user client. The source archive is available at the
+[pinned XNU archive URL](https://codeload.github.com/apple-oss-distributions/xnu/tar.gz/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea);
+retain its hash and do not execute its contents.
+
+```sh
+python3 tools/inspect_userserver.py --baseline artifacts/probes/20260912T143703Z
+source_root=artifacts/sources/m2e1/xnu-f6217f891ac0bb64f3d375211650a4c1ff8ca1ea
+rg --hidden --no-ignore -n -e '\buserServer\b' -e '\buvars\b' -e 'OSObjectUserVars' "$source_root"
+```
+
+R10's exact bounded static selection, with an address-reuse guard:
+
+```sh
+python3 - artifacts/probes/20260912T143703Z <<'M2E1_STATIC'
+import subprocess
+import sys
+
+if subprocess.check_output(['sysctl', '-n', 'kern.uuid'], text=True).strip().upper() != '447D769E-1CB7-3086-A0B4-32226837B587':
+  raise SystemExit('Kernel UUID mismatch: do not reuse these addresses')
+arguments = [sys.executable, 'tools/inspect_iodp.py', '--baseline', sys.argv[1], '--server',
+       '--kernel-symbol', '__ZN9IOService14startCandidateEPS_',
+       '--kernel-vtable', '__ZTV9IOService', '--kernel-vtable', '__ZTV16DCPDPDeviceProxy']
+for address in ('0xfffffe000bfa9890', '0xfffffe000bfa98f8', '0xfffffe000bf964cc',
+        '0xfffffe000c061954', '0xfffffe000c052a5c', '0xfffffe000c066a18', '0xfffffe000c063d58'):
+  arguments.extend(('--kernel-address', address))
+for literal in ('DK: %s-0x%qx::serviceAttach(%s-0x%qx, %s-0x%qx)\n',
+        'DK: %s-0x%qx::serviceStop(%s-0x%qx, %s-0x%qx): could not find service\n',
+        'DK: %s-0x%qx::serviceStop(%s-0x%qx, %s-0x%qx)\n'):
+  arguments.extend(('--kernel-string', literal))
+subprocess.run(arguments, check=True)
+M2E1_STATIC
+```
+
+The direct-reference scan can be reproduced without any graph traversal using
+the existing bounded parser. It prints exactly the direct caller records; the
+retained JSON receipt additionally hashes scanned sections and containing bodies.
+
+```sh
+python3 - <<'M2E1_CALLERS'
+import pathlib
+import subprocess
+import sys
+sys.path.insert(0, 'tools')
+from kernel_image import kernel_payload, decompress_kernel, fileset_entries
+from kernel_image import macho_sections, macho_uuid, direct_call_references
+
+files = list(pathlib.Path('/System/Volumes/Preboot').glob('*/boot/*/System/Library/Caches/com.apple.kernelcaches/kernelcache'))
+if len(files) != 1:
+  raise SystemExit('Ambiguous static boot-image selection')
+payload, container = kernel_payload(files[0].read_bytes())
+data = decompress_kernel(payload)
+entries = fileset_entries(data)
+expected_uuid = '447D769E-1CB7-3086-A0B4-32226837B587'
+if macho_uuid(data, entries['com.apple.kernel']['file_offset']) != expected_uuid or subprocess.check_output(['sysctl', '-n', 'kern.uuid'], text=True).strip().upper() != expected_uuid:
+  raise SystemExit('Kernel UUID mismatch')
+for bundle, entry in entries.items():
+  for section in macho_sections(data, entry['file_offset']):
+    if section['section'] != '__text':
+      continue
+    raw = data[section['file_offset']:section['file_offset'] + section['size']]
+    for reference in direct_call_references(raw, section['address'], {0xfffffe000c061954, 0xfffffe000c066a18}):
+      print(bundle, reference)
+M2E1_CALLERS
+```
+
+The public signatures are from the installed macOS SDK's IOKitLib.h, SHA-256
+`553869588e8c0b162b232e294dea2579cfd739d83e772a0b8a79e2be91a5816e`.
+They include raw-error-returning registry copy/ID/path/iterator functions and
+nullable class/bundle-copy functions; none is an undocumented display transport.
+
+## M2E Historical Findings
+
 **Result: NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK.** The remaining blocker is not
 total generic IOService graph completeness. The native DPDV class route now has
 a concrete non-owning initialization argument and a never-used-gate removal
