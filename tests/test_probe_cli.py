@@ -7,9 +7,21 @@ import unittest
 
 EXECUTABLE = str(pathlib.Path(sys.argv[1]).resolve())
 HARDWARE = "--hardware" in sys.argv[2:]
+MOCK_EXECUTABLES = tuple(str(pathlib.Path(value).resolve()) for value in sys.argv[3:]) if sys.argv[2:3] == ["--mock-executables"] else ()
 
 
 class CLIContractTests(unittest.TestCase):
+    @unittest.skipUnless(MOCK_EXECUTABLES, "Mock targets supplied by the CTest unit entry")
+    def test_mock_imports_have_no_display_or_dynamic_transport(self):
+        self.assertEqual(len(MOCK_EXECUTABLES), 2)
+        for executable in MOCK_EXECUTABLES:
+            with self.subTest(executable=pathlib.Path(executable).name):
+                result = subprocess.run(["/usr/bin/nm", "-u", executable], capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                imports = {line.split()[-1] for line in result.stdout.splitlines() if line.split()}
+                self.assertFalse(any(symbol.startswith(("_IO", "_CG")) for symbol in imports))
+                self.assertEqual(imports & {"_dlopen", "_dlsym"}, set())
+
     def test_display_api_imports_are_enumeration_only(self):
         result = subprocess.run(["/usr/bin/nm", "-u", EXECUTABLE], capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -31,6 +43,7 @@ class CLIContractTests(unittest.TestCase):
     def test_reject_invalid_arguments_without_probing(self):
         for arguments in ([], ["enable-mst"], ["--json"], ["probe", "--write"],
                           ["probe", "--json", "extra"], ["probe", "probe"],
+                          ["experimental", "dpdv-open-check"],
                           ["experimental", "dpcd-read", "--address", "0x000", "--length", "1"]):
             with self.subTest(arguments=arguments):
                 result = subprocess.run([EXECUTABLE, *arguments], capture_output=True, text=True, timeout=10)

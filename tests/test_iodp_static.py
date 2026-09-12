@@ -19,6 +19,21 @@ SPEC.loader.exec_module(analysis)
 
 
 class StaticAnalysisParserTests(unittest.TestCase):
+    def test_user_client_lifecycle_selection_is_scoped(self):
+        for name in ("_iokit_task_terminate", "_iokit_connect_no_senders", "_is_io_service_close",
+                     "__ZN12IOUserClient10clientDiedEv", "__ZN12IOUserClient13noMoreSendersEv",
+                     "__ZN10IOMachPort13noMoreSendersEP8ipc_portjj"):
+            self.assertTrue(kernel_image.user_client_lifecycle_symbol(name), name)
+        for name in ("__ZN8IOService14externalMethodEv", "_task_terminate_internal",
+                     "__ZN12OtherService10clientDiedEv", "__ZN12IOUserClient17setPropertiesImplEv"):
+            self.assertFalse(kernel_image.user_client_lifecycle_symbol(name), name)
+
+    def test_lifecycle_selection_requires_static_server_mode(self):
+        with mock.patch.object(sys, "argv", ["inspect_iodp.py", "--baseline", "unused", "--kernel-lifecycle"]), mock.patch("sys.stderr"):
+            with self.assertRaises(SystemExit) as raised:
+                analysis.main()
+            self.assertEqual(raised.exception.code, 2)
+
     def test_signing_identity_omits_paths_and_entitlement_values(self):
         metadata = "Identifier=macmst\nFormat=Mach-O thin (arm64)\nSignature=adhoc\nCDHash=" + "a" * 40
         metadata += "\nExecutable=/private-machine-path/macmst\nAuthority=private authority\n"
