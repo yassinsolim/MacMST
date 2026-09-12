@@ -10,6 +10,7 @@ RPC-03 entries E053-E069 add lower AFK, reply-initialization, wait/cancellation
 and authorization findings. They do not promote the private transport to tested.
 The milestone-branch follow-up adds E070-E075 for fresh target observations,
 direct recovery callers, admission waits and concrete endpoint cleanup.
+E076-E077 refresh signing and policy provenance without asserting access.
 
 ## Captures
 
@@ -55,6 +56,11 @@ direct recovery callers, admission waits and concrete endpoint cleanup.
     and exact lifecycle vtables. Report SHA-256
     `1262f818b09a562b22c4649c97d94e77a5c865148268793cd2a9dc8d5c72ab1f`.
     Kernel UUID and original/decoded hashes still match R3.
+- **R5**: `artifacts/probes/iodp-static-20260912T100306Z/`, current static
+    authorization refresh and allowlisted codesign identity bound to G5's probe
+    hash. Report SHA-256
+    `3eb1ce95df7815e9e719e12baa9d9e14c6ea34f0aad5a0560723949925cd2e2f`.
+    Its 191 function records shared with R3 have identical byte hashes.
 
 UTC dates are 2026-09-12; the local work date is 2026-09-11. Captures are ignored
 by Git and available locally. They are selected raw technical values, not complete
@@ -147,6 +153,8 @@ are sequential, not atomic, and transient registry/display IDs are not stable ID
 | E073 | Disconnect completion in raw phase 2 is gated by equality of uint16 counters +74/+76; the return indicates phase, not independent cancellation success. | PRIMARY_SOURCE | R4 willDisconnectTransition block 0xfffffe0009285128 and callers | Preserve exact fields/conditions without guessed physical enum names | High for conditional ordering; no time bound |
 | E074 | Endpoint close releases local/remote command lists and clears queued tasks; some cleanup paths do not invoke normal response callbacks. tryClose has queued work and conditional power assertions. | PRIMARY_SOURCE | R4 closeHelper/handleClose/cleanupRemoteContext/clearAll and verified callback/virtual targets | RPC follow-up ownership/close trace | High for examined cleanup; not proof of firmware cancellation or waiter completion |
 | E075 | Ordinary callback/reference ownership is evidenced, but a lost reply can retain resources and exceptional close/disconnect ordering lacks a proven late-callback and stranded-wait guarantee. | INFERRED | E060/E061/E071-E074; raw stack CommandContext passed through retained blocks | Static lifetime analysis; no forced close, wake or fault injection | Specific risk, not a demonstrated leak or use-after-free |
+| E076 | R5 statically records the unchanged ad-hoc probe's identity/CDHash and zero entitlement data reported by codesign; its binary SHA-256 matches G5. | VERIFIED_ON_M5 | R5 probe_signing_evidence, probe SHA-256 3968fe8e43d04013e1e91110e3a206890b65a5d48b86327e4109f435dac1ddda | --signing-probe build/macmst uses codesign --display only | High for on-disk observation; not runtime sandbox state or access permission |
+| E077 | R5 refreshes identical outer-open/MACF/sandbox code bytes, but applicable policy inputs and actual DPDV access remain category E, policy-dependent/statically unresolved. | UNKNOWN | R5/R3 comparison, 191 shared function hashes; dpdv-authorization.md | Static policy/signing analysis, no open attempt | High for gate existence; actual authorization unproven |
 
 ## Primary And Reproducible Source Catalog
 
@@ -174,6 +182,7 @@ are sequential, not atomic, and transient registry/display IDs are not stable ID
 | S20 | apple-oss-distributions/dyld, `fd8d0c4d52320ebf64db34f3cb280310d905c5ae` | [mach_o/FunctionStarts.cpp](https://github.com/apple-oss-distributions/dyld/blob/fd8d0c4d52320ebf64db34f3cb280310d905c5ae/mach_o/FunctionStarts.cpp), valid, forEachFunctionStart | uint64 delta arithmetic and terminator/padding contract; local executable-section validation supplies additional bounded parsing. |
 | S21 | R3 local kernel/AppleFirmwareKit/sandbox images on macOS 26.6.2 | AppleFirmwareKit UUID `339ECC76-9A70-3F09-A740-09E5C89B1794`; sandbox `D4780E99-68D4-3902-8072-5151727ABD4C`; AFK enqueue/parser/abort/vtables, DCP response handlers, OSData/gates, stripped open/MACF routines and named sandbox hooks; exact code hashes in R3 | Current host-side implementation and provenance. No firmware handler, runtime authorization, bounded private transaction or MST source capability established. |
 | S22 | R4 on `research/dcp-rpc-safety`, same kernel/AppleFirmwareKit identities as R3 | AFKEPInterfaceV2::handleNotification/handleClientReport/acquireCommand/releaseCommand/handleClose/cleanupRemoteContext; AFKEPInterfaceKextV2::closeHelper/tryClose callbacks; EventSourceV2::dispatchNotification/clearAll; direct B/BL bytes and declared function bounds | Conditional recovery and concrete ownership/cleanup. Does not prove a wall-clock deadline, cancel-safe firmware request or universal teardown ordering. |
+| S23 | R5 on `research/dcp-rpc-safety`, same kernel/sandbox identities as R3 | Static codesign display of the existing macmst binary; outer open 0xfffffe000c037b80, MACF dispatchers, _hook_iokit_check_open/service and _sb_evaluate_internal; exact instruction/binary hashes | Fresh on-disk identity and unchanged policy code, not current task policy or permission to invoke DPDV. |
 
 Search results were treated as leads and followed to relevant code/definitions.
 Searches for `IOAVServiceReadAUX`/`IOAVServiceReadDPCD` found no match; that was not

@@ -1,5 +1,74 @@
 # DPDV Authorization (M2A-RPC-03)
 
+## Milestone Branch Revalidation
+
+This update is on `research/dcp-rpc-safety`, based on the unchanged published
+commit `2512e2f34ec5fc2b2f03102ecfb44951dad3c517`. The class-local ABI is reused,
+not re-derived. New **R5** at `artifacts/probes/iodp-static-20260912T100306Z/`
+refreshes the current kernel policy bytes and adds a privacy-filtered signing
+record tied to the exact on-disk probe binary.
+
+| R5 Observation | Value / Limit |
+| --- | --- |
+| Report SHA-256 | `3eb1ce95df7815e9e719e12baa9d9e14c6ea34f0aad5a0560723949925cd2e2f` |
+| Probe SHA-256 | `3968fe8e43d04013e1e91110e3a206890b65a5d48b86327e4109f435dac1ddda`, equal to G5's probe hash. |
+| Identifier / format / signature | macmst / Mach-O thin (arm64) / adhoc. |
+| TeamIdentifier / CDHash | not set / `403268a38c514bd76acff186dc0a028b8942d40a`. |
+| Entitlement display | codesign exit 0; `NO_DATA_REPORTED`, zero keys reported. |
+| Empty entitlement-output SHA-256 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`. |
+| App Sandbox entitlement | null (not reported), **not** an observed runtime sandbox state. |
+| Authorization field | `UNRESOLVED_NOT_TESTED`, deliberately independent of signing result. |
+
+The collector omits the absolute executable path, signing authority details and
+entitlement contents. It rejects duplicate identity fields, malformed plist or
+hash fields, oversized inputs, and a binary changed during inspection. It only
+invokes codesign's display operation, never signs or executes the probe.
+
+The R5 kernel UUID and original/decoded collection hashes equal R3. All 191
+same-named function records shared with R3 have identical instruction hashes,
+including the outer open and sandbox routines below. Their current gate logic
+can therefore be reused with stronger fresh provenance, not promoted to an
+actual authorization test.
+
+| Current Block | Byte SHA-256 |
+| --- | --- |
+| Outer open, 0xfffffe000c037b80 | `29f2834dda56b7192bcfe36c9fd0becd2e0589f6810fe621ca89d96eef368e7c` |
+| _hook_iokit_check_open | `ab894d7006407714198f28253b0857b0bf3ae77ac72833022724010a5e2bcd4c` |
+| _hook_iokit_check_open_service | `83fd549db7127f3c0b4e34cc3157b7b67f0d26dd43940986adbabf18ebb35ee7` |
+| _sb_evaluate_internal | `753a3dd6437a7e92c82fdf59e37581ac6b86b7fc59aea7ce9b80adcfb78c63e3` |
+
+The unresolved inputs are precise: which registered mandatory/system policies
+apply, the eventual task/credential sandbox state, the client entitlement value
+after permitted construction, and the resolved per-user-client selector filter.
+They are not all observable from static codesign output or from the provider's
+published dictionary. No class-local root-only or platform-only requirement was
+found, but category A is still unjustified. Category **E: policy-dependent /
+statically unresolved** remains the result, with high confidence in the existence
+of these gates and no claimed successful access.
+
+Reproduce the static refresh on the recorded build:
+
+```sh
+python3 tools/inspect_iodp.py \
+  --baseline artifacts/probes/20260912T093139Z --server \
+  --reference-root artifacts/sources/rpc03 --signing-probe build/macmst \
+  --kernel-image com.apple.security.sandbox \
+  --kernel-symbol _hook_iokit_check_open \
+  --kernel-symbol _hook_iokit_check_open_service \
+  --kernel-symbol _sb_evaluate_internal \
+  --kernel-symbol __ZN12IOUserClient10clientDiedEv \
+  --kernel-string 'IOUC %s missing entitlement in process %s
+' \
+  --kernel-address 0xfffffe000c0dc69c \
+  --kernel-address 0xfffffe000c0dc918
+```
+
+No DPDV open, runtime sandbox-policy probe, privilege change, entitlement grant
+or platform-signing change was performed. Conditional power work found in the
+[endpoint-close follow-up](dcp-dpcd-rpc-03.md#request-ownership-and-endpoint-close)
+does not imply that the selected user-client start reruns provider setup; it does
+mean teardown must remain part of the future experiment's safety assessment.
+
 ## Result
 
 **E: authorization for the eventual normal process cannot be fully determined
