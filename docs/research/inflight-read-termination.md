@@ -635,3 +635,69 @@ A missing ignored artifact is unavailable evidence, not permission to substitute
 another kernel build or run a private operation. The final code/source state is
 independent of the old executed M2F binary identities. No runtime read, close-race
 or firmware-cancellation observation is inferred from compilation or hashes.
+
+## Validation
+
+M2H validation ran on the existing macOS/M5 toolchain on 2026-09-13 UTC. Only
+five documentation paths change from the safety tag; source, tests, CMake,
+inspection tools and configuration are unchanged. No private helper mode,
+including no-open selection, was executed. The existing dpdv_contract marker
+refusal test uses a temporary pre-existing marker and nonexistent helper, not a
+real DPDV call.
+
+| Command / Check | Result | Scope |
+| --- | --- | --- |
+| cmake --build build | PASS | Full strict warnings-as-errors build |
+| ctest --test-dir build -L unit --output-on-failure | 9/9 PASS | Existing deterministic unit suite, including the unchanged 324 synthetic DPCD checks |
+| cmake --build build-sanitized | PASS | AddressSanitizer / UndefinedBehaviorSanitizer build |
+| ctest --test-dir build-sanitized -L unit --output-on-failure | 9/9 PASS | Same deterministic software gates under sanitizers |
+| python3 -m unittest discover -s tests -p 'test_iodp_static.py' | 60/60 PASS | Synthetic static-parser/inspection regressions; no kernel or private method execution |
+| Existing mock_helper_isolation in both unit suites | PASS | Original 13 plus eight framed mock cases and fresh-child/FD/signal/reap ownership checks; USERSPACE_CONTAINMENT_ONLY |
+| Fresh public-only hardware probe | Not run; not needed | No production code or topology question changed. Public sysctl/sw_vers build identity checks were sufficient for evidence applicability |
+| Retained provenance | PASS | Four report hashes, current UUID/container, 80 addresses in 46 consistent full bodies, eight source files matched to pinned archive |
+| Source / binary / marker guards | PASS | All code/tests/config unchanged; production and parent imports remain non-transport; open-only helper has one open/close callsite and no selector imports; both M2F receipts and consumed marker unchanged; read marker absent |
+| Documentation | PASS | Sixteen wait rows, seven required result classifications, source labels, links/fences, append-only ledger, whitespace and editor diagnostics |
+
+Current binary hashes remain those of the unexecuted M2G rebuilds, not the older
+historical runtime helper/parent binaries:
+
+| Binary | Current SHA-256 |
+| --- | --- |
+| Public macmst | `450832c50446d3a430cbed2bcab7c285cddf5f6b370b2339df2cd0a33aefd89a` |
+| Open-only helper, not executed | `d94b0a450e89daa697675d816e231994e37456ec61928fc72261ec500f153830` |
+| Open-check parent, no private helper spawned | `f94db7e91ef670ce6c59ce73929016d2d36a5adb44fb9714f188932771b55e8b` |
+
+One local validation harness initially compared LLVM's hexadecimal immediate
+text to a decimal spelling. Interpreting the value numerically verified the same
+raw terminate option 4; no report conclusion or production code needed changing.
+No failed hardware check or new runtime result is hidden by that harness repair.
+
+These checks establish documentation provenance and existing software behavior,
+not a bounded private read, cancellation, late-reply safety, firmware quiescence
+or M5 MST support. All execution gates remain unchanged.
+
+## Git
+
+The branch is `research/inflight-read-termination`, based on tagged merge
+`2b1565ee61337a368d75980af281621a5959000e`. Its evidence commits are:
+
+- `e36a8cf2adb90c3e42ee1567bc77eee5213abc66`: research: trace selector-0 blocking lifetime.
+- `a1afb2da148203681c0664817031da402d307d0a`: research: analyze DPDV read cancellation and task death.
+- The final report/index commit: research: finalize in-flight read termination gate.
+
+After the explicitly completed M2G main/tag integration, publication is restricted
+to this M2H branch with an explicit non-force refspec and push.followTags=false.
+Main remains the M2G merge; selector0-safety-v0.4, the runtime/pre-open/baseline
+tags and all historical research/experiment branches are retained. M2H is not
+merged and no PR is opened. Only sanitized documentation is published; ignored
+raw reports, source archives, binaries and both marker states are not rewritten.
+
+```sh
+git log --oneline selector0-safety-v0.4..HEAD
+git rev-parse HEAD
+git status --short --branch
+git rev-list --left-right --count 'HEAD...@{upstream}'
+```
+
+Those commands identify the final HEAD and verify a clean synchronized branch
+without embedding a self-referential commit hash in this document.

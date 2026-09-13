@@ -93,6 +93,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | Public framebuffer/I2C route | Unavailable on the recorded active M5 external path; no type-4 advertisement observed. |
 | Isolated DPDV open-check | One open/immediate-close runtime validated with zero selectors; in-flight-read teardown remains unproved. |
 | One-byte selector readiness | NOT_READY_FOR_ONE_BYTE_DPCD_READ; NO_TRANSPORT_READY. |
+| In-flight read termination | INFLIGHT_READ_TERMINATION_NOT_PROVEN; no guaranteed response-independent completion/drain of the DCP context wait. |
 | Native DPCD access | Not yet exercised. |
 | MST source capability | Unknown. |
 
@@ -184,6 +185,16 @@ not bound the kernel wait, recover the lost reply length or establish read
 cancellation. The pure revision classifier and short-reply tests do not implement
 a transport. M2G repeats no private open/close and creates no read-attempt marker.
 
+M2G is integrated at `2b1565ee61337a368d75980af281621a5959000e`, tagged
+`selector0-safety-v0.4`. [M2H's in-flight termination investigation](docs/research/inflight-read-termination.md)
+on `research/inflight-read-termination` traces the exact stack-context wait,
+command ownership, concurrent close, task death and disconnect paths. It reports
+**INFLIGHT_READ_TERMINATION_NOT_PROVEN**. The raw uninterruptible/no-deadline
+wait has no proved response-independent completion-and-drain contract; conditional
+error synthesis and list cleanup are different paths. Constant 500 remains an
+opaque firmware parameter, not a demonstrated host deadline. No transport or
+readiness gate is promoted, and no private operation or read helper is added.
+
 For a fresh clone, first build the probe and create your own public capture:
 
 ```sh
@@ -226,6 +237,7 @@ before comparing findings. No Apple binary is distributed by this project.
 - [M2C isolation, teardown and open-only safety](docs/research/dpdv-isolation-safety.md)
 - [M2E.1 discriminator and historical open-only proofs](docs/research/dpdv-open-path.md)
 - [M2G one-byte selector contract and 19 readiness gates](docs/research/selector0-one-byte-readiness.md)
+- [M2H in-flight read lifetime, waits and termination result](docs/research/inflight-read-termination.md)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
 
