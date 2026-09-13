@@ -3,6 +3,32 @@
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
 MST on M5 remains `UNKNOWN`.
 
+## M2H In-Flight Termination
+
+[M2H](inflight-read-termination.md) starts from M2G's audited merge
+`2b1565ee61337a368d75980af281621a5959000e`, tagged `selector0-safety-v0.4`.
+Result: **INFLIGHT_READ_TERMINATION_NOT_PROVEN**. Sixteen scoped wait/deferred
+sites, the actual command lifetime and distinct wake events are recorded without
+reopening open ABI, revision semantics, provider ownership or userServer analysis.
+
+The single lowest-level blocker is **W06: the event wait for the stack
+CommandContext in DCPAVProxy::performCommandGated**. Raw flag 0 reaches
+_assert_wait with no deadline. No response-independent path is proved to wake
+that context and drain its callback safely. Concurrent close can serialize behind
+the read under the source locking contract; task death is not an assured wake.
+Conditional Offline replies and command-list cleanup must not be conflated.
+
+Constant 500 is precisely a serialized uint32 firmware-request parameter:
+500_MEANING_UNRESOLVED, with no demonstrated host deadline or expiry transition.
+Late-reply handling, universal disconnect completion and the complete read-abort
+set remain unresolved. One-byte reply completeness is a separate unchanged gate.
+
+Keep NO_TRANSPORT_READY, NOT_READY_FOR_ONE_BYTE_DPCD_READ and
+NOT_READY_FOR_DPCD_TEST. The M2F marker remains consumed; the DPCD attempt marker
+remains absent. No selector execution, repeat open, close race, private abort or
+physical disconnect is proposed. Historical milestone questions below are not
+new experiment instructions.
+
 ## M2G One-Byte Readiness
 
 [M2G](selector0-one-byte-readiness.md) reconciles the successful M2F runtime

@@ -77,6 +77,17 @@ is UNRESOLVED and the global NOT_READY_FOR_DPCD_TEST gate remains unchanged.
 Only transport-independent revision classification and synthetic short-reply
 tests are added; no read helper or private operation is introduced.
 
+M2G is integrated at `2b1565ee61337a368d75980af281621a5959000e`, with annotated
+`selector0-safety-v0.4` created before `research/inflight-read-termination`.
+[M2H](inflight-read-termination.md) reuses the UUID-matched wait/lifecycle bytes,
+records sixteen scoped blocking/deferred-completion sites and the single command's
+state machine, and returns INFLIGHT_READ_TERMINATION_NOT_PROVEN. Concurrent close,
+task death, late replies and disconnect do not supply a universal terminal-state
+proof. 500_MEANING_UNRESOLVED describes a precise firmware-payload field whose
+meaning cannot bound the demonstrated host wait. READ_ABORT_SET_INCOMPLETE and
+UNKNOWN failure containment remain explicit. No private call, new read helper,
+kernel graph expansion or change to the one-byte/global not-ready gates occurs.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -100,6 +111,8 @@ tests are added; no read helper or private operation is introduced.
   writer/observable evidence plus preserved M2E/M2D findings and gate states.
 - [M2G one-byte selector readiness](selector0-one-byte-readiness.md): authoritative
   runtime baseline, transport comparison, one-byte semantics and current 19-gate matrix.
+- [M2H in-flight termination](inflight-read-termination.md): exact wait flags,
+  command/tag/callback lifetime, close/death/disconnect and the single remaining wait object.
 
 The user reports two physical monitors connected to one USB-C dock showing the
 same image. This is an input to investigate, not proof of the dock's transport,
