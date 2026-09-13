@@ -15,6 +15,14 @@ inline constexpr std::uint32_t mst_capability_address = 0x021;
 inline constexpr std::uint8_t mst_capability_mask = 0x01;
 inline constexpr std::size_t receiver_block_size = 16;
 
+enum class RevisionPlausibility {
+    PlausibleKnown,
+    Unrecognized,
+    Implausible
+};
+
+RevisionPlausibility classify_revision_byte(std::uint8_t raw_revision);
+
 struct ReceiverCapabilities {
     std::array<std::uint8_t, receiver_block_size> raw_receiver;
     std::optional<std::uint8_t> raw_mst_capability;
