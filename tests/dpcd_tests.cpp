@@ -1,5 +1,6 @@
 #include "displayport/dpcd/capabilities.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <iostream>
@@ -21,6 +22,34 @@ void expect(bool condition, std::string_view description) {
 
 int main() {
     namespace dpcd = macmst::displayport::dpcd;
+    expect(dpcd::revision_address == 0x000, "revision byte is fixed at DPCD address zero");
+    for (unsigned int value = 0; value <= 0xff; ++value) {
+        const auto raw = static_cast<std::uint8_t>(value);
+        const auto expected = value >= 0x10 && value <= 0x14 ? dpcd::RevisionPlausibility::PlausibleKnown :
+            value == 0x00 || value == 0xff ? dpcd::RevisionPlausibility::Implausible :
+            dpcd::RevisionPlausibility::Unrecognized;
+        expect(dpcd::classify_revision_byte(raw) == expected, "classify all raw revisions without rejecting unknown encodings");
+    }
+    constexpr std::uint8_t sentinel = 0xff;
+    constexpr std::size_t requested_length = 1;
+    std::array<std::uint8_t, 129> supplied_reply {};
+    supplied_reply[128] = 0x14;
+    for (const std::size_t received_length : std::array<std::size_t, 6> {0, 8, 112, 116, 128, 129}) {
+        std::array<std::uint8_t, 129> host_message {};
+        std::array<std::uint8_t, 3> guarded_output {0xa5, sentinel, 0x5a};
+        const std::size_t outer_output_size = requested_length;
+        std::copy_n(supplied_reply.begin(), received_length, host_message.begin());
+        std::copy_n(host_message.begin() + 128, requested_length, guarded_output.begin() + 1);
+        const auto expected = received_length == host_message.size() ? dpcd::RevisionPlausibility::PlausibleKnown :
+            dpcd::RevisionPlausibility::Implausible;
+        expect(guarded_output.front() == 0xa5 && guarded_output.back() == 0x5a, "synthetic one-byte copy preserves caller canaries");
+        expect(outer_output_size == 1 && host_message[112] == 0, "synthetic host path can retain success and requested output size");
+        expect(guarded_output[1] != sentinel, "changed sentinel alone cannot prove a complete firmware reply");
+        expect(dpcd::classify_revision_byte(guarded_output[1]) == expected, "synthetic short prefix leaves zero payload despite bounded copy");
+    }
+    expect(dpcd::classify_revision_byte(0x15) == dpcd::RevisionPlausibility::Unrecognized &&
+           dpcd::classify_revision_byte(0x20) == dpcd::RevisionPlausibility::Unrecognized,
+           "unrecognized future revision remains evidence to review, not declared invalid transport");
     std::array<std::uint8_t, dpcd::receiver_block_size> bytes {};
     bytes[0] = 0x14;
     bytes[1] = 0x1e;

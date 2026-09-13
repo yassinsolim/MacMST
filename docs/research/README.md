@@ -15,7 +15,7 @@ conservative candidate pairs. ABI-02 now resolves CF cleanup, authenticated
 caller bindings and the concrete DPDV/selector-0 host path. It reaches a DCP
 register RPC. RPC-03 establishes host zero-fill and AFK reply handling but finds
 no local reply deadline and a no-op abort hook. Complete-reply/firmware semantics
-and actual process authorization remain unestablished.
+and selector-call authorization remain unestablished.
 **NOT_READY_FOR_DPCD_TEST** remains the result.
 
 The `research/dcp-rpc-safety` branch builds on the published RPC-03 report rather
@@ -66,6 +66,17 @@ both returning 0, with a normally reaped helper and unchanged sampled public
 state. DPDV_OPEN_CLOSE_RUNTIME_VALIDATED applies to that observation only;
 userServer and selector safety remain unresolved. No further private call or retry.
 
+The successful M2F state is integrated at
+`3f5f0cd887ed2ef5c8dbadc9abb278792c3150be`, tagged `dpdv-open-runtime-v0.3` before
+creating `research/selector0-one-byte-readiness`. [M2G](selector0-one-byte-readiness.md)
+revalidates the runtime receipt and unchanged kernel identity, compares wrapper
+and direct transports, and documents all 19 one-byte readiness gates. Result:
+NO_TRANSPORT_READY; NOT_READY_FOR_ONE_BYTE_DPCD_READ. Reply completeness, bounded
+waiting and cancellation are not repaired by requesting one byte. Constant 500
+is UNRESOLVED and the global NOT_READY_FOR_DPCD_TEST gate remains unchanged.
+Only transport-independent revision classification and synthetic short-reply
+tests are added; no read helper or private operation is introduced.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -87,6 +98,8 @@ userServer and selector safety remain unresolved. No further private call or ret
   ownership, pre-selector effects, mock watchdog tests and the separate open-only gate.
 - [Runtime discriminator and open-only proof](dpdv-open-path.md): current M2E.1
   writer/observable evidence plus preserved M2E/M2D findings and gate states.
+- [M2G one-byte selector readiness](selector0-one-byte-readiness.md): authoritative
+  runtime baseline, transport comparison, one-byte semantics and current 19-gate matrix.
 
 The user reports two physical monitors connected to one USB-C dock showing the
 same image. This is an input to investigate, not proof of the dock's transport,

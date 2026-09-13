@@ -17,6 +17,16 @@ std::optional<std::uint32_t> legacy_rate_mbps(std::uint8_t code) {
 
 }
 
+RevisionPlausibility classify_revision_byte(std::uint8_t raw_revision) {
+    if (raw_revision >= 0x10 && raw_revision <= 0x14) {
+        return RevisionPlausibility::PlausibleKnown;
+    }
+    if (raw_revision == 0x00 || raw_revision == 0xff) {
+        return RevisionPlausibility::Implausible;
+    }
+    return RevisionPlausibility::Unrecognized;
+}
+
 std::optional<ReceiverCapabilities> decode_receiver_capabilities(
     std::span<const std::uint8_t> bytes_at_address_zero,
     std::optional<std::uint8_t> byte_at_mst_capability_address) {
