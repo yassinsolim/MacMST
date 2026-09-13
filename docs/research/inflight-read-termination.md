@@ -287,3 +287,351 @@ bit 1 at 0xfffffe000bfe80a0 and waits at 0xfffffe000bfe8138 only for that entry
 handshake; at 0xfffffe000bfe8150 it tests the separate action mask and defers
 detachment. runAction increments at 0xfffffe000bfe7cac and decrements at
 0xfffffe000bfe7cdc. These lifetime protections are not a wake of the DCP context.
+
+## Concurrent Close
+
+Result: **CONCURRENT_CLOSE_UNRESOLVED**. This is not a proposal to add a close
+thread. Thread A is already inside the read; Thread B uses the same connection.
+
+VERIFIED_ON_CURRENT_KERNEL: IOServiceClose's kernel routine at
+0xfffffe000c038688 checks the client and closed/shared state, conditionally changes
+closed byte+153 before acquiring the exclusive lock+176 at 0xfffffe000c038764,
+increments IPC count+156 and invokes clientClose slot 2336 at
+0xfffffe000c038790. The concrete IOAVUserClient::clientClose at
+0xfffffe000a5a3694 calls terminate(0). Current IOService::terminate at
+0xfffffe000bfa0f64 adds raw option 4, not synchronous bit 2. The close routine
+exits through current ipcExit at 0xfffffe000c0303f4 in lock mode 2 and returns
+zero on its valid close path, without treating the virtual close result as a
+completed-read receipt. Userspace deallocates its connection right only after
+the close RPC returns.
+
+PRIMARY_SOURCE: pinned
+[IOUserClient.cpp](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/iokit/Kernel/IOUserClient.cpp)
+callExternalMethod encloses the virtual external method in ipcEnter/ipcExit. With
+defaultLocking enabled it holds a read lock, or a write lock when the separate
+single-thread flag is enabled. With defaultLocking disabled it still counts IPC
+but does not take that lock. The exact current callExternalMethod wrapper and
+the future live client's locking flags are not independently attested here.
+This source-conditioned branch must not become an unconditional current-runtime
+claim; the frozen native/delegated routing uncertainty also remains.
+
+| Question | Established Answer / Limit |
+| --- | --- |
+| Does B call clientClose immediately? | No universal immediate call: exclusive-lock acquisition precedes it. Closed=true can precede the call and is not the same as service inactive |
+| Does B wait for A? | Under the pinned default-locking contract, yes: A holds a conflicting IPC lock until externalMethod returns; sleeping the DCP workloop gate does not release that distinct lock |
+| Can B run termination concurrently? | The source's no-default-locking branch permits reaching clientClose with another counted IPC active; actual live mode and all resulting lifecycle interleavings remain unknown |
+| Does it remove/free the client? | terminate(0) requests inactive/termination processing; active IPC, action counts and other references can defer finalization or detachment. Close return is not proof of removal/free |
+| Does it abort or wake the read? | No read-context abort, AFK tag cancellation or CommandContext wake appears in these concrete close/clientClose bodies. Conditional lifecycle/error delivery is a different path |
+| Can close hang behind the read? | Yes as a source-backed possibility in W08; no local close deadline resolves that dependency |
+| Is there a proven A/B deadlock? | No two-lock cycle is established. Waiting behind A while A waits for an absent response is already enough to defeat a close-based bound; it must not be mislabeled a demonstrated deadlock |
+| Can close return with AFK work outstanding? | Not excluded by the no-locking/asynchronous-termination branch. No end-to-end invariant proves return implies callback/firmware quiescence |
+
+The source finalizeUserReferences predicate defers while IPC is nonzero. Current
+ipcExit similarly tests last IPC/inactive/deferred state before scheduling
+finalization. These are protective lifetime dependencies, not cancellation.
+IOAV client stop removes its own gate and releases provider references; it is not
+identical to stopping the pre-existing DCP provider or disconnecting its endpoint.
+The already-recorded provider-close guard is retained without reopening ownership
+analysis. M2F's zero-selector close cannot resolve any of these pending-read cases.
+
+## Task Death And SIGKILL
+
+Result: **TASK_DEATH_READ_STATE_UNRESOLVED**. Signal delivery, rights destruction,
+client finalization, AFK command completion and firmware quiescence are separate.
+
+PRIMARY_SOURCE, pinned
+[task.c](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/osfmk/kern/task.c)
+and [thread_act.c](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/osfmk/kern/thread_act.c):
+
+1. Normal task_terminate_internal marks the task inactive, disables task IPC
+  operations and calls thread_terminate_internal for each thread. That routine
+  marks a started thread inactive, requests abort and calls clear_wait with
+  THREAD_INTERRUPTED. The TH_UNINT rule described above can refuse that wake.
+2. thread_wait(FALSE) can wait for a different thread to leave a CPU, but not
+  for its full kernel call to return. A thread sleeping in W06 is already off
+  CPU. This wait is not an AFK completion/cancellation barrier.
+3. Normal task termination then calls IOKit phase 1 and tears down the task's
+  IPC space. Pinned IOKit phase 1 returns immediately for an ordinary non-driver
+  task; its driver-task behavior must not be assigned to a MacMST CLI helper.
+4. Connection no-senders is conditional on Mach-port/owner state and valid
+  notification generation. Its retained current path at 0xfffffe000c0308c8
+  takes the exclusive client lock before clientDied, so W08 can matter there too.
+5. Pinned normal task_deallocate_internal calls IOKit phase 2 only at final
+  reference deallocation, with threads gone. The current phase routine at
+  0xfffffe000c031e4c retains the matching phase/owner cleanup shape. It removes
+  owners, temporarily retains newly ownerless clients and conditionally calls
+  clientDied, then releases those references. Exec/reset call sites are not
+  substituted for normal process death.
+6. Current IOUserClient::clientDied at 0xfffffe000c02c0c8 calls clientClose only
+  for a shared instance or a successful closed-byte transition. That guarded
+  termination and subsequent client cleanup still do not identify the AFK
+  read context/tag or prove a wake of it.
+
+| Component | Exact Conclusion |
+| --- | --- |
+| A: Userspace/kernel thread | Userspace termination is requested; completion of a started thread's TH_UNINT kernel wait is not bounded by that request. The kernel stack may remain live until its event is awakened and the thread reaches termination processing |
+| B: IOUserClient | Rights/owners can begin teardown, but exclusive-lock acquisition, active IPC, action counts and remaining references can retain/defer it. Immediate free or a finite destruction time is not proved |
+| C: AFK/DCP host command | No direct task-death cancellation of the listed tag/callback is evidenced. It can remain pending until reply, a conditional error path or separate endpoint cleanup; those outcomes are not universally bounded |
+| D: Firmware transaction | UNKNOWN: it may still run, have finished with a lost reply, or have failed before execution. No task-death-to-firmware cancel/ack contract is established |
+| E: Late response | Goes through endpoint/tag/delivery state if that infrastructure remains; it is not automatically a message to the dead process. Safe handling for every teardown interleaving remains unresolved below |
+
+The current wait/close/clientDied bytes and source phase ordering support these
+limits; no SIGKILL was sent to a helper inside a private call. The source does not
+prove that the current kernel must promptly reap such a process, nor that a reaped
+PID would establish firmware quiescence. Choosing either automatic cancellation
+or guaranteed client release from those observations would overstate the evidence.
+
+## Late Reply After Client Death
+
+Result: **LATE_REPLY_UNRESOLVED**, a critical gate. The proposed worst sequence
+must not silently equate "parent sent SIGKILL" with "kernel stack and client are
+already freed." Both may remain retained/deferred while the read is outstanding.
+
+The receiver is the AFK endpoint response machinery, not a userspace pipe or the
+helper's Mach receive loop. handleClientResponse extracts the eight-bit tag,
+removeCommand searches interface local list+40 by node tag+41 and unlinks it
+before release. The asynchronous path may then place the separately retained
+callback/context and copied response allocation in an event-source task. The
+event-source delivers to KextV2::deliverResponse, then the retained adapter/client
+callback reaches DCPAVProxy::handleResponse with the original raw context pointer.
+
+| State At Late Arrival / Delivery | Consequence And Limit |
+| --- | --- |
+| Same command listed; dispatcher, callback, DCP context and storage all live | Normal retained-command response processing can complete it. No helper userspace continuation is required to store status and wake the kernel context |
+| Node already unlisted but response task queued | Callback/context and copied response allocation are held by the delivery path, not the freed command node. Event-source progress or clearAll determines delivery; task queue presence alone is not completion |
+| Node removed by cleanup and no matching tag now present | Current removeCommand returns null and handleClientResponse logs/drops without dereferencing that removed node. This local drop does not wake the original DCP waiter |
+| Dispatcher interface+120 absent | Current asynchronous response path skips callback dispatch and releases command storage. No DCP wake is visible there |
+| Tag reused by other endpoint traffic | No death-specific generation check is recovered at this local eight-bit lookup. Outer transport/session protections are not fully attributed; neither safe rejection nor misdelivery is proved. MacMST's no-retry rule does not stop unrelated endpoint clients |
+| Callback delivered after its context actually expired | The callback uses a raw pointer, not a fresh IOUserClient lookup. This would require a quiescence/lifetime proof; a concrete reachable expired-context interleaving is not established by the retained close/death paths |
+
+For the selected synchronous read, context+8 points to kernel OSData message
+storage and context+16 to a kernel stack size variable. The response callback
+does not directly write the helper's one-byte userspace buffer. Only subsequent
+readDPCD return handling copies to the method's output buffer; the one-byte
+userspace request is in-band. That separation reduces one mistaken lifetime
+inference, but does not prove every kernel allocation/context remains valid after
+arbitrary teardown. Block retention alone does not own the raw DCP stack context.
+
+Normal delivery has an evidenced last-context-access-before-wake ordering. No
+universal callback drain, late-reply generation barrier or safe-drop-plus-waiter
+completion contract is established for client/endpoint death. Conversely, this
+analysis does not demonstrate a use-after-free from SIGKILL or concurrent close;
+it does not promote a conditional raw-pointer risk into an observed vulnerability.
+
+## Endpoint Disconnect
+
+Result: **DISCONNECT_BEHAVIOR_UNRESOLVED**. Physical HPD drop, endpoint offline,
+user-client termination and DCP-provider stop are different triggers. No physical
+disconnect, HPD change or simulated driver notification was performed.
+
+VERIFIED_ON_CURRENT_KERNEL, retained R3/R4:
+
+| Trigger / Body | Actual Command Effect | Missing Guarantee |
+| --- | --- | --- |
+| handleNotification, 0xfffffe000928362c, raw notification 4 | Calls createErrorResponses at 0xfffffe0009283664 before notification dispatch | No proof every physical detach or lost firmware reply produces this notification within a bound |
+| handleClientReport, 0xfffffe0009283ffc | Report 19 with the final boolean set calls createErrorResponses; report 20 sets bit 7 at interface+24 and invokes notification 4 | These exact predicates are not a universal HPD-to-error mapping |
+| createErrorResponses, 0xfffffe0009283734 | Iterates local list+40, builds a matching-tag eight-byte response with raw Offline status 0xe00002d7, and calls normal handleClientResponse | Conditional host error synthesis, not a firmware cancellation acknowledgement; dispatch and event-source delivery must still succeed |
+| KextV2::close, 0xfffffe0009275984 | Runs closeHelper only for the retained null-EPIC / client-count<=1 condition, then wakes the endpoint event and delegates to base close | One MacMST read does not imply one endpoint client; endpoint wake is not the DCP context wake |
+| handleClose, 0xfffffe0009285040 | Runs cleanupRemoteContext and reaches tryClose | Cleanup is not an implicit call to createErrorResponses |
+| cleanupRemoteContext, 0xfffffe0009283a70 | Unlinks/releases both local and remote lists, resets tails, zeros reservation count+145 | No normal response callback, context wake or reservation-event wake in the body |
+| closeHelper cleanup callback, 0xfffffe0009275ad4; clearAll, 0xfffffe000925e660 | Removes event source, drains queued task allocations and releases it; notification/data tasks have different cleanup | Discarded data-response task is not automatically delivered to the DCP waiter |
+| Disconnect-transition block, 0xfffffe0009285128 | If phase byte+26 is 2, calls completion only when uint16 counters+74 and +76 match | A state/counter predicate, not a deadline. The enclosing result is not a receipt that all DPCD waiters completed |
+| Concrete tryClose callback, 0xfffffe0009275858 | Conditional power assertion/deassertion and an asynchronous close request | Neither enqueue success nor power bookkeeping proves cancellation or late-reply quiescence |
+
+Thus a delivered synthesized error can complete the host read through the normal
+callback path. A separate cleanup path can remove command state without that
+wake, and an already queued response can be discarded before delivery. The
+required ordering that would make all relevant disconnects safe and bounded is
+not established. This does not prove the no-wake branch is the outcome of every
+disconnect, so a universal clears-without-wake classification is not justified.
+
+## Abort Primitive Inventory
+
+Result: **READ_ABORT_SET_INCOMPLETE**. No complete read-specific cancel primitive
+was found in the selected decoded host entries. The lower transport/session and
+firmware cancel/quiescence contracts remain unestablished at W16; this is not a
+claim that every possible cancellation facility in the system was enumerated.
+
+| Candidate | Changes This Read's State? | Scope / Limit |
+| --- | --- | --- |
+| User-client close/clientDied | Marks/request client lifecycle changes after guards and locks; no direct read-context/tag cancel in the concrete entries | Not an exposed per-read abort contract; unknown lifecycle callbacks are not silently treated as no-ops |
+| Selected AFK abortCommand, vtable+2192 -> 0xfffffe0009279284 | No; complete body is hint/ret, raw 5f2403d5c0035fd6 | Does not remove tag, release reservation, synthesize status, wake context or drain callback |
+| Other retained same-named abort at 0xfffffe000926e520 | Also hint/ret | Not an alternate working cancel path; the selected vtable remains authoritative |
+| commandWakeup / wakeupGate | Can wake a matching event, not cancel the command by itself | No caller-safe request token/status/quiescence protocol is established; arbitrary wake could violate lifetime assumptions and is not proposed |
+| AFK releaseCommand | Decrements capacity and wakes admission event+144 | Not cancellation of a listed command or completion of its DCP context |
+| createErrorResponses | Real conditional host error-completion path through existing tags/callbacks | Does not itself prove firmware quiescence, universal dispatch or bounded trigger; not a supported MacMST cancellation API |
+| Endpoint handleClose / cleanupRemoteContext / clearAll | Removes/releases command or task state | Storage disposal without guaranteed response/wake is not safe terminal-state proof |
+| DCP provider stop / thread_call_cancel_wait | Cancels/waits for a separate thread-call at provider+248 and conditionally closes endpoint | No evidence that this thread-call is the pending AFK request or that cancelling it cancels that request |
+| IOCommandGate removal | Interrupts disabled-entry waiters and defers detach for active actions | Does not wake the distinct in-action DCP CommandContext |
+| RTBuddy / DCP transport cancellation | No verified read-context-to-transport cancel/ack/generation contract in the retained boundary evidence | UNKNOWN, not proof of absence and not permission for broad privileged investigation or a cancellation call |
+| SIGKILL / port destruction | Requests task/rights teardown | No guaranteed interrupt of W06 or firmware abort acknowledgement |
+
+The only additional positive host completion mechanism established here is
+conditional synthesized Offline delivery. It is not enough to classify a real,
+bounded read-abort primitive as available to MacMST. No abort, notification,
+forced wake, endpoint close or provider-stop API was invoked.
+
+## Failure Containment
+
+Scope classification: **UNKNOWN**. A helper process boundary is not an upper bound
+on the effects of a stranded kernel request. The following distinctions are
+supported; none is a measured hardware failure in M2H.
+
+| Possible Condition | Evidence-Supported Impact / Limit |
+| --- | --- |
+| Ordinary mock child hangs | Parent can observe a deadline and kill/reap tested userspace children; USERSPACE_CONTAINMENT_ONLY |
+| Read thread remains in W06 | A kernel execution context and its stack can remain blocked; prompt process completion/reaping is not guaranteed |
+| Command remains outstanding | OSData, callback/reference state, active IPC/action counts and one AFK reservation can remain needed. A permanent leak is not demonstrated |
+| Endpoint resources are shared | Reservation count+145, limit+144 and tag/list state belong to an AFK interface shared by endpoint traffic, not just the helper |
+| Endpoint becomes unusable | Possible resource/progress impact cannot be excluded, but one stranded read is not proof that the whole endpoint wedges |
+| Display stack disruption | No bounded isolation or no-impact guarantee is established; neither an actual disruption nor an inevitable display-stack hang is claimed |
+
+Another process is not necessarily blocked by the same IPC lock if it obtains a
+distinct client. W06 releases recursive workloop ownership, allowing other work
+in principle. If endpoint state and reservation capacity permit, another request
+could therefore progress while the first waits. Conversely, shared clients,
+reservation exhaustion, endpoint state, power bookkeeping or unresolved callback
+ordering can prevent progress. Neither continued usability nor total provider
+failure is proved. The strongest defensible statement is shared-endpoint resource
+exposure with an unproved upper containment boundary, hence UNKNOWN rather than
+HELPER_ONLY or an asserted whole-display failure.
+
+## Termination Criterion And Result
+
+Termination: **INFLIGHT_READ_TERMINATION_NOT_PROVEN**.
+
+| Required Trigger | Established Path | Acceptance Result |
+| --- | --- | --- |
+| Normal reply | Valid matching response, retained delivery/context, status-before-wake, normal unwind | Conditional normal completion; no bound on arrival or every teardown interleaving |
+| Explicit error | Returned submission failure or successfully delivered synthesized/transport error | Conditional returned-error completion; a lost error response has the same waiter problem |
+| Helper death | Abort request, rights/owner lifecycle, possible deferred client/task teardown | No mandatory bounded wake or proven safe detached completion of W06 |
+| Concurrent close | Lock-mode-dependent serialization or asynchronous client termination | No universal abort/drain guarantee for the pending read |
+| Endpoint disconnect | Conditional synthesized errors, separate list/task cleanup and async close | Ordering and bounded completion not established for all pending commands |
+
+A minimal countermodel consistent with the traced host code is: one command is
+successfully submitted/listed, the helper's kernel thread enters W06, and neither
+a matching response nor a qualifying delivered error arrives. There is no local
+deadline at W06. A signal's interrupted wake may be rejected, an exclusive close
+can wait behind the active IPC, and later cleanup is not proven to complete the
+context. This is a static possibility, not a claim that it occurred on M5.
+
+No recovered path makes the final terminal-state criterion universal. Conversely,
+no fully established reachable premature-context-destruction interleaving was
+recovered, so this result is not upgraded to a demonstrated unsafe lifetime claim.
+The raw-pointer and dropped-callback concerns remain critical unresolved risks,
+not permission to test them by killing or closing around a private operation.
+
+## One-Byte Readiness And Next Step
+
+- Transport: **NO_TRANSPORT_READY**.
+- One-byte readiness: **NOT_READY_FOR_ONE_BYTE_DPCD_READ**.
+- Wait: **UNBOUNDED_KERNEL_WAIT_POSSIBLE**.
+- Global gate: **NOT_READY_FOR_DPCD_TEST**.
+
+The single lowest-level blocking object is **the event wait registered for
+DCPAVProxy::performCommandGated's stack CommandContext**, W06. Current raw flag
+0 reaches _assert_wait at 0xfffffe000b8225f8, which supplies deadline 0 to the
+waitq path. There is no demonstrated response-independent terminal transition
+that both wakes that context and guarantees its callback can no longer access
+expired storage. A documented target-specific completion/cancel-and-drain contract
+for that exact wait is the missing fact; another DPDV open or a userspace watchdog
+cannot supply it.
+
+Termination findings do not alter M2G reply completeness: manageable one-byte
+copy bounds are not proof of a complete firmware reply. That remains a separate
+future gate, not an additional read or broad reply-semantics investigation here.
+No selector transport, read CLI, arbitrary selector support or attempt marker is
+added. No selector execution is proposed, and no new private-operation approval
+is requested by this report.
+
+## Userspace Containment Mocks
+
+**USERSPACE_CONTAINMENT_ONLY**. The existing orchestration and mock suite are
+unchanged; no new child mode or selector transport is useful for proving the
+missing kernel contract. Reuse
+[../../tests/isolation_tests.cpp](../../tests/isolation_tests.cpp) and
+[../../tests/mock_helper.cpp](../../tests/mock_helper.cpp), not the private
+open helper as a stand-in for an in-flight read.
+
+| Existing Coverage | What It Does / Does Not Establish |
+| --- | --- |
+| Blocking child / timeout / SIGKILL | Parent deadline/failure recording and termination/reaping of tested ordinary userspace children; not interruption of W06 |
+| Valid frame followed by cleanup-hang | A valid result frame is insufficient without normal completion/reaping; not a model of a firmware callback into a dead kernel context |
+| Closed pipes / malformed or oversized output / early exit | IPC loss and framing/failure behavior, not destruction of IOConnect rights or firmware work |
+| Fresh children, descriptor/signal/environment checks | Userspace isolation and ownership bookkeeping, not isolation of the shared DCP endpoint |
+| Deliberate ECHILD ownership-loss case | Correct handling when SIGCHLD auto-reaping removes parent wait ownership; not an actually unreaped kernel-blocked child |
+| Existing M2F-framed mocks | Framing and terminal/open-only coordinator guards without an actual DPDV operation; mock names do not make them hardware tests |
+
+No new delayed-firmware-reply, post-kill callback or uninterruptible-child test is
+claimed. An ordinary mock cannot reproduce those kernel guarantees by delaying
+a pipe write. The existing parent watchdog remains an observation/termination
+attempt policy, not a cancellation proof. Its outcome cannot promote any M2H gate.
+
+## Provenance And Reproduction
+
+No new kernel extraction, call graph, firmware search, source download, private
+object acquisition or public display-topology capture was needed. The matched
+kernel UUID is 447D769E-1CB7-3086-A0B4-32226837B587, and the retained kernel
+container SHA-256 is
+`b20d50fc8f445a5c578ac63bd974efeb6ae48a97116800301071891795fb26d9`.
+Addresses are preferred image addresses, not executable live call targets.
+
+| Retained Report Under artifacts/probes | SHA-256 |
+| --- | --- |
+| R3: iodp-static-20260912T045748Z/iodp-static.json | `b80b5f6b1d9553ce1ee1b292f68102369d0c7e3d29cfdd6ab80ff3c9c199b263` |
+| R4: iodp-static-20260912T095457Z/iodp-static.json | `1262f818b09a562b22c4649c97d94e77a5c865148268793cd2a9dc8d5c72ab1f` |
+| R6: iodp-static-20260912T115506Z/iodp-static.json | `8e235935b12579787150b991c1c90db2f618312deab0e58594eb52b1d14843dd` |
+| R9: iodp-static-20260912T141129Z/iodp-static.json | `587ef7b55e8ed3a5fd0e88e69c0d160ac2973ddbcaa9a6ac86bf04a71dc1f966` |
+
+All 80 concrete instruction addresses cited by the analysis resolve inside 46
+retained full bodies. Concatenating instructions[].bytes_hex reproduces each
+body's declared size/SHA-256; duplicate bodies agree across reports. The sleep
+leaf resides in R9's retained graph bodies even though it is absent from R3's
+named-function inventory. R4, not R3, supplies cleanupRemoteContext. Nothing was
+silently treated as absent merely because one report's selected map lacked it.
+
+In addition to the sleep-body hashes above, these exact bodies bind the newly
+distinguished lifetime transitions:
+
+| Body / Preferred Address | Bytes | SHA-256 |
+| --- | --- | --- |
+| removeCommand, 0xfffffe0009283af4 | 120 | `d629540dd1561a5f16edbc31f358fcaf75d18e7c08306dd922b923ed23a3d241` |
+| dispatchResponse, 0xfffffe000925e46c | 136 | `64949f8ff6bb4bda736e056c82169ed3a51738168be0f3c8ccb70ad53dadd015` |
+| deliverResponse, 0xfffffe0009278414 | 188 | `4ae2fe7259a157fdab79708569f8a4cf7d1c2319a36c9da4e68c30aa3eb15016` |
+| cleanupRemoteContext, 0xfffffe0009283a70 | 132 | `675a703d3a3b46a28368bdcca8da7d41086dc8fd5d0e74b6e9d5b16ddb08d5d0` |
+| setWorkLoop, 0xfffffe000bfe801c | 492 | `8f2aa1680215cde76c1fd14c79ea122e674df7b30416107cde6212089ae32ace` |
+| Kernel close routine, 0xfffffe000c038688 | 384 | `17d5ebe7aae9d51873f11e8f78429e0f0321aa0b37f2828b7880bc52b453e4df` |
+| clientDied, 0xfffffe000c02c0c8 | 88 | `5cc7802cf1e2c576d00b45e7a6eab5a90ea6a593ec87d81cabc9aaec6e85c572` |
+
+Pinned XNU files were compared byte-for-byte with their entries in the retained
+f6217f891ac0bb64f3d375211650a4c1ff8ca1ea archive, SHA-256
+`0763146d2b5459b070d802aaba9526cead7fb0d55d0d51ba0069818030150b15`. Previously
+used RPC-03/M2C source copies match those entries too. No extraction was performed
+in M2H; the archive and its files remain ignored local evidence.
+
+| Path Within Pinned XNU | SHA-256 |
+| --- | --- |
+| iokit/Kernel/IOUserClient.cpp | `a09c525b144ecbf834bb2b69f0c78b93358601ee22045340609b30acc8e0a6e7` |
+| iokit/Kernel/IOCommandGate.cpp | `99e2ac31e11e1df5bc7d67ed847d6e395b89a103714adae85b8d1aed13faeba6` |
+| iokit/Kernel/IOWorkLoop.cpp | `10f6d04e18a5fb60fda7782b13c5b551d7e27bb191e798ad1011429c0ef66bc3` |
+| iokit/Kernel/IOService.cpp | `8791d87936ced84d6529a2becf6b78db31c0db7acd0aa6da4708a73b8cb50176` |
+| osfmk/kern/locks.c | `55a475755bedb293861eda1c4773c46ed32423cbc094ba3b68067a697e17a68a` |
+| osfmk/kern/sched_prim.c | `b2a2654b21d7731fce2f51f839c378a85e901d58f0c4a8d7d9effd5d39f83dbf` |
+| osfmk/kern/thread_act.c | `cf143f5501df10798f81bba25263c756b02a749c9ecb85aaa2e46c3d6de9765c` |
+| osfmk/kern/task.c | `f5ea4822b15aca636c4d940679e878904729b88acf312821d2ebacbf69312f71` |
+
+Safe identity and evidence checks, when these existing local artifacts are present:
+
+```sh
+sysctl -n kern.uuid
+git rev-parse selector0-safety-v0.4
+git rev-parse 'selector0-safety-v0.4^{}'
+shasum -a 256 artifacts/probes/iodp-static-20260912T141129Z/iodp-static.json
+shasum -a 256 artifacts/sources/m2e1/xnu-f6217f8.tar.gz
+shasum -a 256 artifacts/probes/M2F-ATTEMPTED
+```
+
+A missing ignored artifact is unavailable evidence, not permission to substitute
+another kernel build or run a private operation. The final code/source state is
+independent of the old executed M2F binary identities. No runtime read, close-race
+or firmware-cancellation observation is inferred from compilation or hashes.
