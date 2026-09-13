@@ -1,5 +1,7 @@
 #include "isolation/mock_helper.hpp"
+#include "isolation/dpdv_protocol.hpp"
 
+#include <algorithm>
 #include <cerrno>
 #include <charconv>
 #include <csignal>
@@ -46,6 +48,50 @@ int main(int argc, char** argv) {
     using namespace std::chrono_literals;
     if (argc != 2) {
         return 2;
+    }
+    DpdvFrame selected;
+    selected.phase = DpdvPhase::DryRunReady;
+    selected.reason = DpdvReason::None;
+    selected.device_id = 0xfedcba9876543210ULL;
+    selected.service_id = 202;
+    selected.transport_id = 303;
+    const auto dry_frame = dpdv_response(selected);
+    const auto dry = parse_dpdv_response(dry_frame);
+    if (!dry || dry->device_id != selected.device_id || dry->flags != 0) {
+        return 1;
+    }
+    selected.phase = DpdvPhase::OpenAttempted;
+    selected.flags = open_attempted_flag;
+    const auto started_frame = dpdv_response(selected);
+    if (parse_dpdv_response(started_frame).has_value() || !valid_dpdv_prefix(started_frame)) {
+        return 1;
+    }
+    std::array<std::uint8_t, dpdv_frame_size * 2> operation_frames {};
+    std::copy(started_frame.begin(), started_frame.end(), operation_frames.begin());
+    for (const auto phase : {DpdvPhase::OpenFailed, DpdvPhase::CloseSucceeded, DpdvPhase::CloseFailed}) {
+        selected.phase = phase;
+        selected.flags = phase == DpdvPhase::OpenFailed ? 3 : 63;
+        selected.open_return = phase == DpdvPhase::OpenFailed ? 0xe00002bcU : 0;
+        selected.close_return = phase == DpdvPhase::CloseFailed ? 0xffffffffU : 0;
+        selected.open_microseconds = 123;
+        selected.close_microseconds = phase == DpdvPhase::OpenFailed ? 0 : 456;
+        const auto completed_frame = dpdv_response(selected);
+        std::copy(completed_frame.begin(), completed_frame.end(), operation_frames.begin() + dpdv_frame_size);
+        const auto completed = parse_dpdv_response(operation_frames);
+        if (!completed || completed->phase != phase || completed->open_return != selected.open_return ||
+            completed->close_return != selected.close_return || !valid_dpdv_prefix(operation_frames)) {
+            return 1;
+        }
+    }
+    for (std::size_t index : {0U, 4U, 5U, 6U, 7U, 24U}) {
+        auto invalid = operation_frames;
+        invalid[dpdv_frame_size + index] ^= 0xff;
+        if (parse_dpdv_response(invalid).has_value()) {
+            return 1;
+        }
+    }
+    if (parse_dpdv_response({operation_frames.data(), operation_frames.size() - 1}).has_value()) {
+        return 1;
     }
     for (std::uint32_t status : {0U, 0xe00002bcU, 0xffffffffU}) {
         const auto frame = mock_response(status);
@@ -127,6 +173,28 @@ int main(int argc, char** argv) {
         std::cout << "PASS: " << test.scenario << "; one spawn, captured output, reaped, no FD leak; "
                   << result.elapsed.count() << " ms\n";
     }
+    const std::array<TestCase, 8> framed_cases {{
+        {"dpdv-dry-run", MockOutcome::Success, 0}, {"dpdv-success", MockOutcome::Success, 0},
+        {"dpdv-denied", MockOutcome::OperationFailure, 0}, {"dpdv-close-failed", MockOutcome::OperationFailure, 0},
+        {"dpdv-hang", MockOutcome::Timeout, SIGKILL}, {"dpdv-cleanup-hang", MockOutcome::Timeout, SIGKILL},
+        {"dpdv-malformed", MockOutcome::ProtocolFailure, 0}, {"dpdv-id-mismatch", MockOutcome::ProtocolFailure, 0}
+    }};
+    for (const auto& test : framed_cases) {
+        const auto result = run_mock_helper(argv[1], test.scenario, 1000ms, 1000ms);
+        if (result.outcome != test.expected || !result.reaped || result.spawn_attempts != 1 ||
+            !already_reaped(result.pid) || open_descriptors() != initial_descriptors || !children.insert(result.pid).second) {
+            std::cerr << "M2F-framed mock failed: " << test.scenario << '\n';
+            return 1;
+        }
+        if (test.signal_number != 0 && (!result.wait_status || !WIFSIGNALED(*result.wait_status) ||
+            WTERMSIG(*result.wait_status) != test.signal_number || !result.termination_sent)) {
+            return 1;
+        }
+        if (test.expected == MockOutcome::Success && !result.dpdv_reply) {
+            return 1;
+        }
+        std::cout << "PASS: " << test.scenario << "; mock M2F framing, one spawn and reap\n";
+    }
     for (unsigned int invocation = 0; invocation < 5; ++invocation) {
         const auto result = run_mock_helper(argv[1], "success", 2000ms, 1000ms);
         if (result.outcome != MockOutcome::Success || result.spawn_attempts != 1 || !result.reaped ||
@@ -142,7 +210,9 @@ int main(int argc, char** argv) {
     }
     for (const auto& result : {run_mock_helper(argv[1], "dpdv-open-check", 100ms, 100ms),
                                run_mock_helper(argv[1], "success", 0ms, 100ms),
-                               run_mock_helper("/bin/sh", "success", 100ms, 100ms)}) {
+                               run_mock_helper("/bin/sh", "success", 100ms, 100ms),
+                               run_dpdv_helper("/bin/sh", true, 1, 2, 3, 100ms, 100ms),
+                               run_dpdv_helper("/nonexistent/macmst_dpdv_open_helper", true, 0, 2, 3, 100ms, 100ms)}) {
         if (result.outcome != MockOutcome::InvalidInput || result.spawn_attempts != 0) {
             std::cerr << "Unknown/real operation, invalid deadlines and arbitrary executables must not spawn\n";
             return 1;

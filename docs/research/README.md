@@ -54,6 +54,18 @@ userServer writer/observable discriminator. Native instance provenance is verifi
 but the compiled writer set and public-equivalence proof remain incomplete.
 USER_SERVER_RUNTIME_STATE_UNRESOLVED; static expansion stops without a private open.
 
+M2E.1 is integrated at `1fc8f0241acec829fa732503c13a9ab588e26fb0`, with immutable
+pre-operation tag `pre-dpdv-open-v0.2`. [M2F](dpdv-open-check.md) adds audited,
+opt-in isolated open/close tools, but a fresh preflight observed no active external
+display and No Link before helper spawn. EXPERIMENT_NOT_RUN; no private call,
+retry or DPCD gate promotion. The actual helper selection path remains untested.
+
+The subsequent explicitly authorized [M2F recovery](dpdv-open-check.md#recovery-and-renewed-authorization)
+completed committed-code no-open agreement and one real open/immediate-close,
+both returning 0, with a normally reaped helper and unchanged sampled public
+state. DPDV_OPEN_CLOSE_RUNTIME_VALIDATED applies to that observation only;
+userServer and selector safety remain unresolved. No further private call or retry.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.

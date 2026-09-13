@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <spawn.h>
+#include <string>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -80,8 +81,12 @@ int drain(FileDescriptor& descriptor, std::span<std::uint8_t> output,
 
 }
 
-MockResult run_mock_helper(const char* executable, std::string_view scenario,
-    std::chrono::milliseconds deadline, std::chrono::milliseconds reap_grace) {
+namespace {
+
+MockResult run_helper(const char* executable, std::span<char*> arguments,
+    std::chrono::milliseconds deadline, std::chrono::milliseconds reap_grace,
+    bool dpdv, bool no_open, bool real_executable,
+    const std::array<std::uint64_t, 3>& expected) {
     using Clock = std::chrono::steady_clock;
     const auto started = Clock::now();
     MockResult result;
@@ -89,13 +94,13 @@ MockResult run_mock_helper(const char* executable, std::string_view scenario,
         result.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - started);
         return result;
     };
-    const auto selected = std::find(mock_scenarios.begin(), mock_scenarios.end(), scenario);
-    if (executable == nullptr || executable[0] != '/' || selected == mock_scenarios.end() ||
-        deadline.count() < 1 || deadline.count() > 10000 || reap_grace.count() < 1 || reap_grace.count() > 10000) {
+    if (executable == nullptr || executable[0] != '/' ||
+        deadline.count() < 1 || deadline.count() > (dpdv ? 30000 : 10000) || reap_grace.count() < 1 || reap_grace.count() > 10000) {
         return finish();
     }
     const std::string_view executable_path(executable);
-    if (executable_path.size() > 4096 || executable_path.substr(executable_path.find_last_of('/') + 1) != "macmst_mock_helper") {
+    const std::string_view allowed_name = real_executable ? "macmst_dpdv_open_helper" : "macmst_mock_helper";
+    if (executable_path.size() > 4096 || executable_path.substr(executable_path.find_last_of('/') + 1) != allowed_name) {
         return finish();
     }
     FileDescriptor stdout_reader;
@@ -144,7 +149,6 @@ MockResult run_mock_helper(const char* executable, std::string_view scenario,
     for (int descriptor : {stdout_reader.get(), stdout_writer.get(), stderr_reader.get(), stderr_writer.get()}) {
         record_error(posix_spawn_file_actions_addclose(&actions, descriptor));
     }
-    std::array<char*, 3> arguments {const_cast<char*>(executable), const_cast<char*>(selected->data()), nullptr};
     char locale[] = "LC_ALL=C";
     std::array<char*, 2> environment {locale, nullptr};
     if (error == 0) {
@@ -179,10 +183,12 @@ MockResult run_mock_helper(const char* executable, std::string_view scenario,
                 fail(MockOutcome::IoFailure);
             }
         }
-        if (result.stdout_observed > mock_frame_size || result.stderr_observed > result.stderr_bytes.size()) {
+        const std::size_t stdout_limit = dpdv ? dpdv_frame_size * 2 : mock_frame_size;
+        if (result.stdout_observed > stdout_limit || result.stderr_observed > result.stderr_bytes.size()) {
             fail(MockOutcome::OutputLimit);
-        } else if (result.stdout_size == mock_frame_size &&
-                   !parse_mock_response({result.stdout_bytes.data(), result.stdout_size}).has_value()) {
+        } else if ((dpdv && !valid_dpdv_prefix({result.stdout_bytes.data(), result.stdout_size})) ||
+                   (!dpdv && result.stdout_size == mock_frame_size &&
+                    !parse_mock_response({result.stdout_bytes.data(), result.stdout_size}).has_value())) {
             fail(MockOutcome::ProtocolFailure);
         }
         if (!result.reaped) {
@@ -204,6 +210,18 @@ MockResult run_mock_helper(const char* executable, std::string_view scenario,
             if (!result.failure_trigger.has_value()) {
                 if (!WIFEXITED(*result.wait_status) || WEXITSTATUS(*result.wait_status) != 0) {
                     result.outcome = MockOutcome::AbnormalExit;
+                } else if (dpdv) {
+                    result.dpdv_reply = parse_dpdv_response({result.stdout_bytes.data(), result.stdout_size});
+                    if (result.dpdv_reply && ((no_open && (result.dpdv_reply->flags & open_attempted_flag) != 0) ||
+                        (!no_open && result.dpdv_reply->phase == DpdvPhase::DryRunReady) ||
+                        ((result.dpdv_reply->phase == DpdvPhase::DryRunReady || result.dpdv_reply->flags != 0) &&
+                         (result.dpdv_reply->device_id != expected[0] || result.dpdv_reply->service_id != expected[1] ||
+                          result.dpdv_reply->transport_id != expected[2])))) {
+                        result.dpdv_reply.reset();
+                    }
+                    result.outcome = !result.dpdv_reply ? MockOutcome::ProtocolFailure :
+                        (result.dpdv_reply->phase == DpdvPhase::DryRunReady || result.dpdv_reply->phase == DpdvPhase::CloseSucceeded) ?
+                        MockOutcome::Success : MockOutcome::OperationFailure;
                 } else {
                     result.mock_ior_return = parse_mock_response({result.stdout_bytes.data(), result.stdout_size});
                     result.outcome = !result.mock_ior_return.has_value() ? MockOutcome::ProtocolFailure :
@@ -233,6 +251,36 @@ MockResult run_mock_helper(const char* executable, std::string_view scenario,
             fail(MockOutcome::IoFailure);
         }
     }
+}
+
+}
+
+MockResult run_mock_helper(const char* executable, std::string_view scenario,
+    std::chrono::milliseconds deadline, std::chrono::milliseconds reap_grace) {
+    const auto selected = std::find(mock_scenarios.begin(), mock_scenarios.end(), scenario);
+    if (selected == mock_scenarios.end()) {
+        const auto framed = std::find(dpdv_mock_scenarios.begin(), dpdv_mock_scenarios.end(), scenario);
+        if (framed == dpdv_mock_scenarios.end()) {
+            return {};
+        }
+        std::array<char*, 3> arguments {const_cast<char*>(executable), const_cast<char*>(framed->data()), nullptr};
+        return run_helper(executable, arguments, deadline, reap_grace, true, scenario == "dpdv-dry-run", false, {100, 200, 300});
+    }
+    std::array<char*, 3> arguments {const_cast<char*>(executable), const_cast<char*>(selected->data()), nullptr};
+    return run_helper(executable, arguments, deadline, reap_grace, false, true, false, {});
+}
+
+MockResult run_dpdv_helper(const char* executable, bool no_open,
+    std::uint64_t device_id, std::uint64_t service_id, std::uint64_t transport_id,
+    std::chrono::milliseconds deadline, std::chrono::milliseconds reap_grace) {
+    if (device_id == 0 || service_id == 0 || transport_id == 0) {
+        return {};
+    }
+    std::array<std::string, 3> identities {std::to_string(device_id), std::to_string(service_id), std::to_string(transport_id)};
+    std::array<char*, 6> arguments {const_cast<char*>(executable),
+        const_cast<char*>(no_open ? "--no-open" : "--open-once"),
+        identities[0].data(), identities[1].data(), identities[2].data(), nullptr};
+    return run_helper(executable, arguments, deadline, reap_grace, true, no_open, true, {device_id, service_id, transport_id});
 }
 
 }
