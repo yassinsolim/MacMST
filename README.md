@@ -91,7 +91,8 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | DPDV selector-0 path | Reconstructed through the host-side read RPC. |
 | DCP RPC safety | Under investigation; critical gates remain unresolved. |
 | Public framebuffer/I2C route | Unavailable on the recorded active M5 external path; no type-4 advertisement observed. |
-| Isolated DPDV open-check | Mock process architecture tested; real open/teardown safety remains unproved. |
+| Isolated DPDV open-check | One open/immediate-close runtime validated with zero selectors; in-flight-read teardown remains unproved. |
+| One-byte selector readiness | NOT_READY_FOR_ONE_BYTE_DPCD_READ; NO_TRANSPORT_READY. |
 | Native DPCD access | Not yet exercised. |
 | MST source capability | Unknown. |
 
@@ -106,7 +107,7 @@ All 97 inventoried IODP names resolve. ABI-02 resolves the CF lifecycle,
 authenticated PS190 caller bindings, DPDV client routing and selector-0 host
 read path. RPC-03 traces the lower AFK path: the host buffer is zero-filled,
 but the DCP wait has no local deadline and its selected abort hook is a no-op.
-Complete-reply/firmware semantics and actual process authorization remain unresolved.
+Complete-reply/firmware semantics and selector-call authorization remain unresolved.
 **NOT_READY_FOR_DPCD_TEST**. No native AUX or DPCD transaction has been executed;
 MST source support remains unknown.
 
@@ -174,6 +175,15 @@ establishes **DPDV_OPEN_CLOSE_RUNTIME_VALIDATED**, not a null userServer or safe
 selector path. The one-shot marker is consumed; no retry. The global
 **NOT_READY_FOR_DPCD_TEST** gate remains unchanged.
 
+That runtime state is integrated at `3f5f0cd887ed2ef5c8dbadc9abb278792c3150be`
+and annotated as `dpdv-open-runtime-v0.3`. [M2G's one-byte reassessment](docs/research/selector0-one-byte-readiness.md)
+on `research/selector0-one-byte-readiness` compares both transports and checks the
+exact selector-0/address-0x000/length-1 contract. It finds
+**NO_TRANSPORT_READY** and **NOT_READY_FOR_ONE_BYTE_DPCD_READ**: one byte does
+not bound the kernel wait, recover the lost reply length or establish read
+cancellation. The pure revision classifier and short-reply tests do not implement
+a transport. M2G repeats no private open/close and creates no read-attempt marker.
+
 For a fresh clone, first build the probe and create your own public capture:
 
 ```sh
@@ -215,6 +225,7 @@ before comparing findings. No Apple binary is distributed by this project.
 - [Public DisplayPort-native API and M5 enumeration](docs/research/public-dp-native.md)
 - [M2C isolation, teardown and open-only safety](docs/research/dpdv-isolation-safety.md)
 - [M2E.1 discriminator and historical open-only proofs](docs/research/dpdv-open-path.md)
+- [M2G one-byte selector contract and 19 readiness gates](docs/research/selector0-one-byte-readiness.md)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
 

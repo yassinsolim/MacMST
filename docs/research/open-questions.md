@@ -3,6 +3,27 @@
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
 MST on M5 remains `UNKNOWN`.
 
+## M2G One-Byte Readiness
+
+[M2G](selector0-one-byte-readiness.md) reconciles the successful M2F runtime
+receipt, integrates it at `3f5f0cd887ed2ef5c8dbadc9abb278792c3150be` and preserves
+the annotated `dpdv-open-runtime-v0.3` baseline. It reuses current-image evidence
+to assess one future selector-0 call at address 0x000 with length 1, without
+repeating open/close or submitting a read. NO_TRANSPORT_READY;
+NOT_READY_FOR_ONE_BYTE_DPCD_READ; NOT_READY_FOR_DPCD_TEST unchanged.
+
+The single smallest blocker is a target-attributed **bounded, cancel-safe
+termination contract for an in-flight one-byte read when its reply is lost**.
+Pre-enqueue admission and post-enqueue reply waits lack a finite local deadline.
+Constant 500 remains UNRESOLVED, and READ_CANCELLATION_UNRESOLVED is not repaired
+by a parent watchdog, same-thread close or unproved concurrent close. Separately,
+the actual firmware reply length is discarded; a changed sentinel, size 1 and
+plausible revision byte cannot prove a complete live reply.
+
+The existing marker remains consumed and M2G-DPCD-READ-ATTEMPTED is not created.
+No read helper is implemented. Historical milestones below retain their original
+questions and stop states; they are not instructions to repeat an experiment.
+
 ## M2F Recovery
 
 With renewed explicit authorization after recovery, the committed no-open helper
