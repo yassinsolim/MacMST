@@ -5,8 +5,9 @@ currently targeting Apple M5. **Whether native MST can be enabled is unknown.**
 MacMST is at the research/probe stage: it does not enable MST or make private
 DPCD calls, and it is not an MST driver or DisplayLink replacement.
 The default executable is a public read-only probe. A separately gated, opt-in
-DPDV open/close helper now exists; its first requested experiment was stopped by
-public preflight before any helper spawn or private call.
+DPDV open/close helper now exists. After an initial preflight stop and explicitly
+renewed authorization during recovery, it completed one open/immediate-close with
+unchanged public display state. No selector or DPCD operation was performed.
 
 ## Build And Probe
 
@@ -165,6 +166,13 @@ on `experiment/dpdv-open-check` built and audited the isolated open-only tools,
 but its fresh dry-run preflight found both displays inactive and DP LinkRate=0.
 It stopped before helper selection: **EXPERIMENT_NOT_RUN**, zero opens/closes,
 no retry. **NOT_READY_FOR_DPCD_TEST** remains unchanged.
+
+After a new recovery request and explicit approval on 2026-09-13 UTC, the committed
+no-open check passed and one real DPDV open/close returned success with no sampled
+public display change. [The runtime record](docs/research/dpdv-open-check.md#recovery-and-renewed-authorization)
+establishes **DPDV_OPEN_CLOSE_RUNTIME_VALIDATED**, not a null userServer or safe
+selector path. The one-shot marker is consumed; no retry. The global
+**NOT_READY_FOR_DPCD_TEST** gate remains unchanged.
 
 For a fresh clone, first build the probe and create your own public capture:
 

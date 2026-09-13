@@ -1,5 +1,151 @@
 # M2F: First Isolated DPDV Open/Close
 
+**Current outcome: DPDV_OPEN_CLOSE_SUCCEEDED_NO_PUBLIC_STATE_CHANGE.** After
+recovery and explicit renewed authorization, exactly one private DPDV open
+returned 0, followed immediately by a close returning 0. The helper was reaped
+normally, selector calls were zero, and the public BEFORE/AFTER states matched.
+The runtime gate is **DPDV_OPEN_CLOSE_RUNTIME_VALIDATED** for this one observation.
+The global gate remains **NOT_READY_FOR_DPCD_TEST**. No further private attempt
+or selector operation is authorized by this result.
+
+## Recovery And Renewed Authorization
+
+On 2026-09-13 UTC the user reported a crash and requested recovery. The workspace
+was recovered at clean, published commit
+`12538ab025ce5ab097aa0cd8665932fd3054b6f4`. The original stop receipt below still
+matched its hash, no private-attempt marker existed, and no MacMST helper was
+running. The probe, parent and helper binaries matched their previously audited
+hashes. Main and both annotated tag identities were unchanged.
+
+A local kernel panic report timestamped `2026-09-12 19:19:17.00 -0600` reported
+`watchdog timeout: no checkins from watchdogd in 93 seconds`. The immediate
+backtrace included AppleARMWatchdogTimer and AppleInterruptControllerV3.
+No MacMST name appeared in its process records. The report's SHA-256 is
+`861e98bff8f3cda8969c73fc571836f7ec6f33d1c1e424cbc2d7a406fad81cf7`.
+This identifies a system watchdog failure, not its underlying cause. No causal
+link to the earlier M2F preflight is established; that recorded run never spawned
+its helper. Raw panic contents and unrelated process records were not copied into
+the repository or published. No security setting, debugger or display setting
+was changed during recovery.
+
+Private execution stayed paused while read-only recovery checks ran. A fresh
+public capture at artifacts/probes/20260913T012201Z passed all existing M2F
+preflight predicates. Both strict and sanitizer builds required no recompilation;
+their unit/mock/parser/import suites each passed 9/9. The restored display state
+was one active external 1920x1080 at 60 Hz, External Unit 0 under DCPEXT0,
+HPD High, two HBR3 lanes, SinkCount 1 and no tunneling.
+
+The unchanged committed coordinator then ran only its no-open mode. Receipt
+artifacts/probes/m2f-20260913T012301466163Z/result.json records DRY_RUN_READY,
+64 output bytes, flags=0, no open/close result, zero selectors, one helper spawn,
+exit/wait status 0, successful reap and no termination signal. Parent observation
+took 305 ms. Helper and parent independently agreed on fresh device/service/
+transport IDs 4294971118/4294971117/4294970218. These IDs are transient comparison
+evidence, not the selection authority. Commit, source hashes, binary hashes and
+the response protocol all verified; no child remained running.
+
+The watchdog panic and cancellation limits were disclosed. The user was asked
+whether to authorize one isolated DPDV open/close despite that panic of unknown
+cause and explicitly chose `Authorize exactly one DPDV open/close`. That decision
+is retained beside the dry run in recovery-authorization.json, SHA-256
+`85587c14f2656a7373cadf2c06ae18bb266e0107f800a95ae9f254273067dca4`.
+The new authorization did not permit any selector, retry, root escalation,
+firmware change or security bypass.
+
+### Single Runtime Attempt
+
+The existing coordinator was invoked once in execute-once mode using the recovered
+public preflight and committed dry-run receipt. No implementation changes occurred
+between those checks and execution. The executed commit was
+`12538ab025ce5ab097aa0cd8665932fd3054b6f4`; its native implementation is from
+`d7f41b8cea54e57534da7cedcd21c6afdc9e34ed`. The source/import/disassembly audit
+again confirmed exactly one IOServiceOpen callsite and one guarded IOServiceClose
+callsite, no IOConnect/IODP machinery, and no operation loop or intentional dwell.
+
+The coordinator took a fresh public BEFORE capture at 01:29:48 UTC, checked it
+against preflight/dry-run semantics and current source/binary hashes, and created
+the permanent artifacts/probes/M2F-ATTEMPTED marker before the sole real helper
+spawn. The selected helper independently revalidated the target and immediately
+closed the successful nonzero connection. No second helper in private mode ran.
+
+| Runtime Fact | Verified Result |
+| --- | --- |
+| Private IOServiceOpen attempts | 1, type 0x44504456 against the independently selected External DCPDPDeviceProxy |
+| Open result | Raw 0 / 0x00000000, KERN_SUCCESS |
+| Open elapsed | 22 microseconds, measured by the helper's monotonic clock |
+| Connection | Nonzero; actual port name not retained |
+| External methods / selectors | 0 |
+| IOServiceClose attempts | 1, immediately after successful open; no intentional dwell |
+| Close result | Raw 0 / 0x00000000, KERN_SUCCESS |
+| Close elapsed | 99 microseconds, measured by the helper's monotonic clock |
+| Terminal frame | CLOSE_SUCCEEDED, flags=63; two valid matching-ID frames, 128 bytes total |
+| Helper exit / wait status | 0 / raw 0 |
+| Parent observation | 14 ms; one spawn, reaped=true, no failure trigger |
+| Watchdog termination / remaining helper | None / none |
+| Helper stderr | 0 bytes |
+| Primary outcome | DPDV_OPEN_CLOSE_SUCCEEDED_NO_PUBLIC_STATE_CHANGE |
+| Runtime gate | DPDV_OPEN_CLOSE_RUNTIME_VALIDATED |
+| Global gate | NOT_READY_FOR_DPCD_TEST |
+
+The public AFTER capture completed at 01:29:49 UTC. BEFORE and AFTER each used
+40 public commands with zero failures. Comparison was semantic and did not depend
+on unchanged registry/display IDs.
+
+| Public State | BEFORE And AFTER |
+| --- | --- |
+| Active external logical display count | 1 |
+| External mode / refresh / mirror set | 1920x1080, 60 Hz, not mirrored |
+| Processor / endpoints | Same DCPEXT0 path; supported External Unit 0 device/service pair |
+| Active DisplayPort / HPD | true / raw 2, High |
+| Lane count / link rate | 2 / raw 4, 8.1 Gbps (HBR3) |
+| Tunneling / sink count | false / 1 |
+| Public framebuffer result | PUBLIC_IOFRAMEBUFFER_PATH_UNAVAILABLE |
+| Public probe errors | none |
+| Comparison | NO_PUBLIC_DISPLAY_STATE_CHANGE |
+
+### Recovery Evidence
+
+| Receipt | SHA-256 |
+| --- | --- |
+| Recovery public report, 20260913T012201Z | `8ebc703449494c4b90ca3bf7c7a905dc0937a9003ce70b98089406c9e3429e55` |
+| Recovery public manifest | `e132c164bfb9ca22eeae5a3166d3c0069f0db1490196cbb536b5826749869da0` |
+| Committed no-open result, m2f-20260913T012301466163Z | `9d36d242222b67e754943d19783bac2d1d35bb4b53d294603e84fcb2b7b841d1` |
+| Real result, m2f-20260913T012947590849Z/result.json | `86ee9fdd87eb631e7552b0087471a149c183667c2162e838866ce993e1dd3d04` |
+| Real BEFORE public report | `9959711b39e43f541deab60091869048865c0e637b14bfb68124582a833f4552` |
+| Real BEFORE manifest | `60267d51a7ed07417d483ffc7b0028a5cf1026847b683d59aa7bdf89ec4b18af` |
+| Real AFTER public report | `3f46486f6884b7d9f7560832c7d410c165c9ab935fe31366673e2328e8a0e1f7` |
+| Real AFTER manifest | `adda3a3d430c469ef28e855c38d532588c2cad3f0cf7c3c0b01b663e8ca3a506` |
+| Permanent one-shot marker | `2f3da1f224c0602dc46f812d3f6eb2c1560fe7a82c1a89f93eedb725b2726efc` |
+
+All public artifacts in the BEFORE/AFTER manifests, the exact executed source and
+binary hashes, both result frames, the renewed authorization and the marker were
+verified after execution. The previously recorded binary hashes below still
+apply. Runtime artifacts remain ignored; only sanitized findings are committed.
+No new code, entitlements, dependency or signing change was needed for recovery.
+
+### Interpretation And Stop Boundary
+
+This establishes that this calling context on this M5/OS/topology accepted one
+DPDV open and immediate close, with no difference in the sampled public display
+state. It does not prove userServer is null, identify native versus delegated
+dispatch, show absence of internal work or transient activity between snapshots,
+or establish cancellation/cleanup behavior under failure. The prior watchdog
+panic's underlying cause remains unknown. No claim of general risk-free operation
+or permanent system stability follows from this single successful observation.
+
+The one-shot marker is now consumed and must never be removed to repeat M2F.
+No further private operation will run in this milestone. The next separately
+authorized milestone should reassess selector-0 isolation, known unbounded reply
+waits, cancellation limits, short-reply behavior and one-byte DPCD 0x000 semantics;
+it must not execute a selector merely because open/close succeeded.
+**NOT_READY_FOR_DPCD_TEST remains unchanged.**
+
+## Earlier Preflight Stop
+
+The following preserves the initial aborted run. Its zero-attempt and unverified
+dry-run findings describe that earlier stage, not the separately authorized
+successful recovery execution above.
+
 **Outcome: EXPERIMENT_NOT_RUN.** The fresh dry-run preflight observed zero active
 external displays and LinkRate=0 / No Link. The coordinator stopped before the
 real helper was spawned. No DPDV open, close or selector was attempted. The
@@ -20,10 +166,11 @@ SIGKILL and successful reaping do not certify firmware/kernel quiescence. Prior
 NOT_READY_FOR_ISOLATED_DPDV_OPEN_CHECK and USER_SERVER_RUNTIME_STATE_UNRESOLVED
 remain historical findings. The global gate stays **NOT_READY_FOR_DPCD_TEST**.
 
-The user's mandatory preflight stop condition took precedence over the otherwise
-explicit one-shot authorization. No retry, display wake/reconfiguration or further
-runtime capture was performed after that stop. The forensic tag remains before
-any private display operation executed by this project.
+The user's mandatory preflight stop condition took precedence during the initial
+run. No retry or display wake/reconfiguration occurred under that stopped
+authorization. Recovery continued only after a new user request and separate
+explicit private-operation approval, recorded above. The forensic tag remains
+the immutable commit before private-operation implementation and execution.
 
 ## Integration And Forensic Tag
 

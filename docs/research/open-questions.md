@@ -3,6 +3,21 @@
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
 MST on M5 remains `UNKNOWN`.
 
+## M2F Recovery
+
+With renewed explicit authorization after recovery, the committed no-open helper
+agreed with the fresh public target, then one isolated DPDV open/close completed
+with raw results 0/0, zero selectors and unchanged sampled public state.
+[The runtime record](dpdv-open-check.md#recovery-and-renewed-authorization)
+establishes DPDV_OPEN_CLOSE_RUNTIME_VALIDATED. The private userServer value,
+failure cancellation and DPCD-read guarantees were not resolved by success.
+
+The one-shot marker is consumed; do not repeat M2F or run selector 0. The next
+separately authorized milestone must reassess the known unbounded reply wait,
+cancellation limitations, short replies and one-byte 0x000 contract. The global
+NOT_READY_FOR_DPCD_TEST gate remains unchanged. A preceding system watchdog panic
+was observed during recovery; its underlying cause is not established.
+
 ## M2F Update
 
 [M2F](dpdv-open-check.md) implements and audits the separately authorized isolated
