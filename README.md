@@ -96,7 +96,8 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | In-flight read termination | INFLIGHT_READ_TERMINATION_NOT_PROVEN; no guaranteed response-independent completion/drain of the DCP context wait. |
 | Exact W06 wake/removal proof | W06_WAKE_STATE_UNRESOLVED; abandon this selector transport on the daily-use Mac. |
 | Native DPCD access | Not yet exercised. |
-| MST source capability | M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED; identified M5 firmware has MST codec/topology and payload controls, but one-link multi-stream packetization remains unproved. |
+| MST control baseline | M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED; identified M5 firmware has MST codec/topology and payload controls. |
+| One-link MST packetizer | M5_DCP_MST_PACKETIZER_PRESENT_BUT_STREAM_BINDING_UNRESOLVED; concrete source slot-table and activation code found, but independent multi-stream binding and an architectural one-stream limit remain unproved. |
 
 The owner-controlled connected/disconnected/reconnected test now associates the
 External **DCPEXT0 / Unit 0** DP/AV path with a **ZMUIPNG 14-in-1 hub** on the
@@ -228,6 +229,17 @@ M3A's host negative is preserved; the firmware is not byte-identical to the
 selected M4 image, although the MST diagnostics and exact CRC leaves are shared.
 Next work is limited to packetizer ownership and stream-to-payload binding.
 Selector 0 remains **RETIRED_ON_DAILY_USE_M5**; no private operation occurred.
+
+M3B is integrated at `c89bf66bac79893f4e6910e10d4a1126775edce7`, tagged
+`m5-dcp-mst-control-v0.8`. [M3C's one-link packetizer investigation](docs/research/m5-dcp-mst-packetizer.md)
+traces the source record, selected-device descriptor, register-table writes and
+ACT trigger in the retained M5 firmware. Result:
+**M5_DCP_MST_PACKETIZER_PRESENT_BUT_STREAM_BINDING_UNRESOLVED**.
+The recovered path replaces one table using payload ID 1; neither that literal
+nor its 64 slot fields proves an architectural stream limit or multi-stream
+support. Only one final packetizer-object ownership pass remains appropriate.
+No private operation or hardware experiment occurred; selector retirement and
+**NOT_READY_FOR_DPCD_TEST** are unchanged.
 
 For a fresh clone, build the probe before optionally creating a public capture:
 

@@ -1,7 +1,32 @@
 # Open Questions And Next Experiment
 
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
-MST on M5 is now **M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED**.
+MST on M5 remains unproved. The current packetizer result is
+**M5_DCP_MST_PACKETIZER_PRESENT_BUT_STREAM_BINDING_UNRESOLVED**.
+
+## M3C One-Link Packetizer Decision
+
+[M3C](m5-dcp-mst-packetizer.md) starts from the exact M3B merge
+`c89bf66bac79893f4e6910e10d4a1126775edce7`, tagged `m5-dcp-mst-control-v0.8`.
+The retained T8142 firmware has a concrete source slot table and activation
+path through AppleDCPDPTXController and AppleDCPDPTXNub. Its inspected path
+uses one scalar source record, a selected-device descriptor with ID 1/start 0,
+and whole-table replacement. Manager port collections and 64 slot fields are
+not independent source-stream contexts.
+
+The only next step is **one final packetizer-object ownership pass** on these
+identified objects: close alternate owners/writers and timing/FIFO-to-payload
+selection on the same physical transmitter. Seek either two independently timed
+contexts with distinct simultaneous payloads, or positive architectural closure
+of a one-stream limit. Neither has been proved. If this narrow pass remains
+opaque, retain the unresolved classification and stop further expansion.
+
+M3B's MST-control/codec/topology findings remain the frozen baseline; M3A's host
+negative retains its original scope. No return to sideband/topology discovery,
+generic firmware scans, selector 0, DPCD transport or lifecycle work is proposed.
+**RETIRED_ON_DAILY_USE_M5** and **NOT_READY_FOR_DPCD_TEST** remain unchanged;
+M2F-ATTEMPTED stays consumed and the DPCD-read marker stays absent. No hardware
+experiment is scheduled. Earlier next-step proposals below are historical.
 
 ## M3B Identified Firmware Decision
 
@@ -248,7 +273,7 @@ recording USB count 9 versus 10 rather than claiming every attachment is unchang
 | 10 | Can the dock's DPCD space be accessed? | UNKNOWN: no native transport call, and current DP device is Embedded. |
 | 11 | Can DP_MSTM_CAP at 0x021 be read? | HYPOTHESIS dependent on question 8; decoder and exact constants are ready. A future approved one-byte read is the test, not an I2C-offset substitution. |
 | 12 | Can MST sideband messages be sent? | UNKNOWN. PRIMARY_SOURCE: native DPCD message-buffer addresses are known. Writing sideband/setup state is explicitly outside this phase. |
-| 13 | Is there an M5 MST packetizer? | UNKNOWN. Neither the number of DCP objects nor a sink's MST flag nor the DPCD API establishes it. |
+| 13 | Is there an M5 MST packetizer? | M3C establishes source slot-table programming and activation in identified M5 firmware; independent multi-stream binding and a hardware one-stream limit remain unresolved. See [the ten-row proof map](m5-dcp-mst-packetizer.md#evidence-map). |
 | 14 | Is there dormant DCP firmware MST functionality? | UNKNOWN. Firmware code was not inspected; no source-specific evidence. Asahi's No MST statement is recorded with its missing M5 scope. |
 
 ## Historical Priority Order

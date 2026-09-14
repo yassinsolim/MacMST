@@ -443,6 +443,27 @@ def detail_region(view, address, oracle, decoder):
     return result
 
 
+def detail_exact_range(view, address, size, oracle, decoder, pointers):
+    if type(address) is not int or type(size) is not int or address % 4 or size % 4 or not 0 < size <= 32768:
+        raise ValueError("Invalid bounded exact code range")
+    sections = [section for section in view["sections"] if section["flags"] & 0x80000000 and
+                section["address"] <= address < address + size <= section["address"] + section["size"]]
+    if len(sections) != 1:
+        raise ValueError("Exact code range lacks unique executable section")
+    section = sections[0]
+    entries = [record for record in pointers.records.values() if int(record["target_hex"], 16) == address]
+    callers = kernel_image.direct_call_references(section["raw"], section["address"], {address})
+    if not entries and not callers:
+        raise ValueError("Exact range entry requires a declared pointer or direct branch reference")
+    raw = section["raw"][address - section["address"]:address - section["address"] + size]
+    result = scan_mst.function_receipt(raw, address, [], oracle)
+    result.update(image_uuid=view["uuid"], boundary_evidence="EXPLICIT_RANGE_WITH_REFERENCED_ENTRY",
+                  boundary_limit="Analyst-supplied extent; pointer/branch entry verified, exit and complete-function confidence require qualification",
+                  entry_pointer_references=entries, direct_callers=callers,
+                  instructions=[decoder.decode(address + offset, raw[offset:offset + 4]) for offset in range(0, len(raw), 4)])
+    return result
+
+
 def parse_devicetree(raw):
     if not 8 <= len(raw) <= 16 * 1024 * 1024:
         raise ValueError("DeviceTree exceeds bounded input size")
@@ -520,16 +541,34 @@ def main():
     parser.add_argument("--components", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--scan", action="store_true")
+    parser.add_argument("--details-only", action="store_true")
     parser.add_argument("--detail-address", type=lambda value: int(value, 0), action="append", default=[])
+    parser.add_argument("--detail-range", action="append", default=[])
     parser.add_argument("--pointer-slot", type=lambda value: int(value, 0), action="append", default=[])
     args = parser.parse_args()
-    if len(args.detail_address) > 48 or len(set(args.detail_address)) != len(args.detail_address) or (args.detail_address and not args.scan):
-        parser.error("at most 48 unique detail addresses, requiring --scan")
-    if len(args.pointer_slot) > 64 or len(set(args.pointer_slot)) != len(args.pointer_slot) or (args.pointer_slot and not args.scan):
-        parser.error("at most 64 unique pointer slots, requiring --scan")
-    root = pathlib.Path(__file__).resolve().parents[1] / "artifacts/sources/m3b"
-    if not args.components.resolve().is_relative_to(root) or not args.output.resolve().is_relative_to(root) or args.output.exists():
-        parser.error("inputs/output must be under artifacts/sources/m3b and output must be new")
+    try:
+        exact_ranges = [tuple(int(part, 0) for part in value.split(":")) for value in args.detail_range]
+        if any(len(value) != 2 for value in exact_ranges):
+            raise ValueError("range requires address:size")
+    except ValueError:
+        parser.error("--detail-range requires address:size integers")
+    if args.scan and args.details_only:
+        parser.error("--scan and --details-only are mutually exclusive")
+    if args.details_only and not (args.detail_address or args.pointer_slot or exact_ranges):
+        parser.error("--details-only requires exact detail addresses or pointer slots")
+    inspect_code = args.scan or args.details_only
+    if len(args.detail_address) > 48 or len(set(args.detail_address)) != len(args.detail_address) or (args.detail_address and not inspect_code):
+        parser.error("at most 48 unique detail addresses, requiring --scan or --details-only")
+    if len(args.pointer_slot) > 64 or len(set(args.pointer_slot)) != len(args.pointer_slot) or (args.pointer_slot and not inspect_code):
+        parser.error("at most 64 unique pointer slots, requiring --scan or --details-only")
+    detail_starts = args.detail_address + [address for address, _ in exact_ranges]
+    if len(detail_starts) > 48 or len(set(detail_starts)) != len(detail_starts) or (exact_ranges and not args.details_only):
+        parser.error("at most 48 unique detail entries; explicit ranges require --details-only")
+    repository = pathlib.Path(__file__).resolve().parents[1]
+    root = repository / "artifacts/sources/m3b"
+    output_root = repository / "artifacts/probes/m3c" if args.details_only else root
+    if not args.components.resolve().is_relative_to(root) or not args.output.resolve().is_relative_to(output_root) or args.output.exists():
+        parser.error("inputs must be retained M3B components; output must be new under the mode's ignored artifact root")
     extraction_raw = (args.components / "extraction.json").read_bytes()
     extraction = json.loads(extraction_raw)
     if extraction.get("errors") or extraction.get("result") not in ("IDENTIFIED_DCP_AND_DEVICETREE_EXTRACTED", "IDENTIFIED_M4_COMPARISON_DCP_EXTRACTED"):
@@ -542,9 +581,14 @@ def main():
                             "pointer_slots_hex": [hex(address) for address in args.pointer_slot]},
               "tool_sha256": {name: ipsw_dcp.sha256((pathlib.Path(__file__).parent / name).read_bytes())
                               for name in ("dcp_firmware.py", "ipsw_dcp.py", "scan_mst.py", "kernel_image.py", "dyld_cache.py", "inspect_iodp.py")}}
+    if args.details_only:
+        report["requested"]["details_only"] = True
+        report["requested"]["detail_ranges"] = [{"address_hex": hex(address), "size": size} for address, size in exact_ranges]
     args.output.mkdir(parents=True)
     try:
         for member in extraction["members"]:
+            if args.details_only and member["path"] != mapping["dcp_path"]:
+                continue
             member_path = pathlib.PurePosixPath(member["path"])
             source = (args.components / member_path).resolve()
             if member_path.is_absolute() or ".." in member_path.parts or not source.is_relative_to(args.components.resolve()):
@@ -571,20 +615,26 @@ def main():
                     evidence["macho_header"] = header
                     evidence["commands"] = [{"command_hex": hex(command), "offset": offset, "size": len(record)} for command, offset, record in commands]
                     evidence["sections"] = kernel_image.macho_sections(decoded, 0)
-                if args.scan:
+                if inspect_code:
                     view = runtime_view(decoded)
                     oracle_file = pathlib.Path(__file__).resolve().parents[1] / "docs/research/mst-source-signatures.json"
                     oracle, oracle_hash = scan_mst.load_oracle(oracle_file)
                     report["oracle_sha256"] = oracle_hash
-                    evidence["scan"] = scan_runtime(view, oracle)
-                    if args.pointer_slot:
+                    if args.scan:
+                        evidence["scan"] = scan_runtime(view, oracle)
+                    else:
+                        evidence["layout"] = view["layout_evidence"]
+                        evidence["search_scope"] = "Exact requested addresses and chain slots only; no literal or constant scan"
+                    if args.pointer_slot or exact_ranges:
                         pointers = FirmwarePointers(view)
                         evidence["pointer_slots"] = [pointers.pointer(address) for address in args.pointer_slot]
-                    if args.detail_address:
+                    if args.detail_address or exact_ranges:
                         from inspect_iodp import LLVMDisassembler
                         decoder = LLVMDisassembler()
                         try:
                             evidence["details"] = [detail_region(view, address, oracle, decoder) for address in args.detail_address]
+                            evidence["details"].extend(detail_exact_range(view, address, size, oracle, decoder, pointers)
+                                                       for address, size in exact_ranges)
                         finally:
                             decoder.close()
                 elif not decoded.startswith(b"\xcf\xfa\xed\xfe"):

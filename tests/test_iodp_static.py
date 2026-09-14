@@ -1,5 +1,6 @@
 import importlib.util
 import hashlib
+import json
 import pathlib
 import plistlib
 import struct
@@ -25,6 +26,83 @@ SPEC.loader.exec_module(analysis)
 
 
 class StaticAnalysisParserTests(unittest.TestCase):
+    def test_m3c_explicit_detail_requires_referenced_entry_and_bounds(self):
+        raw = struct.pack("<4I", 0xb4000041, 0xd503237f, 0xd65f0fff, 0xd65f03c0)
+        view = {"uuid": "fixture", "sections": [{"address": 0x1000, "size": len(raw), "raw": raw, "flags": 0x80000400}]}
+        pointers = mock.Mock()
+        pointers.records = {0x2000: {"target_hex": "0x1000", "slot_hex": "0x2000"}}
+        oracle, _ = scan_mst.load_oracle(SOURCE.parents[1] / "docs/research/mst-source-signatures.json")
+        decoder = mock.Mock()
+        decoder.decode.side_effect = lambda address, value: {"address_hex": hex(address), "bytes_hex": value.hex()}
+        result = dcp_firmware.detail_exact_range(view, 0x1000, 12, oracle, decoder, pointers)
+        self.assertEqual(result["size"], 12)
+        self.assertEqual(len(result["instructions"]), 3)
+        self.assertEqual(len(result["entry_pointer_references"]), 1)
+        for address, size in ((0x1004, 4), (0x1000, 20), (0x1000, 3), (0x1000, 32772)):
+            with self.assertRaises(ValueError):
+                dcp_firmware.detail_exact_range(view, address, size, oracle, decoder, pointers)
+        view["sections"][0]["raw"] = struct.pack("<4I", 0x94000003, 0xd503237f, 0xd65f0fff, 0xd65f03c0)
+        pointers.records = {}
+        result = dcp_firmware.detail_exact_range(view, 0x100c, 4, oracle, decoder, pointers)
+        self.assertEqual(result["entry_pointer_references"], [])
+        self.assertEqual(len(result["direct_callers"]), 1)
+
+    def test_m3c_details_only_rejects_broad_or_empty_selection(self):
+        for arguments in (("--scan", "--details-only", "--detail-address", "0x4000000"),
+                          ("--details-only",),
+                          ("--details-only", "--detail-range", "0x1000:4:8"),
+                          ("--scan", "--detail-range", "0x1000:4"),
+                          ("--details-only", "--detail-address", "0x1000", "--detail-range", "0x1000:4")):
+            with mock.patch.object(sys, "argv", ["dcp_firmware", "--components", "unused", "--output", "unused", *arguments]):
+                with mock.patch.object(pathlib.Path, "read_bytes") as reader:
+                    with mock.patch("argparse.ArgumentParser.error", side_effect=ValueError("invalid selection")):
+                        with self.assertRaises(ValueError):
+                            dcp_firmware.main()
+                    reader.assert_not_called()
+
+    def test_m3c_details_only_skips_devicetree_and_broad_scan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = pathlib.Path(directory)
+            tools = repository / "tools"
+            tools.mkdir()
+            for name in ("dcp_firmware.py", "ipsw_dcp.py", "scan_mst.py", "kernel_image.py", "dyld_cache.py", "inspect_iodp.py"):
+                (tools / name).write_bytes(b"synthetic tool identity")
+            components = repository / "artifacts/sources/m3b/components"
+            components.mkdir(parents=True)
+            raw = b"synthetic retained DCP"
+            (components / "dcp.im4p").write_bytes(raw)
+            mapping = {"dcp_path": "dcp.im4p", "devicetree_path": "absent-tree.im4p",
+                       "normal_dcp_components": ["Ap,DCP2"],
+                       "selected": {"display_components": {"Ap,DCP2": {"Info": {"Path": "dcp.im4p"}}}}}
+            extraction = {"result": "IDENTIFIED_DCP_AND_DEVICETREE_EXTRACTED", "mapping": mapping,
+                          "members": [{"path": "absent-tree.im4p"},
+                                      {"path": "dcp.im4p", "sha256": hashlib.sha256(raw).hexdigest()}]}
+            (components / "extraction.json").write_text(json.dumps(extraction))
+            output = repository / "artifacts/probes/m3c/receipt"
+            arguments = ["dcp_firmware", "--components", str(components), "--output", str(output),
+                         "--details-only", "--pointer-slot", "0x2000"]
+            with mock.patch.object(dcp_firmware, "__file__", str(tools / "dcp_firmware.py")), \
+                    mock.patch.object(sys, "argv", arguments), \
+                    mock.patch.object(dcp_firmware, "decode_im4p", return_value=(b"decoded fixture", {})) as decode, \
+                    mock.patch.object(dcp_firmware, "runtime_view", return_value={"layout_evidence": {"fixture": True}}), \
+                    mock.patch.object(scan_mst, "load_oracle", return_value=({}, "fixture")), \
+                    mock.patch.object(dcp_firmware, "FirmwarePointers") as pointers, \
+                    mock.patch.object(dcp_firmware, "scan_runtime") as broad_scan, \
+                    mock.patch.object(dcp_firmware, "devicetree_evidence") as tree_scan, \
+                    mock.patch("builtins.print"):
+                pointers.return_value.pointer.return_value = {"slot_hex": "0x2000", "target_hex": "0x1000"}
+                dcp_firmware.main()
+                decode.assert_called_once()
+                pointers.return_value.pointer.assert_called_once_with(0x2000)
+                broad_scan.assert_not_called()
+                tree_scan.assert_not_called()
+            report = json.loads((output / "decoded.json").read_text())
+            self.assertEqual(report["errors"], [])
+            self.assertEqual(len(report["images"]), 1)
+            self.assertNotIn("scan", report["images"][0])
+            self.assertEqual(report["images"][0]["layout"], {"fixture": True})
+            self.assertTrue(report["requested"]["details_only"])
+
     def test_m3b_m4_comparison_never_substitutes_for_m5_identity(self):
         record = {"fields": {"Ap,ProductType": "Mac16,1", "Ap,Target": "J604AP", "ApChipID": "0x8132", "ApBoardID": "0x22"},
                   "display_components": {"Ap,DCP2": {"Info": {"Path": "Firmware/dcp/t8132dcp.im4p"}}}}
