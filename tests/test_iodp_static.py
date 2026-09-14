@@ -15,6 +15,7 @@ import dyld_cache
 import kernel_image
 import call_graph
 import inspect_userserver
+import scan_mst
 
 SPEC = importlib.util.spec_from_file_location("inspect_iodp", SOURCE)
 analysis = importlib.util.module_from_spec(SPEC)
@@ -22,6 +23,143 @@ SPEC.loader.exec_module(analysis)
 
 
 class StaticAnalysisParserTests(unittest.TestCase):
+    def test_mst_data_tables_are_bounded_unqualified_candidates(self):
+        oracle, _ = scan_mst.load_oracle(SOURCE.parents[1] / "docs/research/mst-source-signatures.json")
+        raw = struct.pack("<4I", 0x1000, 0x1200, 0, 0x1400)
+        hits = scan_mst.constant_table_hits(raw, 0x2000, oracle)
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0]["signatures"], ["mst_sideband_windows"])
+        self.assertIsNone(hits[0]["function_hex"])
+        self.assertIn("NOT_PROVEN", hits[0]["assessment"])
+        self.assertEqual(scan_mst.constant_table_hits(struct.pack("<2I", 0x1000, 0x1000), 0, oracle), [])
+        spread = struct.pack("<I", 0x1000) + bytes(64) + struct.pack("<I", 0x1200)
+        self.assertEqual(scan_mst.constant_table_hits(spread, 0, oracle), [])
+
+    def test_mst_public_names_capture_refuses_unhealthy_baseline_before_enumeration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            baseline = pathlib.Path(directory) / "baseline.json"
+            baseline.write_text('{"external_dp_candidates": []}')
+            with mock.patch.object(inspect_userserver, "RegistryReader") as reader:
+                with self.assertRaises(ValueError):
+                    scan_mst.public_registry_evidence(baseline)
+                reader.assert_not_called()
+
+    def test_mst_cached_symbols_read_bounded_names_from_shared_string_pool(self):
+        table = struct.pack("<IBBHQ", 400000000, 0x0f, 1, 0, 0x180001000)
+        reader = mock.Mock(return_value=b"_DPSource\0")
+        symbols = scan_mst.cached_symbols(table, 406729643, reader)
+        reader.assert_called_once_with(400000000, 4096)
+        self.assertEqual(symbols, [{"name": "_DPSource", "address": 0x180001000, "section": 1}])
+        with self.assertRaises(ValueError):
+            scan_mst.cached_symbols(table, 300000000, reader)
+        with self.assertRaises(ValueError):
+            scan_mst.cached_symbols(table, 406729643, lambda offset, size: b"x" * size)
+
+    def test_mst_scan_image_keeps_hashes_and_unqualified_census(self):
+        oracle, _ = scan_mst.load_oracle(SOURCE.parents[1] / "docs/research/mst-source-signatures.json")
+        raw = struct.pack("<3I", 0x52800000 | (0x1c0 << 5), 0x52800001 | (0x2c0 << 5), 0xd65f03c0)
+        image = {"image": "test.DP", "uuid": "fixture", "kind": "fixture", "header_sha256": "fixture",
+                 "starts": [0x1000], "function_starts_sha256": "fixture", "symbols": [{"address": 0x1000, "name": "MSTPayload"}],
+                 "sections": [{"section": "__text", "segment": "__TEXT", "address": 0x1000, "size": len(raw), "raw": raw}]}
+        result = scan_mst.scan_image(image, oracle)
+        self.assertEqual(result["declared_functions"], 1)
+        self.assertEqual(result["dpcd_value_census"]["DP_PAYLOAD_ALLOCATE_SET"]["functions"], 1)
+        self.assertEqual(result["candidates"][0]["image_uuid"], "fixture")
+        self.assertEqual(result["candidates"][0]["bytes_sha256"], hashlib.sha256(raw).hexdigest())
+        self.assertIn("NOT_IMPLEMENTATION_PROOF", result["candidates"][0]["assessment"])
+        self.assertEqual(result["dpcd_move_sites"][0]["function_hex"], "0x1000")
+        self.assertEqual(result["dpcd_move_sites"][0]["image_uuid"], "fixture")
+        decoder = mock.Mock()
+        decoder.decode.side_effect = lambda address, value: {"address_hex": hex(address), "bytes_hex": value.hex()}
+        detail = scan_mst.detail_function(image, 0x1000, decoder, oracle)
+        self.assertEqual(len(detail["instructions"]), 3)
+        self.assertEqual(detail["direct_callers_in_image"], [])
+        with self.assertRaises(ValueError):
+            scan_mst.detail_function(image, 0x1004, decoder, oracle)
+        self.assertEqual(result["unassigned_text_prefix_bytes"], 0)
+        for starts in ([], [0x1001], [0x1004, 0x1000], [0x1000, 0x1000]):
+            with self.assertRaises(ValueError):
+                scan_mst.scan_image({**image, "starts": starts}, oracle)
+        prefix = scan_mst.scan_image({**image, "starts": [0x1004]}, oracle)
+        self.assertEqual(prefix["unassigned_text_prefix_bytes"], 4)
+        outside = scan_mst.scan_image({**image, "starts": [0x1000, 0x2000]}, oracle)
+        self.assertEqual(outside["skipped_functions"][0]["reason"], "START_OUTSIDE_SCANNED_TEXT")
+
+    def test_mst_cache_inventory_rejects_excessive_count(self):
+        cache = mock.Mock()
+        header = bytearray(152)
+        struct.pack_into("<QQ", header, 136, 4096, 32769)
+        cache.read_disk.return_value = header
+        with self.assertRaises(ValueError):
+            scan_mst.cache_image_inventory(cache)
+
+    def test_mst_cache_inventory_accepts_iossupport_and_rejects_traversal(self):
+        cache = mock.Mock()
+        cache.main_file.stat.return_value.st_size = 16384
+        header = bytearray(152)
+        struct.pack_into("<QQ", header, 136, 4096, 1)
+        record = struct.pack("<16sQII", bytes(16), 0x180000000, 4096, 8192)
+        for path, valid in ((b"/System/iOSSupport/System/Library/Test", True), (b"/System/../Test", False)):
+            cache.read_disk.side_effect = [header, record, path + b"\0"]
+            if valid:
+                entries, _ = scan_mst.cache_image_inventory(cache)
+                self.assertEqual(entries[0]["image"], path.decode())
+            else:
+                with self.assertRaises(ValueError):
+                    scan_mst.cache_image_inventory(cache)
+
+    def test_mst_oracle_and_constant_groups_require_distinct_values(self):
+        oracle, digest = scan_mst.load_oracle(SOURCE.parents[1] / "docs/research/mst-source-signatures.json")
+        self.assertEqual(len(digest), 64)
+        self.assertEqual(len(oracle["registers"]), 29)
+        events = [{"value": 0x1000}, {"value": 0x1000}]
+        self.assertEqual(scan_mst.constant_groups(events, oracle), [])
+        events.append({"value": 0x1200})
+        self.assertEqual(scan_mst.constant_groups(events, oracle)[0]["id"], "mst_sideband_windows")
+
+    def test_mst_immediates_do_not_treat_stack_offsets_as_register_addresses(self):
+        words = [0x52800000 | (0x1c0 << 5), 0x52800001 | (0x2c0 << 5), 0xd1000000 | (0x1c0 << 10) | (31 << 5) | 31]
+        events = scan_mst.immediate_events(struct.pack("<3I", *words), 0x1000)
+        self.assertEqual([event["value"] for event in events], [0x1c0, 0x2c0])
+        self.assertEqual(events[0]["bytes_hex"], words[0].to_bytes(4, "little").hex())
+
+    def test_mst_move_wide_only_combines_adjacent_matching_registers(self):
+        words = [0x52800000 | (0x1234 << 5), 0x72a00000 | (0x5 << 5), 0xd65f03c0, 0x72a00000 | (0x7 << 5)]
+        events = scan_mst.immediate_events(struct.pack("<4I", *words), 0x1000)
+        self.assertEqual([event["value"] for event in events], [0x1234, 0x51234])
+        self.assertEqual(scan_mst.immediate_events(struct.pack("<I", 0x52c00000), 0x1000), [])
+
+    def test_mst_logical_masks_preserve_width_and_invalid_encoding(self):
+        self.assertEqual(scan_mst.logical_immediate(0x32001c00), 0xff)
+        self.assertEqual(scan_mst.logical_immediate(0xb2401c00), 0xff)
+        self.assertIsNone(scan_mst.logical_immediate(0x3200fc00))
+        self.assertIsNone(scan_mst.logical_immediate(0x32401c00))
+
+    def test_mst_literal_candidates_are_not_substring_act_or_implementation_proof(self):
+        oracle, _ = scan_mst.load_oracle(SOURCE.parents[1] / "docs/research/mst-source-signatures.json")
+        self.assertEqual(scan_mst.literal_matches("action activation radio", oracle), [])
+        for name in ("DPMSTTopology", "calculatePBN", "sendACT", "buildRAD", "RemoteDPCDRead", "MultiStream"):
+            self.assertTrue(scan_mst.literal_matches(name, oracle), name)
+        hits = scan_mst.string_hits(b"nothing\0DP MST payload table\0", 0x1000, oracle)
+        self.assertEqual(hits[0]["address_hex"], "0x1008")
+        self.assertEqual(hits[0]["assessment"], "UNQUALIFIED_LITERAL_CANDIDATE")
+        self.assertEqual(scan_mst.string_hits(b"\xffVCPI\0", 0x1000, oracle), [])
+
+    def test_mst_function_receipt_preserves_bounds_hash_and_candidate_only_status(self):
+        oracle, _ = scan_mst.load_oracle(SOURCE.parents[1] / "docs/research/mst-source-signatures.json")
+        raw = struct.pack("<3I", 0x52800000 | (0x1c0 << 5), 0x52800001 | (0x2c0 << 5), 0x94000040)
+        receipt = scan_mst.function_receipt(raw, 0x1000, ["DPTest"], oracle)
+        self.assertEqual(receipt["bytes_sha256"], hashlib.sha256(raw).hexdigest())
+        self.assertEqual(receipt["constant_groups"][0]["id"], "mst_payload_registers")
+        self.assertEqual(receipt["direct_calls"][0]["target_hex"], "0x1108")
+        self.assertTrue(all(hit["assessment"] == "VALUE_MATCH_NOT_PROVEN_DPCD_ADDRESS" for hit in receipt["dpcd_value_candidates"]))
+        self.assertIn("NOT_IMPLEMENTATION_PROOF", receipt["assessment"])
+        self.assertEqual(scan_mst.function_bounds(0x1010, [0x1000, 0x1020], 0x1000, 0x40), (0x1000, 0x1020))
+        self.assertIsNone(scan_mst.function_bounds(0xffc, [0x1000], 0x1000, 0x40))
+        for raw_bytes, address in ((b"x", 0x1000), (b"\0" * 4, 3), (b"\0" * 65540, 0x1000)):
+            with self.assertRaises(ValueError):
+                scan_mst.immediate_events(raw_bytes, address)
+
     @staticmethod
     def graph_function(address, words):
         raw = b"".join(word.to_bytes(4, "little") for word in words)
