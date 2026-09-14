@@ -1,7 +1,29 @@
 # Open Questions And Next Experiment
 
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
-MST on M5 is **M5_MST_SOURCE_FEASIBILITY_UNRESOLVED**.
+MST on M5 is now **M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED**.
+
+## M3B Identified Firmware Decision
+
+[M3B](m5-dcp-firmware-mst.md) starts from the integrated M3A state
+`24f2d1c3065ec0d7f80b5a53077f3e169f79368f`, tagged `m5-mst-host-scan-v0.7`.
+The exact macOS 26.6.2/25G83 J704AP production BuildIdentity selects
+Firmware/dcp/t8142dcp.im4p. Its manifest digest, Image4 decode and display-tree
+association are verified offline. It contains a real MST sideband codec,
+GUID/RAD/port topology and routed payload-control operations.
+
+The single remaining question is the ownership/capacity of the one-DPTX
+stream-to-payload packetizer: can it bind multiple independently timed streams
+to distinct payload IDs on one physical link? The inspected source slot routine
+uses ID 1, and codec/control support alone is insufficient. A complete multi-ID
+allocator and source ACT completion are not established. No hardware absence
+claim follows, and this is not a native MST runtime demonstration.
+
+Only packetizer ownership and timing-to-payload binding should be pursued next.
+Do not return to generic DPCD transport, selector 0, new wrappers or lifecycle
+analysis. **RETIRED_ON_DAILY_USE_M5** and **NOT_READY_FOR_DPCD_TEST** remain;
+M2F-ATTEMPTED stays consumed and the DPCD-read marker stays absent. No hardware
+experiment is scheduled. Earlier next-step proposals are historical.
 
 ## M3A Source Feasibility Decision
 

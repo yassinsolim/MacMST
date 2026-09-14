@@ -16,6 +16,8 @@ import kernel_image
 import call_graph
 import inspect_userserver
 import scan_mst
+import ipsw_dcp
+import dcp_firmware
 
 SPEC = importlib.util.spec_from_file_location("inspect_iodp", SOURCE)
 analysis = importlib.util.module_from_spec(SPEC)
@@ -23,6 +25,247 @@ SPEC.loader.exec_module(analysis)
 
 
 class StaticAnalysisParserTests(unittest.TestCase):
+    def test_m3b_m4_comparison_never_substitutes_for_m5_identity(self):
+        record = {"fields": {"Ap,ProductType": "Mac16,1", "Ap,Target": "J604AP", "ApChipID": "0x8132", "ApBoardID": "0x22"},
+                  "display_components": {"Ap,DCP2": {"Info": {"Path": "Firmware/dcp/t8132dcp.im4p"}}}}
+        mapping = {"comparison": [record], "selected": {"identity_binary_plist_sha256": "m5-fixture"}}
+        result = ipsw_dcp.m4_comparison_mapping(mapping)
+        self.assertEqual(result["dcp_path"], "Firmware/dcp/t8132dcp.im4p")
+        self.assertIsNone(result["devicetree_path"])
+        self.assertIn("NOT_M5", result["purpose"])
+        with self.assertRaises(ValueError):
+            ipsw_dcp.m4_comparison_mapping({**mapping, "comparison": [record, record]})
+        with self.assertRaises(ValueError):
+            ipsw_dcp.m4_comparison_mapping({**mapping, "comparison": []})
+
+    def test_m3b_firmware_pointers_require_declared_vm_chain_membership(self):
+        word = (1 << 63) | (2 << 51) | 0x200
+        values = word.to_bytes(8, "little") + (0x300).to_bytes(8, "little")
+        chain = struct.pack("<3I", 7, 1, 0x100)
+        view = {"sections": [{"section": "__chain_starts", "address": 0x1000, "size": 12, "raw": chain, "reserved1": 2},
+                             {"section": "__const", "address": 0x1100, "size": 16, "raw": values}],
+                "layout_evidence": {"segments": [{"name": "__TEXT", "address": 0x1000}]}}
+        pointers = dcp_firmware.FirmwarePointers(view)
+        self.assertEqual(pointers.pointer(0x1100)["target_hex"], "0x1200")
+        self.assertEqual(pointers.pointer(0x1108)["target_hex"], "0x1300")
+        self.assertEqual(pointers.pointer(0x1108)["chain_hops"], 1)
+        with self.assertRaises(ValueError):
+            pointers.pointer(0x1104)
+        view["sections"][0]["reserved1"] = 1
+        with self.assertRaises(ValueError):
+            dcp_firmware.FirmwarePointers(view)
+
+    def test_m3b_runtime_maps_sections_from_declared_bundle_ranges(self):
+        def segment(name, address, file_offset, section_name, flags):
+            command = struct.pack("<II16s4Q4I", 0x19, 152, name.encode(), address, 16, file_offset, 16, 7, 5, 1, 0)
+            section = struct.pack("<16s16sQQ8I", section_name.encode(), name.encode(), address, 16, file_offset, 2, 0, 0, flags, 0, 0, 0)
+            return command + section
+        commands = segment("__TEXT", 0x4000000, 0x1000, "__text", 0x80000400)
+        commands += segment("__DATA", 0x4001000, 0x2000, "__const", 0)
+        commands += segment("__OS_LOG", 0x4002000, 0x3000, "__string", 2)
+        commands += struct.pack("<II16s", 0x1b, 24, bytes(range(16)))
+        header = struct.pack("<8I", 0xfeedfacf, 0x0100000c, 2, 5, 4, len(commands), 0, 0) + commands
+        tree = struct.pack("<II32sI", 1, 0, b"name", 5) + b"root\0\0\0\0"
+        raw = bytearray(8192)
+        raw[8:12] = b"DNUB"
+        struct.pack_into("<H", raw, 14, 4)
+        struct.pack_into("<Q", raw, 0x88, 4)
+        for index, (name, offset, size) in enumerate(((b"dlon", 2048, 2048), (b"txtr", 4096, 16), (b"tadr", 8192 - 16, 16), (b"ldbu", 6000, 16))):
+            struct.pack_into("<I4sQQ", raw, 0x280 + index * 24, 1, name, offset, size)
+        struct.pack_into("<3Q", raw, 0x248, 1024, 1024, len(tree))
+        raw[2048:2048 + len(header)] = header
+        raw[3072:3072 + len(tree)] = tree
+        raw[4096:4112] = bytes(range(16))
+        raw[-16:] = bytes(range(16, 32))
+        raw[6000:6016] = b"MST log fixture\0"
+        view = dcp_firmware.runtime_view(raw)
+        self.assertEqual(view["sections"][0]["raw"], bytes(range(16)))
+        self.assertEqual(view["sections"][1]["raw"], bytes(range(16, 32)))
+        self.assertEqual(view["sections"][0]["bundle_offset"], 4096)
+        self.assertEqual(view["sections"][2]["bundle_offset"], 6000)
+        self.assertEqual(view["sections"][2]["raw"], b"MST log fixture\0")
+        self.assertEqual(view["layout_evidence"]["header_offset"], 2048)
+        self.assertFalse(view["layout_evidence"]["function_start_command_present"])
+        standalone = bytearray(0x3010)
+        standalone[:len(header)] = header
+        standalone[0x1000:0x1010] = bytes(range(16))
+        standalone[0x2000:0x2010] = bytes(range(16, 32))
+        standalone[0x3000:0x3010] = b"MST log fixture\0"
+        standalone_view = dcp_firmware.runtime_view(standalone)
+        self.assertEqual(standalone_view["kind"], "dcp_standalone_runtime")
+        self.assertEqual([section["raw"] for section in standalone_view["sections"]], [section["raw"] for section in view["sections"]])
+        struct.pack_into("<Q", raw, 0x290 + 24, 8)
+        with self.assertRaises(ValueError):
+            dcp_firmware.runtime_view(raw)
+
+    def test_m3b_firmware_regions_preserve_inferred_boundaries(self):
+        words = [0xd503237f, 0x94000003, 0x52800000 | (0x1c0 << 5), 0xd65f0fff, 0xd503237f, 0xd65f0fff]
+        raw = struct.pack("<6I", *words)
+        section = {"raw": raw, "address": 0x4000000}
+        regions = dcp_firmware.firmware_regions(section)
+        self.assertEqual([(item["start"], item["end"]) for item in regions], [(0x4000000, 0x4000010), (0x4000010, 0x4000018)])
+        self.assertTrue(all("INFERRED" in item["boundary"] for item in regions))
+        with self.assertRaises(ValueError):
+            dcp_firmware.firmware_regions({"raw": b"x", "address": 0})
+        oracle, _ = scan_mst.load_oracle(SOURCE.parents[1] / "docs/research/mst-source-signatures.json")
+        section.update(section="__text", segment="__TEXT", flags=0x80000400, size=len(raw))
+        view = {"image": "synthetic", "uuid": "fixture", "sections": [section], "layout_evidence": {}}
+        result = dcp_firmware.scan_runtime(view, oracle)
+        self.assertEqual(result["dpcd_value_census"]["DP_PAYLOAD_ALLOCATE_SET"]["events"], 1)
+        self.assertEqual(result["regions"], 2)
+        decoder = mock.Mock()
+        decoder.decode.side_effect = lambda address, value: {"address_hex": hex(address), "bytes_hex": value.hex()}
+        detail = dcp_firmware.detail_region(view, 0x4000000, oracle, decoder)
+        self.assertEqual(detail["size"], 16)
+        self.assertIn("INFERRED", detail["boundary_evidence"])
+        self.assertEqual(len(detail["instructions"]), 4)
+        with self.assertRaises(ValueError):
+            dcp_firmware.detail_region(view, 0x4000004, oracle, decoder)
+
+    def test_m3b_bundle_config_uses_declared_ranges(self):
+        config = struct.pack("<II32sI", 1, 0, b"name", 5) + b"root\0\0\0\0"
+        raw = bytearray(4096)
+        raw[8:12] = b"DNUB"
+        struct.pack_into("<H", raw, 14, 4)
+        struct.pack_into("<Q", raw, 0x88, 1)
+        struct.pack_into("<I4sQQ", raw, 0x280, 1, b"dlon", 2048, 2048)
+        struct.pack_into("<3Q", raw, 0x248, 0, 1024, len(config))
+        raw[2048:2048 + len(config)] = config
+        layout = dcp_firmware.bundle_layout(raw)
+        self.assertEqual(layout["config_format"], "APPLE_DEVICETREE_NOLD")
+        self.assertEqual(layout["config_nodes"][0]["path"], "/root")
+        self.assertEqual(layout["config_offset"], 2048)
+        for offset, value in ((0x88, 14), (0x258, 4096), (0x288, 4096)):
+            invalid = bytearray(raw)
+            struct.pack_into("<Q", invalid, offset, value)
+            with self.assertRaises(ValueError):
+                dcp_firmware.bundle_layout(invalid)
+        raw[0x284:0x288] = b"tsru"
+        with self.assertRaises(ValueError):
+            dcp_firmware.bundle_layout(raw)
+
+    def test_m3b_im4p_digest_type_override_and_decompression_bounds(self):
+        def field(kind, value):
+            return bytes([kind, len(value)]) + value
+        content = field(0x16, b"IM4P") + field(0x16, b"dcpf") + field(0x16, b"1") + field(4, b"bvx2fixture")
+        content += field(0x30, field(2, b"\1") + field(2, b"\x10"))
+        raw = field(0x30, content)
+        adjusted = raw.replace(b"dcpf", b"dcp2", 1)
+        component = {"Trusted": True, "Info": {"Img4PayloadType": "dcp2"}, "Digest": hashlib.sha384(adjusted).digest()}
+        decoded, receipt = dcp_firmware.decode_im4p(raw, component, lambda value, size: bytes(size))
+        self.assertEqual(len(decoded), 16)
+        self.assertEqual(receipt["raw_type"], "dcpf")
+        self.assertEqual(receipt["manifest_type"], "dcp2")
+        self.assertEqual(receipt["keybag_status"], "NO_KEYBAG_FIELD_PRESENT")
+        with self.assertRaises(ValueError):
+            dcp_firmware.decode_im4p(raw, component, lambda value, size: bytes(size + 1))
+        with self.assertRaises(ValueError):
+            dcp_firmware.decode_im4p(raw, {**component, "Digest": bytes(48)})
+        keybag_raw = field(0x30, content + field(4, b"keybag"))
+        component["Digest"] = hashlib.sha384(keybag_raw.replace(b"dcpf", b"dcp2", 1)).digest()
+        with self.assertRaisesRegex(ValueError, "keybag present"):
+            dcp_firmware.decode_im4p(keybag_raw, component)
+
+    def test_m3b_devicetree_preserves_display_properties_and_bounds(self):
+        def node(properties, children=()):
+            raw = struct.pack("<II", len(properties), len(children))
+            for name, value in properties:
+                raw += struct.pack("<32sI", name.encode("ascii"), len(value)) + value
+                raw += bytes((-len(value)) % 4)
+            return raw + b"".join(children)
+        child = node([("name", b"dcp\0"), ("compatible", b"t8142-dcp\0AppleDCP\0")])
+        unrelated = node([("name", b"gpu\0"), ("compatible", b"gpu,t8142\0")])
+        raw = node([("name", b"device-tree\0"), ("model", b"J704AP\0")], [child, unrelated])
+        nodes = dcp_firmware.parse_devicetree(raw)
+        self.assertEqual(len(nodes), 3)
+        self.assertEqual(nodes[1]["properties"]["compatible"]["raw"], b"t8142-dcp\0AppleDCP\0")
+        evidence = dcp_firmware.devicetree_evidence(raw)
+        self.assertEqual(evidence["total_nodes"], 3)
+        self.assertEqual([entry["path"] for entry in evidence["selected_nodes"]], ["/device-tree", "/device-tree/dcp"])
+        for invalid in (raw[:-1], raw + b"x", struct.pack("<II", 0xffffffff, 0)):
+            with self.assertRaises(ValueError):
+                dcp_firmware.parse_devicetree(invalid)
+        with self.assertRaises(ValueError):
+            dcp_firmware.parse_devicetree(node([("name", b"root\0"), ("name", b"other\0")]))
+
+    def test_m3b_identity_selection_is_board_variant_and_product_exact(self):
+        identity = {"Ap,ProductType": "Mac17,2", "Ap,Target": "J704AP", "ApChipID": "0x8142", "ApBoardID": "0x22",
+                    "Info": {"DeviceClass": "j704ap", "Variant": "macOS Customer", "RestoreBehavior": "Erase",
+                             "BuildNumber": "25G83", "VariantContents": {"DCP": "macOSProduction"}}}
+        manifest = {"ProductBuildVersion": "25G83", "ProductVersion": "26.6.2", "BuildIdentities": [identity]}
+        self.assertEqual(ipsw_dcp.select_identity(manifest), (0, identity))
+        for key, value in (("Ap,Target", "J999AP"), ("Ap,ProductType", "Mac16,1"), ("ApBoardID", "0x23")):
+            with self.assertRaises(ValueError):
+                ipsw_dcp.select_identity({**manifest, "BuildIdentities": [{**identity, key: value}]})
+        with self.assertRaises(ValueError):
+            ipsw_dcp.select_identity({**manifest, "BuildIdentities": [identity, identity]})
+        for key, value in (("Variant", "Customer Upgrade Install (IPSW)"), ("RestoreBehavior", "Update"), ("VariantContents", {"DCP": "Development"})):
+            with self.assertRaises(ValueError):
+                ipsw_dcp.select_identity({**manifest, "BuildIdentities": [{**identity, "Info": {**identity["Info"], key: value}}]})
+
+    def test_m3b_partial_zip_manifest_and_range_budget(self):
+        import io
+        import zipfile
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("BuildManifest.plist", b"synthetic manifest")
+            archive.writestr("unrelated.dmg", bytes(65536))
+        raw = buffer.getvalue()
+        calls = []
+
+        def opener(request, timeout):
+            self.assertEqual(timeout, 30)
+            self.assertTrue(request.headers["Range"].startswith("bytes="))
+            start, end = [int(value) for value in request.headers["Range"][6:].split("-")]
+            calls.append((start, end))
+            response = mock.MagicMock()
+            response.__enter__.return_value = response
+            response.status = 206
+            response.geturl.return_value = request.full_url
+            response.headers = {"Content-Range": f"bytes {start}-{end}/{len(raw)}", "Content-Length": str(end - start + 1), "ETag": '"fixture"'}
+            response.read.return_value = raw[start:end + 1]
+            return response
+
+        remote = ipsw_dcp.RemoteIPSW("https://updates.cdn-apple.com/test.ipsw", len(raw), opener)
+        with zipfile.ZipFile(remote) as archive:
+            data, receipt = ipsw_dcp.extract_member(archive, "BuildManifest.plist")
+        self.assertEqual(data, b"synthetic manifest")
+        self.assertEqual(receipt["sha256"], hashlib.sha256(data).hexdigest())
+        self.assertEqual(remote.transferred, sum(end - start + 1 for start, end in calls))
+        self.assertTrue(all(request["status"] == 206 for request in remote.requests))
+        with self.assertRaises(ValueError):
+            remote.read(16 * 1024 * 1024 + 1)
+        with self.assertRaises(ValueError):
+            remote.seek(len(raw) + 1)
+
+    def test_m3b_range_refuses_full_body_and_mismatched_range(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value = response
+        response.geturl.return_value = "https://updates.cdn-apple.com/test.ipsw"
+        for response_status, content_range in ((200, "bytes 0-3/100"), (206, "bytes 4-7/100")):
+            response.status = response_status
+            response.headers = {"Content-Range": content_range}
+            remote = ipsw_dcp.RemoteIPSW(response.geturl(), 100, mock.Mock(return_value=response))
+            with self.assertRaises(ValueError):
+                remote.read(4)
+            response.read.assert_not_called()
+        with self.assertRaises(ValueError):
+            ipsw_dcp.RemoteIPSW("http://updates.cdn-apple.com/test.ipsw", 100)
+
+    def test_m3b_metadata_requires_exact_board_signed_build(self):
+        firmware = {"identifier": "Mac17,2", "version": "26.6.2", "buildid": "25G83", "signed": True,
+                    "url": "https://updates.cdn-apple.com/UniversalMac_26.6.2_25G83_Restore.ipsw"}
+        board = {"boardconfig": "J704AP", "platform": "t8142", "cpid": 0x8142, "bdid": 0x22}
+        device = {"identifier": "Mac17,2", "boards": [board], "firmwares": [firmware]}
+        self.assertEqual(ipsw_dcp.select_metadata(device, firmware)["bdid_hex"], "0x22")
+        for altered in ({**board, "bdid": 0x23}, {**board, "boardconfig": "J999AP"}):
+            with self.assertRaises(ValueError):
+                ipsw_dcp.select_metadata({**device, "boards": [altered]}, firmware)
+        with self.assertRaises(ValueError):
+            ipsw_dcp.select_metadata({**device, "boards": [board, board]}, firmware)
+        with self.assertRaises(ValueError):
+            ipsw_dcp.select_metadata(device, {**firmware, "signed": False})
+
     def test_mst_data_tables_are_bounded_unqualified_candidates(self):
         oracle, _ = scan_mst.load_oracle(SOURCE.parents[1] / "docs/research/mst-source-signatures.json")
         raw = struct.pack("<4I", 0x1000, 0x1200, 0, 0x1400)

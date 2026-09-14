@@ -111,6 +111,17 @@ hardware incapability. No private transaction occurred; **NOT_READY_FOR_DPCD_TES
 remains. The next evidence target is M5-attributed firmware/control documentation,
 not further selector analysis or execution.
 
+M3A is integrated at `24f2d1c3065ec0d7f80b5a53077f3e169f79368f`, tagged
+`m5-mst-host-scan-v0.7`. [M3B](m5-dcp-firmware-mst.md) resolves the exact J704AP
+25G83 Ap,DCP2 component to t8142dcp.im4p and verifies its manifest digest,
+DeviceTree association and decoded firmware. It finds a structural MST codec,
+GUID/RAD topology and payload/ACT primitives. Result:
+**M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED**.
+The one-link independent multi-stream packetizer and complete multi-ID allocator
+remain unproved; M3A's host-side negative is not erased. Only packetizer ownership
+and timing-to-payload binding are the next evidence target. No private operation
+occurred; selector retirement and **NOT_READY_FOR_DPCD_TEST** remain unchanged.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -140,6 +151,8 @@ not further selector analysis or execution.
   matrices, explicit constructive proof gaps and final static-expansion stop.
 - [M3A source feasibility](m5-mst-source-feasibility.md): scoped host search,
   attributed DP census, requirement evidence map and opaque firmware packetizer.
+- [M3B identified DCP firmware](m5-dcp-firmware-mst.md): manifest-backed mapping,
+  static codec/topology/allocation evidence and unresolved multi-stream packetizer.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
