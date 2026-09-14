@@ -1,8 +1,38 @@
 # Open Questions And Next Experiment
 
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
-MST on M5 remains unproved: **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
-**MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer expansion is stopped.
+MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
+**M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
+**MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
+
+## M3E0 Static Ceiling Handoff
+
+[The conclusion](m5-mst-static-conclusion.md) integrates completed M3D at
+`c5bc1b1bacd7742a4bbc1b54285336e9d51302a5`, permanently tagged
+`m5-mst-static-ceiling-v1.0`. It does not rerun M3D or authorize a new firmware
+investigation. Positive MST control and hardware-facing source packetizer
+findings remain established; local scalar device/timing/ID1 facts are not a
+global architectural limit.
+
+The frozen opacity is exactly:
+**Runtime source-controller membership of one physical T8142 DPTX register owner.**
+
+The [four evidence categories](m5-mst-static-conclusion.md#new-evidence-sources)
+are passive runtime, external protocol observation, sacrificial dynamic and
+future independent research. The bounded public check found no qualified
+passive discriminator. The single recommendation is
+**SACRIFICIAL_DYNAMIC_EXPERIMENT**, conceptually only, on a separate non-daily-use
+M5-applicable system after a concrete method and fresh risk approval. No future
+experiment is implemented or performed here; no fallback experiment on the
+current M5 is authorized. [Resume gates A-E](m5-mst-static-conclusion.md#implementation-resume-gate)
+are all unmet.
+
+**STATIC_PACKETIZER_ANALYSIS_FROZEN**.
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED**.
+Preserve the M3C baseline, **RETIRED_ON_DAILY_USE_M5** and
+**NOT_READY_FOR_DPCD_TEST**. M2F remains consumed and the DPCD-read marker absent.
+All earlier next-step proposals below remain historical, not instructions to
+resume static analysis, private calls or hardware experiments.
 
 ## M3D Final Ownership Decision
 

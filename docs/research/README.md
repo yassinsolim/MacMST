@@ -144,6 +144,19 @@ host-control milestone is proposed. M3C's packetizer evidence is preserved;
 selector retirement, immutable markers and **NOT_READY_FOR_DPCD_TEST** remain.
 No hardware/private display operation occurred.
 
+M3D is integrated at `c5bc1b1bacd7742a4bbc1b54285336e9d51302a5`, permanently
+tagged `m5-mst-static-ceiling-v1.0`. [M3E0](m5-mst-static-conclusion.md) is the
+documentation-only handoff, not another reverse-engineering pass:
+**MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. The exact frozen opacity is
+**Runtime source-controller membership of one physical T8142 DPTX register owner.**
+Real MST control/source packetizer findings and all M3C/M3D classifications
+remain intact. No passive discriminator was identified in the bounded public
+check. The sole next-evidence recommendation is a separately approved
+**SACRIFICIAL_DYNAMIC_EXPERIMENT** on a non-daily-use system; none is executed.
+Implementation gates A-E remain unmet. **STATIC_PACKETIZER_ANALYSIS_FROZEN**;
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED**.
+Earlier research/reproduction commands below are historical, not a new work plan.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -179,6 +192,8 @@ No hardware/private display operation occurred.
   object layouts, hardware slot table, exact proof map and unresolved stream binding.
 - [M3D final stream ownership](m5-dcp-stream-ownership.md): controller creation,
   selected-device/timing ownership, eleven-row proof and static-expansion stop.
+- [M3E0 static conclusion](m5-mst-static-conclusion.md): permanent static ceiling,
+  four new evidence categories, one conditional recommendation and implementation gates.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
