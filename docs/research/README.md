@@ -100,6 +100,17 @@ not proved safe after every return. **Stop further static expansion of this
 transport and abandon it on the daily-use Mac.** No selector implementation or
 execution is authorized, and NO_TRANSPORT_READY plus both not-ready gates remain.
 
+M2I is integrated at `a882c1dc75501c03347050f1cdb91c38df2af39d`, with annotated
+`selector0-retired-v0.6`. **RETIRED_ON_DAILY_USE_M5** is permanent for this
+transport. [M3A](m5-mst-source-feasibility.md) investigates source machinery:
+24 selected host images, 62,740 functions, 203 function candidates and eight
+non-MST data-table matches. No qualified host codec, topology model or payload
+allocator was found; the one-link packetizer behind DCP link/timing firmware
+remains opaque. **M5_MST_SOURCE_FEASIBILITY_UNRESOLVED** does not establish M5
+hardware incapability. No private transaction occurred; **NOT_READY_FOR_DPCD_TEST**
+remains. The next evidence target is M5-attributed firmware/control documentation,
+not further selector analysis or execution.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -127,6 +138,10 @@ execution is authorized, and NO_TRANSPORT_READY plus both not-ready gates remain
   command/tag/callback lifetime, close/death/disconnect and the single remaining wait object.
 - [M2I W06 wake or stranding proof](w06-wake-or-strand.md): exact context, wake/removal
   matrices, explicit constructive proof gaps and final static-expansion stop.
+- [M3A source feasibility](m5-mst-source-feasibility.md): scoped host search,
+  attributed DP census, requirement evidence map and opaque firmware packetizer.
+- [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
+  addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
 The user reports two physical monitors connected to one USB-C dock showing the
 same image. This is an input to investigate, not proof of the dock's transport,

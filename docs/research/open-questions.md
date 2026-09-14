@@ -1,7 +1,29 @@
 # Open Questions And Next Experiment
 
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
-MST on M5 remains `UNKNOWN`.
+MST on M5 is **M5_MST_SOURCE_FEASIBILITY_UNRESOLVED**.
+
+## M3A Source Feasibility Decision
+
+[M3A](m5-mst-source-feasibility.md) starts from the integrated M2I state
+`a882c1dc75501c03347050f1cdb91c38df2af39d`, tagged `selector0-retired-v0.6`.
+The pinned protocol oracle and bounded scan of 24 current host images establish
+ordinary DP capability/link/DSC control, but no qualified MST sideband codec,
+GUID/RAD topology model or PBN/VCPI payload allocator. The single controlling
+unknown is the M5 DCP link/stream firmware behind high-level timing/link messages,
+including one-link stream-to-payload packetization. Multiple pipes or Thunderbolt
+DP tunnels do not resolve it.
+
+The next step is to determine whether an M5-attributed, read-only firmware image
+or control specification can expose that boundary. No such usable image was
+located in the bounded local search. A host-side negative and older-generation
+Asahi findings do not establish M5 hardware incapability.
+
+Selector 0 is **RETIRED_ON_DAILY_USE_M5**: no improvement, wrapper, retry, cancel,
+repeated open or lifecycle investigation is authorized. Keep
+**NOT_READY_FOR_DPCD_TEST**, the consumed M2F marker and absent DPCD-read marker.
+No next hardware experiment is scheduled. The earlier proposals below remain
+historical and must not be used to resume the retired transport.
 
 ## M2I Final Selector-Transport Decision
 

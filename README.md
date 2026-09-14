@@ -88,7 +88,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | --- | --- |
 | External DCPDP path | Identified for the recorded M5/hub topology. |
 | IODP read ABI | Substantially reconstructed through static analysis. |
-| DPDV selector-0 path | Reconstructed through the host-side read RPC. |
+| DPDV selector-0 path | RETIRED_ON_DAILY_USE_M5; historical reconstruction is not an available transport. |
 | DCP RPC safety | Static expansion of this transport stopped after M2I; critical gates remain unresolved. |
 | Public framebuffer/I2C route | Unavailable on the recorded active M5 external path; no type-4 advertisement observed. |
 | Isolated DPDV open-check | One open/immediate-close runtime validated with zero selectors; in-flight-read teardown remains unproved. |
@@ -96,7 +96,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | In-flight read termination | INFLIGHT_READ_TERMINATION_NOT_PROVEN; no guaranteed response-independent completion/drain of the DCP context wait. |
 | Exact W06 wake/removal proof | W06_WAKE_STATE_UNRESOLVED; abandon this selector transport on the daily-use Mac. |
 | Native DPCD access | Not yet exercised. |
-| MST source capability | Unknown. |
+| MST source capability | M5_MST_SOURCE_FEASIBILITY_UNRESOLVED; no qualified host MST machinery found, DCP firmware packetizer opaque. |
 
 The owner-controlled connected/disconnected/reconnected test now associates the
 External **DCPEXT0 / Unit 0** DP/AV path with a **ZMUIPNG 14-in-1 hub** on the
@@ -207,26 +207,36 @@ another generic graph-search milestone is proposed. NO_TRANSPORT_READY and both
 not-ready execution gates remain unchanged; no proven unsafe lifetime claim or
 M5 hardware capability conclusion is inferred from the unresolved result.
 
-For a fresh clone, first build the probe and create your own public capture:
+M2I is integrated at `a882c1dc75501c03347050f1cdb91c38df2af39d`, tagged
+`selector0-retired-v0.6`. Selector 0 is **RETIRED_ON_DAILY_USE_M5**.
+[M3A source feasibility](docs/research/m5-mst-source-feasibility.md) pivots to the
+M5 source implementation: a pinned Linux signature oracle and static scan of 13
+kernel/11 userspace images find no qualified host sideband codec, topology model
+or payload allocator. The DCP firmware stream-to-payload packetizer remains
+opaque, so the result is **M5_MST_SOURCE_FEASIBILITY_UNRESOLVED**, not a finding
+that M5 cannot implement MST. The global gate is **NOT_READY_FOR_DPCD_TEST**.
+No private operation, new selector transport or hardware experiment is proposed.
+
+For a fresh clone, build the probe before optionally creating a public capture:
 
 ```sh
 python3 tools/capture_baseline.py --probe build/macmst
 ```
 
-The collector prints a new UTC-named directory. Substitute that directory for
-`YYYYMMDDTHHMMSSZ` when running the attachment-free static inspection:
+The collector prints a new UTC-named directory. The current source-feasibility
+scan is independent of transport execution and requires a fresh output path:
 
 ```sh
-python3 tools/inspect_iodp.py --baseline artifacts/probes/YYYYMMDDTHHMMSSZ --server
+python3 tools/scan_mst.py --inventory --output artifacts/probes/m3a-local/inventory.json
+python3 tools/scan_mst.py --kernel-image com.apple.iokit.IODisplayPortFamily --output artifacts/probes/m3a-local/dp.json
 ```
 
-This resolves symbols but never invokes private IODP functions or updater code.
-It retains raw bytes, declared cache-fixup chains and LLVM cross-checks. Optional
-`--server` reads/decompresses the local arm64 boot image in memory and requires
-a running-kernel UUID match; it never loads the image or weakens security.
-The [RPC-03 readiness gates](docs/research/dcp-dpcd-rpc-03.md#readiness-gates)
-must be satisfied before a separately approved one-byte read at `0x000` is
-considered. The proposed `macmst experimental dpcd-read` command is not implemented.
+This parses local image files, requires a running-kernel UUID match and never
+invokes private IODP functions or updater code. See the
+[M3A reproduction and scope](docs/research/m5-mst-source-feasibility.md#tooling-provenance-and-reproduction).
+Earlier selector investigation commands and next-step proposals are historical,
+not instructions to resume that transport. The proposed
+`macmst experimental dpcd-read` command is not implemented.
 
 Historical capture identities, hashes, binary UUIDs and preferred addresses in
 the reports are deliberate provenance, not reusable device handles or portable
@@ -251,6 +261,8 @@ before comparing findings. No Apple binary is distributed by this project.
 - [M2G one-byte selector contract and 19 readiness gates](docs/research/selector0-one-byte-readiness.md)
 - [M2H in-flight read lifetime, waits and termination result](docs/research/inflight-read-termination.md)
 - [M2I exact W06 wake/removal proof and mandatory stop](docs/research/w06-wake-or-strand.md)
+- [M3A M5 MST source feasibility and firmware boundary](docs/research/m5-mst-source-feasibility.md)
+- [Pinned MST source signature oracle](docs/research/mst-source-signatures.json)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
 
