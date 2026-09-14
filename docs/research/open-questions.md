@@ -5,6 +5,34 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M4Q Observer Capability Gap
+
+[The infrastructure qualification](m5-observer-gap.md) starts directly from
+M4P `95f9f4300fd3e7aec417e8e727bd8cd57714fb98`, without a merge. Result:
+**M5_OBSERVER_REQUIRES_MAJOR_PLATFORM_ENABLEMENT** for the current public m1n1
+architecture, not a conclusion about M5 MST capability.
+
+**MACOS_GUEST_REQUIRED** is scoped to that existing passive tracer path, not
+every conceivable observer. Current source recognizes T8142 and includes tested
+bring-up groundwork; **ACTIVE_M5_ENABLEMENT** does not yet supply a qualified
+newer-XNU/SPTM guest. A concrete guest CPU-start selection omission is smaller
+than the unresolved platform/guest dependency and cannot fix it alone.
+
+**T8142_DCP_DISCOVERY_NEEDS_PLATFORM_DATA** and
+**DCP_TRACE_SCHEMA_EXTENSION_REQUIRED** identify target-mapping and raw-output
+work. **OWNERSHIP_SCHEMA_UNRESOLVED** remains independent of transport capture.
+**OBSERVER_VALIDATION_STIMULUS_UNRESOLVED** concerns full one-source attribution,
+not a requirement to create two streams; ordinary actions can exercise lower
+capture layers without proving multi-stream support.
+
+Overall **PLATFORM_ENABLEMENT_PROJECT**; **SACRIFICIAL_M5_PURCHASE_PREMATURE**.
+Wait for upstream M5 enablement rather than assigning the missing platform to
+MacMST. No M4R implementation plan, observer code or experiment is authorized.
+All frozen reports, **STATIC_PACKETIZER_ANALYSIS_FROZEN**,
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED**,
+**RETIRED_ON_DAILY_USE_M5** and **NOT_READY_FOR_DPCD_TEST** remain unchanged.
+The M2F marker stays consumed and the DPCD-read marker absent.
+
 ## M4P Sacrificial Design Gate
 
 [The dynamic observation design](m5-sacrificial-dynamic-design.md) starts directly

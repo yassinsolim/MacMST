@@ -168,6 +168,17 @@ No tracing, display transition, boot/security change or dynamic experiment was
 performed. The design branch starts directly from completed M3E0; neither
 conclusion nor design is merged into main. All static and daily-use stops remain.
 
+[M4Q](m5-observer-gap.md) qualifies observation infrastructure only:
+**M5_OBSERVER_REQUIRES_MAJOR_PLATFORM_ENABLEMENT** for the identified m1n1 path.
+Fresh pins confirm real T8142 bring-up and active M5 work, including a recent
+SPRR/GXF development branch, but not a qualified newer-XNU/SPTM macOS guest.
+The current tracer requires a controlled guest, target discovery data and a raw
+record extension; source-ownership semantics remain unresolved. Ordinary
+one-source validation is separate from proving multi-stream capability.
+Recommendation: wait for upstream M5 enablement; purchase is premature.
+No code, boot, trace, security change, display operation or new firmware analysis
+is performed. M4Q branches directly from M4P without merging it.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -207,6 +218,8 @@ conclusion nor design is merged into main. All static and daily-use stops remain
   four new evidence categories, one conditional recommendation and implementation gates.
 - [M4P sacrificial dynamic design](m5-sacrificial-dynamic-design.md): qualified
   method/access limits, exact-target recovery, one blocked architecture and no-go gate.
+- [M4Q observer capability gap](m5-observer-gap.md): current platform/guest
+  dependencies, portable tracer pieces, source-schema limits and upstream-wait decision.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
