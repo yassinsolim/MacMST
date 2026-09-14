@@ -96,7 +96,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | In-flight read termination | INFLIGHT_READ_TERMINATION_NOT_PROVEN; no guaranteed response-independent completion/drain of the DCP context wait. |
 | Exact W06 wake/removal proof | W06_WAKE_STATE_UNRESOLVED; abandon this selector transport on the daily-use Mac. |
 | Native DPCD access | Not yet exercised. |
-| MST source capability | M5_MST_SOURCE_FEASIBILITY_UNRESOLVED; no qualified host MST machinery found, DCP firmware packetizer opaque. |
+| MST source capability | M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED; identified M5 firmware has MST codec/topology and payload controls, but one-link multi-stream packetization remains unproved. |
 
 The owner-controlled connected/disconnected/reconnected test now associates the
 External **DCPEXT0 / Unit 0** DP/AV path with a **ZMUIPNG 14-in-1 hub** on the
@@ -217,6 +217,18 @@ opaque, so the result is **M5_MST_SOURCE_FEASIBILITY_UNRESOLVED**, not a finding
 that M5 cannot implement MST. The global gate is **NOT_READY_FOR_DPCD_TEST**.
 No private operation, new selector transport or hardware experiment is proposed.
 
+M3A is integrated at `24f2d1c3065ec0d7f80b5a53077f3e169f79368f`, tagged
+`m5-mst-host-scan-v0.7`. [M3B's firmware investigation](docs/research/m5-dcp-firmware-mst.md)
+uses the exact 25G83 BuildIdentity for Mac17,2/J704AP, which references
+`Firmware/dcp/t8142dcp.im4p`. Range-only extraction and offline analysis identify
+a real MST sideband codec, routed topology and payload/ACT control primitives.
+The result is **M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED**:
+multiple independently timed streams on one DPTX link are not established.
+M3A's host negative is preserved; the firmware is not byte-identical to the
+selected M4 image, although the MST diagnostics and exact CRC leaves are shared.
+Next work is limited to packetizer ownership and stream-to-payload binding.
+Selector 0 remains **RETIRED_ON_DAILY_USE_M5**; no private operation occurred.
+
 For a fresh clone, build the probe before optionally creating a public capture:
 
 ```sh
@@ -262,6 +274,7 @@ before comparing findings. No Apple binary is distributed by this project.
 - [M2H in-flight read lifetime, waits and termination result](docs/research/inflight-read-termination.md)
 - [M2I exact W06 wake/removal proof and mandatory stop](docs/research/w06-wake-or-strand.md)
 - [M3A M5 MST source feasibility and firmware boundary](docs/research/m5-mst-source-feasibility.md)
+- [M3B identified M5 DCP firmware, MST controls and packetizer limit](docs/research/m5-dcp-firmware-mst.md)
 - [Pinned MST source signature oracle](docs/research/mst-source-signatures.json)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
