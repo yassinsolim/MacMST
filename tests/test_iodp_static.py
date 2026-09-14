@@ -26,6 +26,24 @@ SPEC.loader.exec_module(analysis)
 
 
 class StaticAnalysisParserTests(unittest.TestCase):
+    def test_m3d_exact_output_root_is_scoped(self):
+        repository = SOURCE.parents[1]
+        for milestone, permitted in (("m3c", True), ("m3d", True), ("m3e", False), ("other", False)):
+            arguments = ["dcp_firmware", "--components", str(repository / "artifacts/sources/m3b/components"),
+                         "--output", str(repository / f"artifacts/probes/{milestone}/synthetic-root-check"),
+                         "--details-only", "--pointer-slot", "0x2000"]
+            with self.subTest(milestone=milestone), mock.patch.object(sys, "argv", arguments), \
+                    mock.patch.object(pathlib.Path, "exists", return_value=False), \
+                    mock.patch.object(pathlib.Path, "read_bytes", side_effect=OSError("input boundary reached")) as reader, \
+                    mock.patch("argparse.ArgumentParser.error", side_effect=ValueError("invalid output root")):
+                with self.assertRaisesRegex(OSError if permitted else ValueError,
+                                            "input boundary reached" if permitted else "invalid output root"):
+                    dcp_firmware.main()
+                if permitted:
+                    reader.assert_called_once()
+                else:
+                    reader.assert_not_called()
+
     def test_m3c_explicit_detail_requires_referenced_entry_and_bounds(self):
         raw = struct.pack("<4I", 0xb4000041, 0xd503237f, 0xd65f0fff, 0xd65f03c0)
         view = {"uuid": "fixture", "sections": [{"address": 0x1000, "size": len(raw), "raw": raw, "flags": 0x80000400}]}

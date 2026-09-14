@@ -129,9 +129,20 @@ methods into register slot fields and a source activation bit. Result:
 **M5_DCP_MST_PACKETIZER_PRESENT_BUT_STREAM_BINDING_UNRESOLVED**.
 Independent timings, simultaneous distinct payloads and source selection on one
 link remain unproved; the inspected single-descriptor path is not an M5-wide
-one-stream limit. The sole next step is one final packetizer-object ownership
-pass, not another broad firmware or transport search. No hardware or private
+one-stream limit. M3C authorized one final packetizer-object ownership pass,
+completed below, not another broad firmware or transport search. No hardware or private
 display operation occurred; all retirement and DPCD gates remain unchanged.
+
+M3C is integrated at `5beb1ac304a1715dc9fb7cad9b3322819b8fd140`, tagged
+`m5-dcp-packetizer-v0.9`. [M3D](m5-dcp-stream-ownership.md) completes that final
+pass: **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
+**MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Exact factory registration and
+provider collections do not close runtime source-controller membership of one
+physical DPTX; scalar device/timing state is not an architectural maximum.
+**Stop static packetizer expansion.** No M3E firmware-graph search or M4A
+host-control milestone is proposed. M3C's packetizer evidence is preserved;
+selector retirement, immutable markers and **NOT_READY_FOR_DPCD_TEST** remain.
+No hardware/private display operation occurred.
 
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
@@ -166,6 +177,8 @@ display operation occurred; all retirement and DPCD gates remain unchanged.
   static codec/topology/allocation evidence and unresolved multi-stream packetizer.
 - [M3C one-link packetizer](m5-dcp-mst-packetizer.md): source payload writers,
   object layouts, hardware slot table, exact proof map and unresolved stream binding.
+- [M3D final stream ownership](m5-dcp-stream-ownership.md): controller creation,
+  selected-device/timing ownership, eleven-row proof and static-expansion stop.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
