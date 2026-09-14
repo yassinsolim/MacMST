@@ -89,11 +89,12 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | External DCPDP path | Identified for the recorded M5/hub topology. |
 | IODP read ABI | Substantially reconstructed through static analysis. |
 | DPDV selector-0 path | Reconstructed through the host-side read RPC. |
-| DCP RPC safety | Under investigation; critical gates remain unresolved. |
+| DCP RPC safety | Static expansion of this transport stopped after M2I; critical gates remain unresolved. |
 | Public framebuffer/I2C route | Unavailable on the recorded active M5 external path; no type-4 advertisement observed. |
 | Isolated DPDV open-check | One open/immediate-close runtime validated with zero selectors; in-flight-read teardown remains unproved. |
 | One-byte selector readiness | NOT_READY_FOR_ONE_BYTE_DPCD_READ; NO_TRANSPORT_READY. |
 | In-flight read termination | INFLIGHT_READ_TERMINATION_NOT_PROVEN; no guaranteed response-independent completion/drain of the DCP context wait. |
+| Exact W06 wake/removal proof | W06_WAKE_STATE_UNRESOLVED; abandon this selector transport on the daily-use Mac. |
 | Native DPCD access | Not yet exercised. |
 | MST source capability | Unknown. |
 
@@ -195,6 +196,17 @@ error synthesis and list cleanup are different paths. Constant 500 remains an
 opaque firmware parameter, not a demonstrated host deadline. No transport or
 readiness gate is promoted, and no private operation or read helper is added.
 
+M2H is integrated at `1a014d8d3c3cd35ed5381160b809cf4803d79d69`, tagged
+`inflight-read-safety-v0.5`. [M2I's exact W06 proof](docs/research/w06-wake-or-strand.md)
+on `research/w06-wake-or-strand` establishes the stack context/event and confirms
+that suspicious cleanup targets this read's pending list. It does not prove the
+required cleanup-trigger ordering or universal callback quiescence:
+**W06_WAKE_STATE_UNRESOLVED**. **Further static expansion of this selector
+transport is stopped; abandon it on the daily-use Mac.** No selector test or
+another generic graph-search milestone is proposed. NO_TRANSPORT_READY and both
+not-ready execution gates remain unchanged; no proven unsafe lifetime claim or
+M5 hardware capability conclusion is inferred from the unresolved result.
+
 For a fresh clone, first build the probe and create your own public capture:
 
 ```sh
@@ -238,6 +250,7 @@ before comparing findings. No Apple binary is distributed by this project.
 - [M2E.1 discriminator and historical open-only proofs](docs/research/dpdv-open-path.md)
 - [M2G one-byte selector contract and 19 readiness gates](docs/research/selector0-one-byte-readiness.md)
 - [M2H in-flight read lifetime, waits and termination result](docs/research/inflight-read-termination.md)
+- [M2I exact W06 wake/removal proof and mandatory stop](docs/research/w06-wake-or-strand.md)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
 

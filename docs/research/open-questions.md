@@ -3,6 +3,30 @@
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
 MST on M5 remains `UNKNOWN`.
 
+## M2I Final Selector-Transport Decision
+
+[M2I](w06-wake-or-strand.md) starts from the audited M2H merge
+`1a014d8d3c3cd35ed5381160b809cf4803d79d69`, tagged `inflight-read-safety-v0.5`.
+Primary result: **W06_WAKE_STATE_UNRESOLVED**. Exact event E=C=S+8 and the used
+context fields are known. Cleanup acts on the same pending K list, but no eligible
+unwoken-cleanup ordering or complete future-producer/quiescence proof closes the
+eight-step stranding test. A local no-wake body is not a reachable counterexample.
+
+**Stop further static expansion of this selector transport. Recommend abandoning
+it on the daily-use Mac.** Do not start M2J as another generic graph search or
+propose a selector run, repeated open, forced wake, close race or hardware
+disconnect. Any alternative non-daily-use/reboot-risk environment would require
+a separate future decision and explicit authorization; none is scheduled.
+
+CALLBACK_QUIESCENCE_UNRESOLVED and LATE_RESPONSE_STACK_SAFETY_UNRESOLVED remain.
+STACK_PRESERVED_WHILE_W06_BLOCKED is a scoped ordinary-wait/source-corroborated
+result, not callback quiescence after return. 500_MEANING_UNRESOLVED contributes
+no independent exact-C wake. Keep NO_TRANSPORT_READY,
+INFLIGHT_READ_TERMINATION_NOT_PROVEN, NOT_READY_FOR_ONE_BYTE_DPCD_READ and
+NOT_READY_FOR_DPCD_TEST. M2F-ATTEMPTED remains consumed; the DPCD read marker
+remains absent. Earlier next-step proposals below are historical, not authority
+to resume investigation or execute this transport.
+
 ## M2H In-Flight Termination
 
 [M2H](inflight-read-termination.md) starts from M2G's audited merge
