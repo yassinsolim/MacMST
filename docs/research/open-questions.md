@@ -1,8 +1,29 @@
 # Open Questions And Next Experiment
 
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
-MST on M5 remains unproved. The current packetizer result is
-**M5_DCP_MST_PACKETIZER_PRESENT_BUT_STREAM_BINDING_UNRESOLVED**.
+MST on M5 remains unproved: **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
+**MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer expansion is stopped.
+
+## M3D Final Ownership Decision
+
+[M3D](m5-dcp-stream-ownership.md) starts from the exact M3C merge
+`5beb1ac304a1715dc9fb7cad9b3322819b8fd140`, tagged `m5-dcp-packetizer-v0.9`.
+The final pass recovers runtime controller factory registration, provider/client
+collections, selected-device replacement and current timing ownership. It finds
+one concrete ID-1 getter and scalar timing on the inspected controller, but
+neither a positive multi-stream ownership proof nor an architectural one-stream
+maximum. M3C's source packetizer/table evidence remains intact.
+
+Exactly one opacity boundary remains: **runtime source-controller membership
+of one physical T8142 DPTX register owner**. This is not another task list.
+**STOP STATIC PACKETIZER EXPANSION.** Do not create M3E as a firmware/object graph
+search or design M4A host-to-DCP control discovery without supported architectural
+viability. No hardware experiment or retired transport work is proposed.
+
+Preserve **M5_DCP_MST_PACKETIZER_PRESENT_BUT_STREAM_BINDING_UNRESOLVED**,
+**RETIRED_ON_DAILY_USE_M5** and **NOT_READY_FOR_DPCD_TEST**. M2F-ATTEMPTED remains
+consumed; the DPCD-read marker remains absent. All next-step proposals in the
+historical sections below are superseded by this stop.
 
 ## M3C One-Link Packetizer Decision
 
@@ -14,12 +35,13 @@ uses one scalar source record, a selected-device descriptor with ID 1/start 0,
 and whole-table replacement. Manager port collections and 64 slot fields are
 not independent source-stream contexts.
 
-The only next step is **one final packetizer-object ownership pass** on these
+M3C's historical next step was **one final packetizer-object ownership pass** on these
 identified objects: close alternate owners/writers and timing/FIFO-to-payload
 selection on the same physical transmitter. Seek either two independently timed
 contexts with distinct simultaneous payloads, or positive architectural closure
 of a one-stream limit. Neither has been proved. If this narrow pass remains
 opaque, retain the unresolved classification and stop further expansion.
+M3D completed that pass and applied the stop above.
 
 M3B's MST-control/codec/topology findings remain the frozen baseline; M3A's host
 negative retains its original scope. No return to sideband/topology discovery,
@@ -273,7 +295,7 @@ recording USB count 9 versus 10 rather than claiming every attachment is unchang
 | 10 | Can the dock's DPCD space be accessed? | UNKNOWN: no native transport call, and current DP device is Embedded. |
 | 11 | Can DP_MSTM_CAP at 0x021 be read? | HYPOTHESIS dependent on question 8; decoder and exact constants are ready. A future approved one-byte read is the test, not an I2C-offset substitution. |
 | 12 | Can MST sideband messages be sent? | UNKNOWN. PRIMARY_SOURCE: native DPCD message-buffer addresses are known. Writing sideband/setup state is explicitly outside this phase. |
-| 13 | Is there an M5 MST packetizer? | M3C establishes source slot-table programming and activation in identified M5 firmware; independent multi-stream binding and a hardware one-stream limit remain unresolved. See [the ten-row proof map](m5-dcp-mst-packetizer.md#evidence-map). |
+| 13 | Is there an M5 MST packetizer? | M3C establishes source slot-table programming and activation. M3D leaves source ownership and architectural viability unresolved and stops static packetizer expansion. See [the final eleven-row ownership map](m5-dcp-stream-ownership.md#ownership-evidence-map). |
 | 14 | Is there dormant DCP firmware MST functionality? | UNKNOWN. Firmware code was not inspected; no source-specific evidence. Asahi's No MST statement is recorded with its missing M5 scope. |
 
 ## Historical Priority Order

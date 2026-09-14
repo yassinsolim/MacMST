@@ -98,6 +98,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | Native DPCD access | Not yet exercised. |
 | MST control baseline | M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED; identified M5 firmware has MST codec/topology and payload controls. |
 | One-link MST packetizer | M5_DCP_MST_PACKETIZER_PRESENT_BUT_STREAM_BINDING_UNRESOLVED; concrete source slot-table and activation code found, but independent multi-stream binding and an architectural one-stream limit remain unproved. |
+| Final stream ownership | M5_DCP_STREAM_OWNERSHIP_UNRESOLVED; MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED. Static packetizer expansion stopped after M3D. |
 
 The owner-controlled connected/disconnected/reconnected test now associates the
 External **DCPEXT0 / Unit 0** DP/AV path with a **ZMUIPNG 14-in-1 hub** on the
@@ -237,9 +238,21 @@ ACT trigger in the retained M5 firmware. Result:
 **M5_DCP_MST_PACKETIZER_PRESENT_BUT_STREAM_BINDING_UNRESOLVED**.
 The recovered path replaces one table using payload ID 1; neither that literal
 nor its 64 slot fields proves an architectural stream limit or multi-stream
-support. Only one final packetizer-object ownership pass remains appropriate.
+support. M3C authorized one final packetizer-object ownership pass, completed below.
 No private operation or hardware experiment occurred; selector retirement and
 **NOT_READY_FOR_DPCD_TEST** are unchanged.
+
+M3C is integrated at `5beb1ac304a1715dc9fb7cad9b3322819b8fd140`, tagged
+`m5-dcp-packetizer-v0.9`. [M3D's final ownership proof](docs/research/m5-dcp-stream-ownership.md)
+finds runtime controller registration, collection-based attachment, scalar
+selected-device replacement and scalar current timing. It proves neither
+multiple concurrent source contexts on one physical DPTX nor a hard one-stream
+architectural limit: **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
+**MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. The single remaining opacity is
+runtime source-controller membership of one physical T8142 DPTX register owner.
+**Stop static packetizer expansion.** No M3E graph search or M4A host-control
+discovery is proposed. M3C's packetizer baseline, selector retirement and DPCD
+gate remain unchanged; M3D performed zero hardware/private display operations.
 
 For a fresh clone, build the probe before optionally creating a public capture:
 
