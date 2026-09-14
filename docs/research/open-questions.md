@@ -5,6 +5,35 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M4P Sacrificial Design Gate
+
+[The dynamic observation design](m5-sacrificial-dynamic-design.md) starts directly
+from completed M3E0, without merging that conclusion into main. Its primary
+result is **SACRIFICIAL_EXPERIMENT_REQUIRES_UNAVAILABLE_CAPABILITY**. This is a
+documentation/public-source assessment, not a dynamic experiment.
+
+**PUBLIC_TELEMETRY_INSUFFICIENT**; ordinary host timing/lifecycle traces do not
+identify firmware-internal membership. The existing m1n1 IPC tracer is useful
+prior art, but **PASSIVE_DCP_IPC_CAPTURE_REQUIRES_PLATFORM_WORK** and
+**M5_M1N1_DYNAMIC_PATH_PARTIAL**: explicit M5 recognition is not a supported
+J704AP/25G83 guest, a complete source/owner schema or bounded capture behavior.
+
+The design chooses **EXACT_M5_HARDWARE_REQUIRED** and
+**WIRE_ANALYZER_OPTIONAL_HIGH_VALUE**. **STIMULUS_REQUIREMENT_UNRESOLVED** means
+ordinary operation may not expose another source, not that one source proves an
+architectural maximum. M4P-IPC-OWNERSHIP-01 is the single blocked future
+architecture; no setup, tracing or private second-stream request is authorized.
+
+Reconsideration requires independently supplied M5 observer/platform support,
+same-physical-DPTX source semantics, an informative ordinary stimulus, bounded
+observer behavior, recovery readiness and separate approval. Missing capability
+does not reopen T8142 disassembly, packetizer/selector research or active control.
+**STATIC_PACKETIZER_ANALYSIS_FROZEN** and
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED** remain permanent.
+**RETIRED_ON_DAILY_USE_M5**, **NOT_READY_FOR_DPCD_TEST**, the consumed M2F marker
+and absent DPCD-read marker remain unchanged. No hardware observation or change
+was performed in M4P; the historical M3E0 recommendation below is not permission.
+
 ## M3E0 Static Ceiling Handoff
 
 [The conclusion](m5-mst-static-conclusion.md) integrates completed M3D at

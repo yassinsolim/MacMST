@@ -101,6 +101,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | Final stream ownership | M5_DCP_STREAM_OWNERSHIP_UNRESOLVED; MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED. Static packetizer expansion stopped after M3D. |
 | Static feasibility ceiling | MACMST_STATIC_FEASIBILITY_INCONCLUSIVE; STATIC_PACKETIZER_ANALYSIS_FROZEN; NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED. |
 | Evidence handoff | SACRIFICIAL_DYNAMIC_EXPERIMENT recommended conceptually on a separately approved non-daily-use system; no experiment authorized or performed. Implementation resume gates A-E are unmet. |
+| Sacrificial design gate | [M4P](docs/research/m5-sacrificial-dynamic-design.md): SACRIFICIAL_EXPERIMENT_REQUIRES_UNAVAILABLE_CAPABILITY. No qualified M5 ownership observer or informative ordinary stimulus established; no experiment or security change performed. |
 
 The owner-controlled connected/disconnected/reconnected test now associates the
 External **DCPEXT0 / Unit 0** DP/AV path with a **ZMUIPNG 14-in-1 hub** on the

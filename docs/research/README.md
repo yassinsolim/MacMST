@@ -157,6 +157,17 @@ Implementation gates A-E remain unmet. **STATIC_PACKETIZER_ANALYSIS_FROZEN**;
 **NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED**.
 Earlier research/reproduction commands below are historical, not a new work plan.
 
+[M4P](m5-sacrificial-dynamic-design.md) designs the conditional observation and
+keeps its gate closed: **SACRIFICIAL_EXPERIMENT_REQUIRES_UNAVAILABLE_CAPABILITY**.
+Public telemetry lacks qualified ownership data; m1n1 has T8142/M5 recognition
+but no pinned M5 macOS guest or validated same-DPTX IPC observer in the checked
+sources. Exact sacrificial Mac17,2 hardware is required by this design; ordinary
+stimulus sufficiency remains unresolved. One blocked future IPC architecture,
+five tiers, A-D success criteria and Apple Finder/DFU recovery are documented.
+No tracing, display transition, boot/security change or dynamic experiment was
+performed. The design branch starts directly from completed M3E0; neither
+conclusion nor design is merged into main. All static and daily-use stops remain.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -194,6 +205,8 @@ Earlier research/reproduction commands below are historical, not a new work plan
   selected-device/timing ownership, eleven-row proof and static-expansion stop.
 - [M3E0 static conclusion](m5-mst-static-conclusion.md): permanent static ceiling,
   four new evidence categories, one conditional recommendation and implementation gates.
+- [M4P sacrificial dynamic design](m5-sacrificial-dynamic-design.md): qualified
+  method/access limits, exact-target recovery, one blocked architecture and no-go gate.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
