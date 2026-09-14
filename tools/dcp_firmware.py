@@ -566,8 +566,8 @@ def main():
         parser.error("at most 48 unique detail entries; explicit ranges require --details-only")
     repository = pathlib.Path(__file__).resolve().parents[1]
     root = repository / "artifacts/sources/m3b"
-    output_root = repository / "artifacts/probes/m3c" if args.details_only else root
-    if not args.components.resolve().is_relative_to(root) or not args.output.resolve().is_relative_to(output_root) or args.output.exists():
+    output_roots = tuple(repository / f"artifacts/probes/{milestone}" for milestone in ("m3c", "m3d")) if args.details_only else (root,)
+    if not args.components.resolve().is_relative_to(root) or not any(args.output.resolve().is_relative_to(candidate) for candidate in output_roots) or args.output.exists():
         parser.error("inputs must be retained M3B components; output must be new under the mode's ignored artifact root")
     extraction_raw = (args.components / "extraction.json").read_bytes()
     extraction = json.loads(extraction_raw)
