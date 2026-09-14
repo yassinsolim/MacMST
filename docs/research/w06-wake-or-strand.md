@@ -515,3 +515,75 @@ evidence is not a reason to fabricate a hash match, substitute another kernel
 build or restart static/private investigation. The completed M2H report remains
 the retained source for frozen lifecycle/wait conclusions; this milestone narrows
 the context and proof obligations rather than rewriting that history.
+
+## Validation
+
+Validation ran on the existing M5/macOS toolchain on 2026-09-13 UTC. Only five
+documentation paths change from inflight-read-safety-v0.5. Production code,
+experimental open-only code, tests, CMake, static tools and configuration remain
+unchanged. No private helper mode, including no-open selection, was executed.
+
+| Command / Check | Result | Verified Scope |
+| --- | --- | --- |
+| cmake --build build | PASS; no rebuild needed | Existing strict warnings-as-errors configuration |
+| ctest --test-dir build -L unit --output-on-failure | 9/9 PASS | Existing deterministic suite, including 324 synthetic DPCD checks |
+| cmake --build build-sanitized | PASS; no rebuild needed | Existing AddressSanitizer / UndefinedBehaviorSanitizer configuration |
+| ctest --test-dir build-sanitized -L unit --output-on-failure | 9/9 PASS | Same software gates under sanitizers |
+| python3 -m unittest discover -s tests -p 'test_iodp_static.py' | 60/60 PASS | Synthetic static-parser regressions; no new kernel extraction or graph |
+| Existing userspace containment mocks in both suites | PASS | USERSPACE_CONTAINMENT_ONLY; unchanged original 13 and eight framed cases plus ownership/FD/signal checks, not a kernel wake or quiescence proof |
+| Public hardware probe | Not run; not needed | No topology or production-code question changed; public kernel/OS identity checks established retained-build applicability |
+| Retained provenance | PASS | Four report hashes; 72 analysis addresses, 70 in 31 consistent full bodies and two explicit raw-target-only gaps; three source files matched to the pinned archive |
+| Context/wake/removal checks | PASS | Exact field/event stores and callback forwarding, same-list offsets, nine removal rows, eight constructive obligations and nine decision-matrix rows |
+| Source/binary/marker guards | PASS | All code/tests/tools/config unchanged; existing non-executing import/callsite audit passed; both M2F receipts and consumed marker unchanged; read marker absent |
+| Documentation checks | PASS | Valid local links/new report anchors, balanced fences, append-only ledger, whitespace and editor diagnostics |
+
+The dpdv_contract test remains a mock/static guard: its refusal case uses a
+temporary pre-existing marker and a nonexistent helper. It does not repeat the
+real DPDV experiment. No mock extension, delayed private response or new kernel
+race test is claimed, and mock results cannot change the W06 classification.
+
+Current binary identities remain those recorded for the unexecuted M2G rebuilds,
+not new private runtime evidence:
+
+| Binary | SHA-256 |
+| --- | --- |
+| Public macmst | `450832c50446d3a430cbed2bcab7c285cddf5f6b370b2339df2cd0a33aefd89a` |
+| Open-only helper, not executed | `d94b0a450e89daa697675d816e231994e37456ec61928fc72261ec500f153830` |
+| Open-check parent, no private helper spawned | `f94db7e91ef670ce6c59ce73929016d2d36a5adb44fb9714f188932771b55e8b` |
+
+One provenance harness initially counted the five body-start addresses added in
+the provenance table as analysis addresses. The corrected check distinguishes
+72 analysis addresses from 77 across the whole report. Every hash matched; no
+report conclusion or code changed and no additional function was inspected.
+
+These results establish existing software behavior and reproducible static
+evidence, not a must-wake proof, reachable stranding, callback quiescence, native
+DPCD functionality or an MST capability conclusion. The mandatory static stop
+and all no-read gates remain in force.
+
+## Git
+
+The branch is research/w06-wake-or-strand, based on tagged merge
+`1a014d8d3c3cd35ed5381160b809cf4803d79d69`. Commit
+`df68e119c3e03bf6351603daf20cec61ccdca71a`,
+`research: enumerate W06 wake and removal paths`, contains the validated bounded
+context/wake/removal/quiescence assessment and stop decision. The final commit,
+`research: finalize selector transport safety`, records validation and updates
+the current research navigation and append-only ledger.
+
+After the separately completed M2H main/tag integration, publication is limited
+to this branch using an explicit non-force refspec and push.followTags=false.
+Main remains the M2H merge; inflight-read-safety-v0.5 and all older tags/branches
+are preserved. M2I is not merged and no PR is opened. Only sanitized documentation
+is published; ignored raw captures, source archives, binaries and marker files
+are not committed or rewritten.
+
+```sh
+git log --oneline inflight-read-safety-v0.5..HEAD
+git rev-parse HEAD
+git status --short --branch
+git rev-list --left-right --count 'HEAD...@{upstream}'
+```
+
+These commands identify the final report commit and synchronized branch state
+without embedding a self-referential final commit hash in this document.

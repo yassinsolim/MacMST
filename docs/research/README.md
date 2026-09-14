@@ -88,6 +88,18 @@ meaning cannot bound the demonstrated host wait. READ_ABORT_SET_INCOMPLETE and
 UNKNOWN failure containment remain explicit. No private call, new read helper,
 kernel graph expansion or change to the one-byte/global not-ready gates occurs.
 
+M2H is integrated at `1a014d8d3c3cd35ed5381160b809cf4803d79d69`, with annotated
+`inflight-read-safety-v0.5` created before `research/w06-wake-or-strand`.
+[M2I](w06-wake-or-strand.md) binds the exact 24 used context bytes, event E=C,
+known status/wake pair, callback/tag identity and nine removal boundaries. The
+suspicious cleanup is the same pending list, but constructive stranding steps 5
+and 7 and universal wake/quiescence remain unproved. W06_WAKE_STATE_UNRESOLVED;
+CALLBACK_QUIESCENCE_UNRESOLVED; LATE_RESPONSE_STACK_SAFETY_UNRESOLVED. The ordinary
+blocked stack is preserved under the scoped current-byte/pinned-source contract,
+not proved safe after every return. **Stop further static expansion of this
+transport and abandon it on the daily-use Mac.** No selector implementation or
+execution is authorized, and NO_TRANSPORT_READY plus both not-ready gates remain.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -113,6 +125,8 @@ kernel graph expansion or change to the one-byte/global not-ready gates occurs.
   runtime baseline, transport comparison, one-byte semantics and current 19-gate matrix.
 - [M2H in-flight termination](inflight-read-termination.md): exact wait flags,
   command/tag/callback lifetime, close/death/disconnect and the single remaining wait object.
+- [M2I W06 wake or stranding proof](w06-wake-or-strand.md): exact context, wake/removal
+  matrices, explicit constructive proof gaps and final static-expansion stop.
 
 The user reports two physical monitors connected to one USB-C dock showing the
 same image. This is an input to investigate, not proof of the dock's transport,
