@@ -87,9 +87,9 @@
     {"id": "dp_training_control", "values": [256, 257, 258, 259, 263, 264], "minimum_distinct": 3, "assessment": "Non-MST DP address-use control, still requires argument/data flow"}
   ],
   "literal_patterns": [
-    {"id": "mst_name", "pattern": "(?i)(?<![A-Za-z])MST(?![a-z])|multi[ _-]?stream", "assessment": "Reject unrelated acronyms and generic multi-stream media"},
-    {"id": "mst_protocol", "pattern": "(?i)sideband|VCPI|(?<![A-Za-z])PBN(?![A-Za-z])|payload[ _-]?(?:id|table)|LINK_ADDRESS|ALLOCATE_PAYLOAD|REMOTE_[DI](?:PCD|2C)|path[ _-]?resource|branch[ _-]?GUID|routing[ _-]?address|virtual[ _-]?channel", "assessment": "Require DisplayPort attribution; Thunderbolt sideband/virtual channels are negative controls"},
-    {"id": "weak_topology", "pattern": "(?i)branch|(?<![A-Za-z])RAD(?![A-Za-z])|(?<![A-Za-z])ACT(?![a-z])", "assessment": "Weak alone; disambiguate branches, radio, active/action and transport-independent topology"}
+    {"id": "mst_name", "pattern": "MST|Mst|(?i:multi[ _-]?stream|\\bmst\\b)", "assessment": "Include mangled/CamelCase names; reject unrelated acronyms and generic multi-stream media"},
+    {"id": "mst_protocol", "pattern": "PBN|Pbn|(?i:sideband|VCPI|\\bpbn\\b|payload[ _-]?(?:id|table)|link[ _-]?address|allocate[ _-]?payload|remote[ _-]?(?:DPCD|I2C)|path[ _-]?resource|branch[ _-]?GUID|routing[ _-]?address|virtual[ _-]?channel)", "assessment": "Require DisplayPort attribution; Thunderbolt sideband/virtual channels are negative controls"},
+    {"id": "weak_topology", "pattern": "RAD|Rad|ACT(?![a-z])|(?i:branch|\\brad\\b|\\bact\\b)", "assessment": "Weak alone; disambiguate branches, radio, active/action and transport-independent topology"}
   ],
   "limits": ["No numeric hit alone proves a register access", "No literal alone proves a reachable M5 implementation", "No host-side negative proves firmware or hardware absence", "No retired selector transport may be reopened or executed"]
 }
