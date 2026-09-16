@@ -176,6 +176,54 @@ class RuntimeParserTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             runtime.parse_profiler(b'{"SPDisplaysDataType":NaN,"SPUSBDataType":[]}')
 
+    def test_unknown_display_location_does_not_remove_monitor_record(self):
+        profiler = runtime.parse_profiler(json.dumps({"SPDisplaysDataType": [{"spdisplays_ndrvs": [
+            {"_name": "Color LCD", "spdisplays_connection_type": "spdisplays_internal"},
+            {"_name": "VG248", "_spdisplays_display-vendor-id": "469", "_spdisplays_display-product-id": "24a5",
+             "spdisplays_online": "spdisplays_yes", "spdisplays_mirror": "spdisplays_off"}]}],
+            "SPUSBDataType": []}).encode())
+        tree = runtime.parse_registry_tree(b'+-o root <class IORegistryRoot, id 0x1>\n  +-o dcp <class AppleDCPExpert, id 0x2>\n')
+        value, _, _ = runtime.build_snapshot(tree, tree, {}, profiler, {"boot_before": 1, "boot_after": 1}, "connected", "on", {})
+        summary = value["summary"]
+        self.assertEqual((summary["display_record_count"], summary["builtin_display_count"],
+                          summary["external_display_count"], summary["unknown_display_location_count"]), (2, 1, 0, 1))
+        self.assertEqual(summary["expected_monitor_record_count"], 1)
+        self.assertIsNone(profiler["displays"][1]["builtin"])
+        self.assertEqual(value["source_semantics"], "NOT_ESTABLISHED_BY_PUBLIC_IDENTITIES")
+
+    def test_two_authentication_providers_same_unit_are_not_source_identities(self):
+        children = ("      +-o dcpdptx-hdcp-auth-session:0 <class AFKEndpointInterface, id 0x4>\n"
+                    "        +-o auth <class AppleDCPDPTXRemoteHDCPAuthSessionProxy, id 0x5>\n"
+                    "      +-o dcpdptx-hdcp-auth-session:0 <class AFKEndpointInterface, id 0x6>\n"
+                    "        +-o auth <class AppleDCPDPTXRemoteHDCPAuthSessionProxy, id 0x7>\n")
+        properties = {"AFKEndpointInterface": [{"entry_id": identity, "properties": runtime.select_properties({
+            "EPICName": "dcpdptx-hdcp-auth-session", "EPICUnit": 0, "EPICProviderClass": provider})}
+            for identity, provider in (("0x4", "AppleDCPDPTXHDCP1Controller"), ("0x6", "AppleDCPDPTXHDCP2Controller"))]}
+        connected = snapshot("on", children, properties)
+        result = runtime.diff_snapshots(snapshot("off", ""), connected)
+        self.assertEqual(runtime.graph_summary(connected["graph"])["class_counts"]["AppleDCPDPTXRemoteHDCPAuthSessionProxy"], 2)
+        self.assertTrue(all(not node["source_identity_established"] for node in connected["graph"]["objects"]))
+        self.assertTrue(all(node["stable_semantic_id"] is None for node in connected["graph"]["objects"]))
+        self.assertEqual(result["same_dptx_sources"], "PASSIVE_SAME_DPTX_SOURCE_EVIDENCE_NOT_ESTABLISHED")
+
+    def test_newly_retained_ancestor_is_excluded_from_relevant_cardinality(self):
+        children = ("      +-o bridge <class IOService, id 0x4>\n"
+                    "        +-o DCPDPDeviceProxy <class DCPDPDeviceProxy, id 0x5>\n")
+        connected = snapshot("on", children)
+        result = runtime.diff_snapshots(snapshot("off", ""), connected)
+        ancestor = next(node for node in connected["graph"]["objects"] if node["registry_entry_id"] == "0x4")
+        self.assertEqual(ancestor["scope"], "ancestor_context")
+        self.assertNotIn("IOService", {row["class"] for row in result["cardinality"]})
+        self.assertEqual(len([event for event in result["events"] if event["kinds"] == ["CREATED_ON_CONNECT"]]), 2)
+        self.assertIn("not proof of causation", result["causation_limit"])
+
+    def test_normalization_source_hash_mismatch_blocks_diff(self):
+        before, after = snapshot("off", DEVICE), snapshot("on", DEVICE)
+        before["tool_provenance"] = {"source_sha256": {"capture": "old"}}
+        after["tool_provenance"] = {"source_sha256": {"capture": "new"}}
+        with self.assertRaisesRegex(ValueError, "normalization code differs"):
+            runtime.diff_snapshots(before, after)
+
     def test_bool_and_integer_property_changes_are_distinct(self):
         properties = {"DCPDPDeviceProxy": [{"entry_id": "0x4", "properties": runtime.select_properties({"Tunneled": True})}]}
         before = snapshot("off", DEVICE, properties)

@@ -5,6 +5,35 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P3 Passive Runtime Differential
+
+[M5P3](m5-passive-runtime-topology.md) completes an owner-approved ordinary hub
+connection after the disconnected hard pause, using identical public-read
+capture code. **PASSIVE_RUNTIME_TOPOLOGY_PARTIAL**: preexisting controller/port
+units are distinguished from the new DCPEXT0/Unit 0 display-facing service
+tuple. **ONE_LOGICAL_SINK_ONLY** describes retained public visibility, not the
+number of physical panels or source streams. The new USB-C state reports two
+lanes, HBR3, non-tunneled transport and SinkCount 1.
+
+**EPIC_UNIT_TOPOLOGY_UNRESOLVED**, **MIRROR_RUNTIME_MODEL_UNRESOLVED** and
+**PASSIVE_SAME_DPTX_SOURCE_EVIDENCE_NOT_ESTABLISHED**. No selected physical-DPTX
+binding or independently justified source identity was recovered. The two new
+HDCP advertisements identify HDCP1/HDCP2 providers, both Unit 0, not two video
+sources. **VIRTUAL_DEVICE_RUNTIME_NOT_OBSERVED** is scoped to the retained
+registry/advertisement data; firmware/internal absence is not established.
+
+The next route is **TARGETED_PUBLIC_LOG_OBSERVATION_WARRANTED** for the specific
+new device/service-to-existing-port lifecycle. The report provides an exact
+predicate and bounded historical window for a future milestone; no log query,
+private observer or new physical stimulus is run now. Missing retained property
+values are not proof that all public telemetry is insufficient.
+
+**OFFLINE_OBSERVER_PIPELINE_READY**, **RETIRED_ON_DAILY_USE_M5** and
+**NOT_READY_FOR_DPCD_TEST** remain unchanged, as do the firmware freeze and
+platform/purchase gates. The hub is now owner-confirmed connected and mirrored;
+earlier no-connection guidance remains historical. No further settings, cable,
+lid or sleep changes are requested. Work remains local on the M5P3 branch.
+
 ## M5P2 Host Source And Control Path
 
 [M5P2](m5-host-stream-control.md) adds exact-build host evidence, not another

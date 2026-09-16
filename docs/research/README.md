@@ -224,6 +224,24 @@ and MST policy gate remain unresolved, not impossible. The 124 observer tests,
 CTest is 2/2. Schema v1 and the historical reports are unchanged. No display,
 private API, firmware, security or sibling-platform operation occurred.
 
+[M5P3](m5-passive-runtime-topology.md) completes the specifically authorized
+passive unplugged/connected-mirrored differential, honoring the user-confirmation
+pause before the second capture. Both 42-query captures use identical committed
+public-read code on 26.6.2/25G83. There are 22 new relevant records, including
+one external DP/AV device/service/video tuple under DCPEXT0, all advertised as
+Unit 0, while the preexisting controller/port Units 0 and 1 persist. One logical
+VG248 record and a two-lane HBR3, non-tunneled USB-C port state are exposed.
+
+**PASSIVE_RUNTIME_TOPOLOGY_PARTIAL** and
+**PASSIVE_SAME_DPTX_SOURCE_EVIDENCE_NOT_ESTABLISHED**. The EPIC-to-physical-owner
+and mirror runtime model remain unresolved; no virtual-device runtime object
+was observed in the retained scope. The selected next route is
+**TARGETED_PUBLIC_LOG_OBSERVATION_WARRANTED**, with an exact future predicate
+but no log collection now. The frozen observer pipeline and all private-call,
+daily-use and firmware gates remain. All 33 snapshot tests and the preserved
+offline suites pass; CTest is 3/3. Captures stay local and ignored, and the
+completed branch is local-only, with no push, merge or PR.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -275,6 +293,8 @@ private API, firmware, security or sibling-platform operation occurred.
   manual checklist and provenance-return path; no AI-generated m1n1 patch.
 - [M5P2 host stream control](m5-host-stream-control.md): exact host object/RPC
   evidence, virtual/mirror distinctions, physical binding gaps and runtime-observer outcome.
+- [M5P3 passive runtime topology](m5-passive-runtime-topology.md): validated
+  unplugged/connected pair, exact object/EPIC diff, visibility limits and future-log proposal.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
