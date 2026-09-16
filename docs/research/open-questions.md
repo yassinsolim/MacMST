@@ -5,6 +5,28 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P2 Host Source And Control Path
+
+[M5P2](m5-host-stream-control.md) adds exact-build host evidence, not another
+firmware packetizer pass. **HOST_STREAM_CONTROL_PATH_UNRESOLVED** and
+**RUNTIME_OBSERVER_STILL_REQUIRED**. Generic display records and host command
+paths exist, but the inspected factories, role enum, identity caches and port
+collections do not establish independent sources sharing one physical DPTX.
+An unsupported base RPC stub is overridden; an AUX-only guard is not an MST
+prohibition. Neither is a new architectural blocker.
+
+Preserve **VIRTUAL_DEVICE_ROLE_UNRESOLVED**, **MIRROR_SOURCE_MODEL_UNRESOLVED**,
+**HOST_MECHANISM_UNRESOLVED** and **MST_POLICY_GATE_UNRESOLVED**. Next qualifying
+evidence must bind independent source/timing identities and coexistence to the
+same physical owner. No source-creation candidate currently warrants a host
+control experiment or policy patch. Static API candidates are not safe-to-call
+contracts and do not authorize a future experiment.
+
+**OFFLINE_OBSERVER_PIPELINE_READY** remains, with schema v1 and all M5P1 data
+unchanged. **USB_C_HUB_CONNECTION_NOT_REQUIRED**: keep the hub and displays
+unplugged. The daily-use, DPCD, firmware-analysis, platform-readiness and purchase
+gates below are unchanged. No m1n1 sibling access occurred during M5P2.
+
 ## M5P1 Offline Pipeline
 
 **OFFLINE_OBSERVER_PIPELINE_READY**. The [M5P1 appendix](m5-observer-self-enable.md#m5p1-offline-observer-pipeline)

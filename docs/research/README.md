@@ -212,6 +212,18 @@ beyond status/HEAD/remotes verification. The [human-only handoff](m1n1-human-pla
 contains no platform patch. **M5_OBSERVER_CODE_NOT_READY_FOR_TARGET_TEST**,
 **SACRIFICIAL_M5_STILL_PREMATURE** and **USB_C_HUB_CONNECTION_NOT_REQUIRED** remain.
 
+[M5P2](m5-host-stream-control.md) investigates a newly authorized static host
+path above the frozen firmware boundary. Nineteen current 25G83 host images and
+57 captured functions distinguish service identity, link roles, virtual-device
+emulation, display records, concrete host RPC forwarding and physical-port
+allocation. **HOST_STREAM_CONTROL_PATH_UNRESOLVED** and
+**RUNTIME_OBSERVER_STILL_REQUIRED**: none proves independent sources sharing one
+physical DPTX. The virtual-device source role, mirror source model, mechanism
+and MST policy gate remain unresolved, not impossible. The 124 observer tests,
+12 new host tests, 24 selected host-parser tests and strict build pass; offline
+CTest is 2/2. Schema v1 and the historical reports are unchanged. No display,
+private API, firmware, security or sibling-platform operation occurred.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -261,6 +273,8 @@ contains no platform patch. **M5_OBSERVER_CODE_NOT_READY_FOR_TARGET_TEST**,
   record, validation, correlation, evidence, topology and bundle contracts.
 - [Human-only platform handoff](m1n1-human-platform-handoff.md): existing facts,
   manual checklist and provenance-return path; no AI-generated m1n1 patch.
+- [M5P2 host stream control](m5-host-stream-control.md): exact host object/RPC
+  evidence, virtual/mirror distinctions, physical binding gaps and runtime-observer outcome.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
