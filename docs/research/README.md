@@ -191,6 +191,16 @@ Purchase remains premature. Future reviews are bounded gate checks, not M4Q
 reruns or experiment approval. The resume-gates branch is documentation only
 and is not merged; no PR, technical investigation or hardware operation occurs.
 
+[M5P0](m5-observer-self-enable.md) records the owner's subsequent authorization
+of a separate compile/offline platform-development track. This supersedes the
+project-wide wait restriction, not the daily-use or firmware-analysis stops.
+Platform work is blocked by the pinned upstream repository's no-AI instruction,
+encountered before a build or source edit. The independent MacMST JSONL consumer
+and 21 synthetic tests are implemented; MacMST compiles and its offline CTest
+entry passes. No producer, platform patch series or qualified target-test path
+exists. **M5_OBSERVER_CODE_NOT_READY_FOR_TARGET_TEST** and
+**SACRIFICIAL_M5_STILL_PREMATURE**. No hardware operation occurred.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -234,6 +244,8 @@ and is not merged; no PR, technical investigation or hardware operation occurs.
   dependencies, portable tracer pieces, source-schema limits and upstream-wait decision.
 - [Upstream resume gates](m5-upstream-resume-gates.md): integrated observer-gap
   baseline, U1-U5, alternative complete routes, purchase gate and bounded recheck contract.
+- [M5P0 self-enablement](m5-observer-self-enable.md): changed strategy, upstream
+  policy blocker, proposed independent trace format and tested offline importer.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 

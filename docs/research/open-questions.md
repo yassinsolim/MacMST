@@ -5,6 +5,32 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P0 Separate Development Track
+
+The owner has explicitly authorized a separate M5 Observer Platform Enablement
+track. The historical project-wide upstream-wait decision below no longer
+prevents compile/offline development. It does not authorize target execution or
+reopen T8142 packetizer research.
+
+[M5P0's partial handoff](m5-observer-self-enable.md) records the current blocker:
+the separate official hv-sprr clone contains a tracked no-AI instruction. Work
+there stopped before building or editing. No B1 re-evaluation, platform selector
+patch, lossless producer or macmst/t8142-observer commit series is claimed.
+
+The independent [offline importer](../../tools/dcp_trace_import.py) validates
+the proposed JSONL format, preserves unknown fields, reports explicit loss and
+correlates only producer-declared request scopes. It never infers source
+ownership. Its 21 synthetic tests, Python compilation and hardware-disabled
+MacMST build pass. These do not substitute for platform or producer validation.
+
+**M5_OBSERVER_CODE_NOT_READY_FOR_TARGET_TEST**.
+**SACRIFICIAL_M5_STILL_PREMATURE**.
+Resolve the platform workflow blocker before claiming a built observer path;
+hardware possession is not the next missing prerequisite. All historical
+reports, safety markers, **RETIRED_ON_DAILY_USE_M5**, **NOT_READY_FOR_DPCD_TEST**,
+**STATIC_PACKETIZER_ANALYSIS_FROZEN** and
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED** remain intact.
+
 ## Upstream Wait And Resume Gates
 
 Current state: **MACMST_PROJECT_STATE_UPSTREAM_BLOCKED**.
