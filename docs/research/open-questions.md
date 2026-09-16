@@ -1,8 +1,95 @@
 # Open Questions And Next Experiment
 
 Statuses refer to [the evidence ledger](evidence-ledger.md). Feasibility of native
-MST on M5 remains unproved: **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
-**MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer expansion is stopped.
+MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
+**M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
+**MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
+
+## M4Q Observer Capability Gap
+
+[The infrastructure qualification](m5-observer-gap.md) starts directly from
+M4P `95f9f4300fd3e7aec417e8e727bd8cd57714fb98`, without a merge. Result:
+**M5_OBSERVER_REQUIRES_MAJOR_PLATFORM_ENABLEMENT** for the current public m1n1
+architecture, not a conclusion about M5 MST capability.
+
+**MACOS_GUEST_REQUIRED** is scoped to that existing passive tracer path, not
+every conceivable observer. Current source recognizes T8142 and includes tested
+bring-up groundwork; **ACTIVE_M5_ENABLEMENT** does not yet supply a qualified
+newer-XNU/SPTM guest. A concrete guest CPU-start selection omission is smaller
+than the unresolved platform/guest dependency and cannot fix it alone.
+
+**T8142_DCP_DISCOVERY_NEEDS_PLATFORM_DATA** and
+**DCP_TRACE_SCHEMA_EXTENSION_REQUIRED** identify target-mapping and raw-output
+work. **OWNERSHIP_SCHEMA_UNRESOLVED** remains independent of transport capture.
+**OBSERVER_VALIDATION_STIMULUS_UNRESOLVED** concerns full one-source attribution,
+not a requirement to create two streams; ordinary actions can exercise lower
+capture layers without proving multi-stream support.
+
+Overall **PLATFORM_ENABLEMENT_PROJECT**; **SACRIFICIAL_M5_PURCHASE_PREMATURE**.
+Wait for upstream M5 enablement rather than assigning the missing platform to
+MacMST. No M4R implementation plan, observer code or experiment is authorized.
+All frozen reports, **STATIC_PACKETIZER_ANALYSIS_FROZEN**,
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED**,
+**RETIRED_ON_DAILY_USE_M5** and **NOT_READY_FOR_DPCD_TEST** remain unchanged.
+The M2F marker stays consumed and the DPCD-read marker absent.
+
+## M4P Sacrificial Design Gate
+
+[The dynamic observation design](m5-sacrificial-dynamic-design.md) starts directly
+from completed M3E0, without merging that conclusion into main. Its primary
+result is **SACRIFICIAL_EXPERIMENT_REQUIRES_UNAVAILABLE_CAPABILITY**. This is a
+documentation/public-source assessment, not a dynamic experiment.
+
+**PUBLIC_TELEMETRY_INSUFFICIENT**; ordinary host timing/lifecycle traces do not
+identify firmware-internal membership. The existing m1n1 IPC tracer is useful
+prior art, but **PASSIVE_DCP_IPC_CAPTURE_REQUIRES_PLATFORM_WORK** and
+**M5_M1N1_DYNAMIC_PATH_PARTIAL**: explicit M5 recognition is not a supported
+J704AP/25G83 guest, a complete source/owner schema or bounded capture behavior.
+
+The design chooses **EXACT_M5_HARDWARE_REQUIRED** and
+**WIRE_ANALYZER_OPTIONAL_HIGH_VALUE**. **STIMULUS_REQUIREMENT_UNRESOLVED** means
+ordinary operation may not expose another source, not that one source proves an
+architectural maximum. M4P-IPC-OWNERSHIP-01 is the single blocked future
+architecture; no setup, tracing or private second-stream request is authorized.
+
+Reconsideration requires independently supplied M5 observer/platform support,
+same-physical-DPTX source semantics, an informative ordinary stimulus, bounded
+observer behavior, recovery readiness and separate approval. Missing capability
+does not reopen T8142 disassembly, packetizer/selector research or active control.
+**STATIC_PACKETIZER_ANALYSIS_FROZEN** and
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED** remain permanent.
+**RETIRED_ON_DAILY_USE_M5**, **NOT_READY_FOR_DPCD_TEST**, the consumed M2F marker
+and absent DPCD-read marker remain unchanged. No hardware observation or change
+was performed in M4P; the historical M3E0 recommendation below is not permission.
+
+## M3E0 Static Ceiling Handoff
+
+[The conclusion](m5-mst-static-conclusion.md) integrates completed M3D at
+`c5bc1b1bacd7742a4bbc1b54285336e9d51302a5`, permanently tagged
+`m5-mst-static-ceiling-v1.0`. It does not rerun M3D or authorize a new firmware
+investigation. Positive MST control and hardware-facing source packetizer
+findings remain established; local scalar device/timing/ID1 facts are not a
+global architectural limit.
+
+The frozen opacity is exactly:
+**Runtime source-controller membership of one physical T8142 DPTX register owner.**
+
+The [four evidence categories](m5-mst-static-conclusion.md#new-evidence-sources)
+are passive runtime, external protocol observation, sacrificial dynamic and
+future independent research. The bounded public check found no qualified
+passive discriminator. The single recommendation is
+**SACRIFICIAL_DYNAMIC_EXPERIMENT**, conceptually only, on a separate non-daily-use
+M5-applicable system after a concrete method and fresh risk approval. No future
+experiment is implemented or performed here; no fallback experiment on the
+current M5 is authorized. [Resume gates A-E](m5-mst-static-conclusion.md#implementation-resume-gate)
+are all unmet.
+
+**STATIC_PACKETIZER_ANALYSIS_FROZEN**.
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED**.
+Preserve the M3C baseline, **RETIRED_ON_DAILY_USE_M5** and
+**NOT_READY_FOR_DPCD_TEST**. M2F remains consumed and the DPCD-read marker absent.
+All earlier next-step proposals below remain historical, not instructions to
+resume static analysis, private calls or hardware experiments.
 
 ## M3D Final Ownership Decision
 

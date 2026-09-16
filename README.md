@@ -99,6 +99,10 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | MST control baseline | M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED; identified M5 firmware has MST codec/topology and payload controls. |
 | One-link MST packetizer | M5_DCP_MST_PACKETIZER_PRESENT_BUT_STREAM_BINDING_UNRESOLVED; concrete source slot-table and activation code found, but independent multi-stream binding and an architectural one-stream limit remain unproved. |
 | Final stream ownership | M5_DCP_STREAM_OWNERSHIP_UNRESOLVED; MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED. Static packetizer expansion stopped after M3D. |
+| Static feasibility ceiling | MACMST_STATIC_FEASIBILITY_INCONCLUSIVE; STATIC_PACKETIZER_ANALYSIS_FROZEN; NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED. |
+| Evidence handoff | SACRIFICIAL_DYNAMIC_EXPERIMENT recommended conceptually on a separately approved non-daily-use system; no experiment authorized or performed. Implementation resume gates A-E are unmet. |
+| Sacrificial design gate | [M4P](docs/research/m5-sacrificial-dynamic-design.md): SACRIFICIAL_EXPERIMENT_REQUIRES_UNAVAILABLE_CAPABILITY. No qualified M5 ownership observer or informative ordinary stimulus established; no experiment or security change performed. |
+| Observer development scope | [M4Q](docs/research/m5-observer-gap.md): M5_OBSERVER_REQUIRES_MAJOR_PLATFORM_ENABLEMENT for the current m1n1 path. Wait for upstream M5 guest/observation support; sacrificial purchase is premature. No implementation or experiment performed. |
 
 The owner-controlled connected/disconnected/reconnected test now associates the
 External **DCPEXT0 / Unit 0** DP/AV path with a **ZMUIPNG 14-in-1 hub** on the
@@ -228,7 +232,7 @@ The result is **M5_DCP_FIRMWARE_MST_CONTROL_EVIDENCE_FOUND_PACKETIZER_UNRESOLVED
 multiple independently timed streams on one DPTX link are not established.
 M3A's host negative is preserved; the firmware is not byte-identical to the
 selected M4 image, although the MST diagnostics and exact CRC leaves are shared.
-Next work is limited to packetizer ownership and stream-to-payload binding.
+M3B's then-next ownership question was examined in M3C/M3D and is now frozen.
 Selector 0 remains **RETIRED_ON_DAILY_USE_M5**; no private operation occurred.
 
 M3B is integrated at `c89bf66bac79893f4e6910e10d4a1126775edce7`, tagged
@@ -254,14 +258,28 @@ runtime source-controller membership of one physical T8142 DPTX register owner.
 discovery is proposed. M3C's packetizer baseline, selector retirement and DPCD
 gate remain unchanged; M3D performed zero hardware/private display operations.
 
+M3D is integrated at `c5bc1b1bacd7742a4bbc1b54285336e9d51302a5`, permanently
+tagged `m5-mst-static-ceiling-v1.0`. [M3E0's static conclusion and handoff](docs/research/m5-mst-static-conclusion.md)
+freezes **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE** without weakening the proven
+MST control/source packetizer or claiming a global single-stream limit.
+The frozen opacity is:
+**Runtime source-controller membership of one physical T8142 DPTX register owner.**
+The handoff compares exactly four new evidence sources
+and recommends only a separately risk-reviewed **SACRIFICIAL_DYNAMIC_EXPERIMENT**
+on a non-daily-use system. No experiment is implemented or executed; all
+[implementation resume gates](docs/research/m5-mst-static-conclusion.md#implementation-resume-gate)
+remain unmet. **STATIC_PACKETIZER_ANALYSIS_FROZEN** and
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED** apply.
+
 For a fresh clone, build the probe before optionally creating a public capture:
 
 ```sh
 python3 tools/capture_baseline.py --probe build/macmst
 ```
 
-The collector prints a new UTC-named directory. The current source-feasibility
-scan is independent of transport execution and requires a fresh output path:
+The collector prints a new UTC-named directory. The following source-feasibility
+commands are historical reproduction examples, not authorized next work after
+the static ceiling:
 
 ```sh
 python3 tools/scan_mst.py --inventory --output artifacts/probes/m3a-local/inventory.json
@@ -271,8 +289,8 @@ python3 tools/scan_mst.py --kernel-image com.apple.iokit.IODisplayPortFamily --o
 This parses local image files, requires a running-kernel UUID match and never
 invokes private IODP functions or updater code. See the
 [M3A reproduction and scope](docs/research/m5-mst-source-feasibility.md#tooling-provenance-and-reproduction).
-Earlier selector investigation commands and next-step proposals are historical,
-not instructions to resume that transport. The proposed
+Earlier static/selector investigation commands and next-step proposals are
+historical, not instructions to resume packetizer analysis or that transport. The proposed
 `macmst experimental dpcd-read` command is not implemented.
 
 Historical capture identities, hashes, binary UUIDs and preferred addresses in

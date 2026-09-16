@@ -144,6 +144,41 @@ host-control milestone is proposed. M3C's packetizer evidence is preserved;
 selector retirement, immutable markers and **NOT_READY_FOR_DPCD_TEST** remain.
 No hardware/private display operation occurred.
 
+M3D is integrated at `c5bc1b1bacd7742a4bbc1b54285336e9d51302a5`, permanently
+tagged `m5-mst-static-ceiling-v1.0`. [M3E0](m5-mst-static-conclusion.md) is the
+documentation-only handoff, not another reverse-engineering pass:
+**MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. The exact frozen opacity is
+**Runtime source-controller membership of one physical T8142 DPTX register owner.**
+Real MST control/source packetizer findings and all M3C/M3D classifications
+remain intact. No passive discriminator was identified in the bounded public
+check. The sole next-evidence recommendation is a separately approved
+**SACRIFICIAL_DYNAMIC_EXPERIMENT** on a non-daily-use system; none is executed.
+Implementation gates A-E remain unmet. **STATIC_PACKETIZER_ANALYSIS_FROZEN**;
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED**.
+Earlier research/reproduction commands below are historical, not a new work plan.
+
+[M4P](m5-sacrificial-dynamic-design.md) designs the conditional observation and
+keeps its gate closed: **SACRIFICIAL_EXPERIMENT_REQUIRES_UNAVAILABLE_CAPABILITY**.
+Public telemetry lacks qualified ownership data; m1n1 has T8142/M5 recognition
+but no pinned M5 macOS guest or validated same-DPTX IPC observer in the checked
+sources. Exact sacrificial Mac17,2 hardware is required by this design; ordinary
+stimulus sufficiency remains unresolved. One blocked future IPC architecture,
+five tiers, A-D success criteria and Apple Finder/DFU recovery are documented.
+No tracing, display transition, boot/security change or dynamic experiment was
+performed. The design branch starts directly from completed M3E0; neither
+conclusion nor design is merged into main. All static and daily-use stops remain.
+
+[M4Q](m5-observer-gap.md) qualifies observation infrastructure only:
+**M5_OBSERVER_REQUIRES_MAJOR_PLATFORM_ENABLEMENT** for the identified m1n1 path.
+Fresh pins confirm real T8142 bring-up and active M5 work, including a recent
+SPRR/GXF development branch, but not a qualified newer-XNU/SPTM macOS guest.
+The current tracer requires a controlled guest, target discovery data and a raw
+record extension; source-ownership semantics remain unresolved. Ordinary
+one-source validation is separate from proving multi-stream capability.
+Recommendation: wait for upstream M5 enablement; purchase is premature.
+No code, boot, trace, security change, display operation or new firmware analysis
+is performed. M4Q branches directly from M4P without merging it.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -179,6 +214,12 @@ No hardware/private display operation occurred.
   object layouts, hardware slot table, exact proof map and unresolved stream binding.
 - [M3D final stream ownership](m5-dcp-stream-ownership.md): controller creation,
   selected-device/timing ownership, eleven-row proof and static-expansion stop.
+- [M3E0 static conclusion](m5-mst-static-conclusion.md): permanent static ceiling,
+  four new evidence categories, one conditional recommendation and implementation gates.
+- [M4P sacrificial dynamic design](m5-sacrificial-dynamic-design.md): qualified
+  method/access limits, exact-target recovery, one blocked architecture and no-go gate.
+- [M4Q observer capability gap](m5-observer-gap.md): current platform/guest
+  dependencies, portable tracer pieces, source-schema limits and upstream-wait decision.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
