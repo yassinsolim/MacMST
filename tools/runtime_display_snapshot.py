@@ -189,7 +189,8 @@ def parse_registry_tree(raw):
                 "ancestry": [item[1]["entry_id"] for item in ancestors]}
         records.append(node)
         ancestors.append((depth, node))
-    if not records or not any(node["class"] == "IORegistryRoot" for node in records):
+    roots = [node for node in records if node["provider_id"] is None]
+    if len(roots) != 1 or roots[0]["class"] not in ("IORegistryRoot", "IORegistryEntry"):
         raise ValueError("IOService tree has no recognizable root")
     return records
 
@@ -218,7 +219,7 @@ def parse_registry_properties(raw):
 
 
 def safe_name(node):
-    if node["class"] == "IORegistryRoot":
+    if node["provider_id"] is None:
         return "IOServiceRoot", True
     if node.get("name_redacted"):
         return node["name"], True
@@ -268,13 +269,13 @@ def normalize_registry(tree, properties, generation, extra_ids=()):
                 if len(candidates) != 1:
                     redacted_path = True
                     continue
-                if candidates[0]["class"] == "IORegistryRoot":
+                if candidates[0]["provider_id"] is None:
                     continue
                 name, redacted = safe_name(candidates[0])
                 parts.append(name)
                 redacted_path |= redacted
             name, redacted = safe_name(occurrence)
-            if occurrence["class"] != "IORegistryRoot":
+            if occurrence["provider_id"] is not None:
                 parts.append(name)
                 redacted_path |= redacted
             paths.add("IOService:/" + "/".join(parts))

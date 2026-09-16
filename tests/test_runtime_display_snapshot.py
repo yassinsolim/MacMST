@@ -119,6 +119,15 @@ class RuntimeParserTests(unittest.TestCase):
         self.assertNotIn("Private Computer", json.dumps(graph))
         self.assertFalse(any(item["registry_entry_id"] == "0x8" for item in graph["objects"]))
 
+    def test_current_ioreg_entry_root_is_structural_and_name_is_omitted(self):
+        tree = runtime.parse_registry_tree(b'+-o PRIVATE NAME <class IORegistryEntry, id 0x100000100>\n  +-o dcp <class AppleDCPExpert, id 0x100000200>\n')
+        graph = runtime.normalize_registry(tree, {}, "off")
+        self.assertNotIn("PRIVATE NAME", json.dumps(graph))
+        root = next(item for item in graph["objects"] if item["provider_resolution"] == "ROOT")
+        self.assertEqual(root["name"], "IOServiceRoot")
+        self.assertEqual(root["registry_path"], "IOService:/")
+        self.assertEqual(graph["objects"][1]["registry_path"], "IOService:/dcp")
+
     def test_property_conflict_is_not_silently_overwritten(self):
         properties = {name: [{"entry_id": "0x4", "properties": runtime.select_properties({"Unit": unit})}]
                       for name, unit in (("first", 0), ("second", 1))}
