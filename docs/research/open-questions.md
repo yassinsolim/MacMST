@@ -5,6 +5,39 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## Upstream Wait And Resume Gates
+
+Current state: **MACMST_PROJECT_STATE_UPSTREAM_BLOCKED**.
+Observer state: **OBSERVER_WORK_REMAINS_BLOCKED**.
+This is a pause awaiting external capability, not an architectural failure verdict.
+
+The completed M3E0/M4P/M4Q chain is integrated at
+`7250caac7a9f627f381b91ab9dfeb86191344ed9`, tagged
+`m5-observer-platform-gap-v1.1`; the old static-ceiling tag remains unchanged.
+[The durable resume contract](m5-upstream-resume-gates.md) leaves U1-U5
+**WAITING**. A qualified M5 guest (U1) or alternative passive observer (U2) must
+lead to qualified transport (U3), source-owner identity (U4) and useful
+multiplicity stimulus/evidence (U5). One mechanism may cover several links;
+missing mandatory links cannot be waived. Ordinary one-source validation
+alone is not multiplicity evidence.
+
+**M5_OBSERVER_REQUIRES_MAJOR_PLATFORM_ENABLEMENT** and
+**PLATFORM_ENABLEMENT_PROJECT** remain scoped to the identified path.
+**SACRIFICIAL_M5_PURCHASE_PREMATURE** remains until a concrete path, an immediate
+physical-T8142 need and a bounded recovery plan exist. MacMST must not implement
+general M5/m1n1 platform enablement.
+
+The small future recheck returns **NO_RESUME_GATE_CHANGE** unless qualifying
+evidence changes an identified U gate. **RESUME_GATE_CHANGE_DETECTED** triggers
+reevaluation, not automatic implementation or hardware approval. No technical
+recheck is performed in this integration milestone; M4Q is not rerun.
+
+Preserve **RETIRED_ON_DAILY_USE_M5**, **NOT_READY_FOR_DPCD_TEST**,
+**STATIC_PACKETIZER_ANALYSIS_FROZEN** and
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED**. Historical reports
+and markers are unchanged. No new hardware observation, firmware analysis,
+tracer, build or display operation is performed. The resume branch is not merged.
+
 ## M4Q Observer Capability Gap
 
 [The infrastructure qualification](m5-observer-gap.md) starts directly from

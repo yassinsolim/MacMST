@@ -179,6 +179,18 @@ Recommendation: wait for upstream M5 enablement; purchase is premature.
 No code, boot, trace, security change, display operation or new firmware analysis
 is performed. M4Q branches directly from M4P without merging it.
 
+The completed M3E0/M4P/M4Q chain is now integrated into main by no-fast-forward
+merge `7250caac7a9f627f381b91ab9dfeb86191344ed9`, with a tree exactly equal to
+M4Q, and permanently tagged `m5-observer-platform-gap-v1.1`. Earlier unmerged
+statements above describe the pre-integration history. The separate
+[upstream resume gates](m5-upstream-resume-gates.md) record
+**MACMST_PROJECT_STATE_UPSTREAM_BLOCKED** and **OBSERVER_WORK_REMAINS_BLOCKED**.
+U1-U5 are **WAITING**; a complete selected route may use U1 or an alternative
+U2 environment, but must cover transport, ownership and useful stimulus/evidence.
+Purchase remains premature. Future reviews are bounded gate checks, not M4Q
+reruns or experiment approval. The resume-gates branch is documentation only
+and is not merged; no PR, technical investigation or hardware operation occurs.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -220,6 +232,8 @@ is performed. M4Q branches directly from M4P without merging it.
   method/access limits, exact-target recovery, one blocked architecture and no-go gate.
 - [M4Q observer capability gap](m5-observer-gap.md): current platform/guest
   dependencies, portable tracer pieces, source-schema limits and upstream-wait decision.
+- [Upstream resume gates](m5-upstream-resume-gates.md): integrated observer-gap
+  baseline, U1-U5, alternative complete routes, purchase gate and bounded recheck contract.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 

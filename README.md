@@ -103,6 +103,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | Evidence handoff | SACRIFICIAL_DYNAMIC_EXPERIMENT recommended conceptually on a separately approved non-daily-use system; no experiment authorized or performed. Implementation resume gates A-E are unmet. |
 | Sacrificial design gate | [M4P](docs/research/m5-sacrificial-dynamic-design.md): SACRIFICIAL_EXPERIMENT_REQUIRES_UNAVAILABLE_CAPABILITY. No qualified M5 ownership observer or informative ordinary stimulus established; no experiment or security change performed. |
 | Observer development scope | [M4Q](docs/research/m5-observer-gap.md): M5_OBSERVER_REQUIRES_MAJOR_PLATFORM_ENABLEMENT for the current m1n1 path. Wait for upstream M5 guest/observation support; sacrificial purchase is premature. No implementation or experiment performed. |
+| Upstream wait state | [Resume gates](docs/research/m5-upstream-resume-gates.md): MACMST_PROJECT_STATE_UPSTREAM_BLOCKED; OBSERVER_WORK_REMAINS_BLOCKED. U1-U5 WAITING; SACRIFICIAL_M5_PURCHASE_PREMATURE. Research chain integrated and tagged m5-observer-platform-gap-v1.1; no new technical investigation or experiment. |
 
 The owner-controlled connected/disconnected/reconnected test now associates the
 External **DCPEXT0 / Unit 0** DP/AV path with a **ZMUIPNG 14-in-1 hub** on the
