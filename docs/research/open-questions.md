@@ -5,6 +5,29 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P1 Offline Pipeline
+
+**OFFLINE_OBSERVER_PIPELINE_READY**. The [M5P1 appendix](m5-observer-self-enable.md#m5p1-offline-observer-pipeline)
+records the independent frozen schema, synthetic producer, replay harness,
+separate explicit correlation and conservative evidence/bundle analysis. All
+124 focused tests, the strict build and offline-only CTest pass. Golden and
+adversarial fixtures contain no real Apple data and produce zero real-evidence
+passes; synthetic gate tests do not change project feasibility.
+
+The [human-only platform handoff](m1n1-human-platform-handoff.md) describes the
+uncompleted platform work using existing M4Q/M5P0 facts only. No sibling source
+was inspected or changed, no new platform branch/build/patch was made and no
+AI agent was delegated that work. Human results must pass offline integrity
+checks and independent provenance review before being accepted as evidence.
+
+**M5_OBSERVER_CODE_NOT_READY_FOR_TARGET_TEST** and
+**SACRIFICIAL_M5_STILL_PREMATURE** remain unchanged.
+**USB_C_HUB_CONNECTION_NOT_REQUIRED**: keep the hub and displays unplugged.
+No live DCP, display, boot, debugger, DFU or security operation is authorized.
+Preserve **RETIRED_ON_DAILY_USE_M5**, **NOT_READY_FOR_DPCD_TEST**,
+**STATIC_PACKETIZER_ANALYSIS_FROZEN** and
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED**.
+
 ## M5P0 Separate Development Track
 
 The owner has explicitly authorized a separate M5 Observer Platform Enablement

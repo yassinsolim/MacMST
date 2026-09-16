@@ -311,3 +311,117 @@ display transition, partition change, 1TR/DFU entry, boot-policy command or
 security reduction was performed. The USB-C hub and two monitors are not needed
 for this offline work. Historical MacMST reports, branches/tags, the consumed
 M2F marker/receipts and absent M2G DPCD-read marker remain unchanged.
+
+## M5P1 Offline Observer Pipeline
+
+Completed 2026-09-16: **OFFLINE_OBSERVER_PIPELINE_READY**. This appended section
+updates current progress without rewriting the historical M5P0 proposal or its
+policy-blocked platform results above. The final display goal remains multiple
+independent external displays from the base M5 via ordinary USB-C/DisplayPort
+MST hubs/docks, without DisplayLink or special Thunderbolt multi-DP hardware.
+This milestone supplies offline analysis infrastructure, not that display
+functionality or a working live observer.
+
+### Baseline And Publication
+
+The exact M5P0 commits `5dfad2d6113d6b9a1138f57502750c6897e8bd16` and
+`3f2240de0d33126c8f264dcfa0e04e3e61397391` were audited as the expected two
+commits above `6edeb43700f0172f4a0bd5e4cbf9a13476deda5b`. The clean local-only
+`research/m5-observer-self-enable` branch was published to the owner's MacMST
+origin, preserving all 41 older published identities. M5P1's
+`research/m5-observer-pipeline` starts directly from the published
+`3f2240de0d33126c8f264dcfa0e04e3e61397391`.
+
+The sibling m1n1 clone received only the permitted status/HEAD/remotes check:
+clean, detached at `1c98fd09817cede0043d25c95fb540dbd683ef18`, upstream push
+disabled. No source reads, edits, branches, builds, patches, tree copying,
+subagent work or policy bypass were performed there. M4Q/M5P0 platform facts
+were referenced only through their existing MacMST records.
+
+### Delivered Components
+
+| Component | Result |
+| --- | --- |
+| [Frozen schema v1](dcp-observer-schema-v1.md) | Explicit capture/boot/lifetime, sequence/clock, producer, raw payload, completeness/loss and extension contract; no silent upgrade of earlier proposed records |
+| [Validation module](../../tools/dcp_trace_schema.py) | VALID / VALID_WITH_WARNINGS / INVALID with structured error codes, preserved unknown fields and bounded input |
+| [Synthetic producer](../../tools/dcp_trace_synthetic.py) | Deterministic artificial scenarios, safe new-file/bundle creation and explicit synthetic provenance; not Apple DCP emulation |
+| [Replay harness](../../tools/dcp_trace_replay.py) | Exact input order, full-input validation/correlation before typed filters, loss/incomplete-record retention and optional host delay disabled by default |
+| [Correlation module](../../tools/dcp_trace_correlation.py) | Explicit scoped pairs only; ambiguous/unavailable records never paired by timestamp or guessed identities |
+| [Evidence engine](../../tools/dcp_trace_evidence.py) | Normalized supplied assertions, raw-reference hashes, independent same-owner coexistence checks and conservative A-E evaluator |
+| [Bundle validator](../../tools/dcp_trace_bundle.py) | Self-contained hash-bound input, neutral topology, safe paths and external human-result format validation |
+| [Analyzer CLI](../../tools/dcp_trace_analyze.py) | Offline file/bundle analysis, human summaries and JSON; no live interface or automatic hardware approval |
+| [Golden corpus](../../tests/fixtures/dcp_trace/manifest.json) | 31 small synthetic fixtures in valid/warning/invalid/evidence categories with SHA-256 and fixed expected results |
+| [Human-only handoff](m1n1-human-platform-handoff.md) | Manual checklist and provenance-return process, with no AI-generated platform patch or instructions to ignore upstream policy |
+
+The implementation commits are:
+
+| Commit | Logical Change |
+| --- | --- |
+| `b2664dcf4baf0e736e5a4cbc5c55e44dea4d870f` | tools: formalize DCP observer schema and replay |
+| `729e85132d72094476edd9a63496a017c19461dc` | analysis: add conservative DCP ownership evidence engine |
+| `985bb7a3b30f5ddb3125dd9a077b2dc8ac1e5a17` | tests: add adversarial observer evidence corpus |
+
+The documentation/handoff follows as a separate commit. All patches are
+MacMST-owned and independent of the prohibited platform source. Publish the
+M5P1 branch only after validation, without merging or creating a PR.
+
+### Evidence Limits
+
+All corpus inputs and positive gate examples are synthetic. All five logic
+gates A-E are exercised as **SYNTHETIC_GATE_TEST_PASS**, with **zero
+REAL_EVIDENCE_GATE_PASS results** and no actual project gate promotion.
+Endpoint, service, port and payload identifiers are not source identities.
+Sequential observations, duplicate replay, one recreated source, different
+DPTX owners/EXT0-EXT1, capture loss, incomplete replies and inferred confidence
+cannot establish multi-stream evidence.
+
+Supplied observed labels do not authenticate a capture. A future real-evidence
+pass requires an explicitly selected, hash-bound human provenance review of
+the qualifying assertions; hashes alone do not verify human identity or
+semantic truth. Human platform-result imports likewise remain external facts
+pending independent provenance review. No human platform implementation or real
+capture was supplied in M5P1, and no analysis result authorizes execution.
+
+### Verification
+
+All **124 focused tests** pass in Python development mode with warnings as
+errors. They cover parser/schema, synthetic generation, replay/correlation,
+annotations, A-E logic, adversarial cases, bundle/human-result validation,
+neutral topology, CLI help/machine outputs, fixture hashes and round-trips.
+The maximum 1 MiB payload is generated during tests rather than stored as a
+large fixture. Golden expectations cover all required misleading cases.
+
+```sh
+python3 -X dev -W error -m unittest discover -s tests -p 'test_dcp_trace*.py'
+python3 -m py_compile tools/dcp_trace_*.py tests/test_dcp_trace*.py
+cmake -S . -B build-m5p1-offline -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMACMST_ENABLE_HARDWARE_TESTS=OFF -DMACMST_ENABLE_DPDV_OPEN_EXPERIMENT=OFF
+cmake --build build-m5p1-offline
+ctest --test-dir build-m5p1-offline -L offline --output-on-failure
+```
+
+Python compilation passed. The strict AppleClang 21/CMake 4.4.1/Ninja Debug
+build completed all 16 actions without warnings; no produced native executable
+was run. The offline CTest entry passed 1/1 and runs only the focused Python
+suite. No hardware, old firmware-scanner or private-helper tests ran. Optional
+replay pacing is tested with a mock, not actual delays.
+
+Golden manifest SHA-256:
+`52d9a04fabc5d192c494e098720399f4cb144da0fe70c1e8422856a723bb8b8a`.
+Unexecuted build-m5p1-offline/macmst SHA-256:
+`d0e2a7fbe400d42066b989f359d96977798b20dc64a4f40482528214805eab29`.
+Compilation, hashes and synthetic passes do not demonstrate M5 functionality.
+
+### Unchanged Target State
+
+`M5_OBSERVER_CODE_NOT_READY_FOR_TARGET_TEST`.
+`SACRIFICIAL_M5_STILL_PREMATURE`.
+`USB_C_HUB_CONNECTION_NOT_REQUIRED`.
+
+The hub/displays must stay unplugged throughout M5P1; no connection was
+requested. Preserve `RETIRED_ON_DAILY_USE_M5`, `NOT_READY_FOR_DPCD_TEST`,
+`STATIC_PACKETIZER_ANALYSIS_FROZEN` and
+`NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED`. No live DCP,
+IOKit, guest, debugger, boot/DFU, security, display or platform-source operation
+is part of the offline pipeline. All pre-M5P0 historical reports remain
+byte-preserved; the M5P0 report above is an unchanged prefix with this explicitly
+requested progress appendix. Existing ledger rows and safety markers are retained.
