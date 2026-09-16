@@ -1,6 +1,5 @@
 import contextlib
 import copy
-import importlib.util
 import io
 import json
 import pathlib
@@ -9,19 +8,19 @@ import unittest
 from unittest import mock
 
 
-SOURCE = pathlib.Path(__file__).resolve().parents[1] / "tools" / "dcp_trace_import.py"
-SPEC = importlib.util.spec_from_file_location("dcp_trace_import", SOURCE)
-trace = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(trace)
+from tools import dcp_trace_import as trace
 
 
 def record(index=0, kind="event", payload=b"\x00\xff", **changes):
-    value = {"schema_version": 1, "capture_generation": "synthetic-generation",
-             "record_index": index, "timestamp_ns": 1000 + index, "kind": kind,
+    value = {"schema_version": 1, "capture_id": "synthetic-capture", "capture_generation": "synthetic-generation",
+             "boot_generation": "boot-0", "lifetime_generation": "lifetime-0", "sequence": index,
+             "record_index": index, "timestamp_ns": 1000 + index, "timestamp_units": "ns", "clock": "monotonic", "kind": kind,
              "direction": "dcp_to_host" if kind == "reply" else "host_to_dcp",
              "asc": "synthetic-asc", "endpoint": 42, "channel": 7,
              "service": "synthetic-service", "opcode": 99, "request_id": None,
-             "payload_length": len(payload), "raw_payload": payload.hex(),
+             "payload_length": len(payload), "declared_payload_length": len(payload), "raw_payload": payload.hex(),
+             "record_complete": True, "truncated": False,
+             "producer": {"name": "synthetic-test", "version": "1", "commit": "UNKNOWN", "synthetic": True},
              "loss_state": {"status": "none", "dropped_records": 0, "detail": None}}
     value.update(changes)
     return value
@@ -75,7 +74,7 @@ class TraceSchemaTests(unittest.TestCase):
     def test_truncation_must_be_explicit_and_length_bound(self):
         with self.assertRaises(trace.TraceFormatError):
             trace.validate_record(record(declared_payload_length=10))
-        partial = record(declared_payload_length=10,
+        partial = record(declared_payload_length=10, record_complete=False, truncated=True,
                          loss_state={"status": "truncated", "dropped_records": None, "detail": "synthetic truncation"})
         summary = trace.summarize([partial])
         self.assertFalse(summary["record_coverage_complete"])
@@ -150,7 +149,7 @@ class TraceSchemaTests(unittest.TestCase):
 
     def test_missing_annotations_remain_unknown(self):
         self.assertEqual(trace.annotations_for(record()), {name: "UNKNOWN" for name in trace.ANNOTATION_FIELDS})
-        annotated = record(annotations={"physical_dptx": "synthetic-only", "confidence": "UNVERIFIED",
+        annotated = record(annotations={"physical_dptx": "synthetic-only", "confidence": "HYPOTHESIS",
                                        "evidence": ["synthetic fixture"], "future": 5})
         summary = trace.summarize([annotated])
         self.assertEqual(summary["annotation_records"], 1)
