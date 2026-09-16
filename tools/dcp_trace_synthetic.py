@@ -4,6 +4,7 @@
 import argparse
 import copy
 import hashlib
+import json
 import pathlib
 import sys
 
@@ -208,22 +209,68 @@ def write_bundle(root, name):
     (root / "analysis").mkdir()
 
 
+def corpus_cases():
+    invalid = {"malformed": "PAYLOAD_LENGTH_MISMATCH", "duplicate_packet": "DUPLICATE_SEQUENCE",
+               "malformed_json": "MALFORMED_JSON"}
+    warnings = {"raw_body", "wrap_loss", "dropped", "truncated", "incomplete_reply", "inferred_sources", "loss_between_sources"}
+    positive = {"two_sources": "A", "two_timings": "B", "two_bindings": "C", "api_space": "D", "wire_vcs": "E"}
+    evidence_cases = {"unrelated_dptx", "two_sources", "endpoint_is_source", "two_timings", "two_bindings", "api_space", "wire_vcs",
+                      "endpoints_one_source", "recreated_source", "sequential_timings", "payload_changed", "loss_between_sources",
+                      "inferred_sources", "ext0_ext1", "duplicate_event"}
+    result = {}
+    for name in sorted((set(SCENARIOS) - {"maximum_body"}) | {"malformed_json"}):
+        category = "invalid" if name in invalid else "evidence" if name in evidence_cases else "warning" if name in warnings else "valid"
+        result[category + "/" + name + ".jsonl"] = {
+            "scenario": name, "validation": "INVALID" if name in invalid else "VALID_WITH_WARNINGS" if name in warnings else "VALID",
+            "error_code": invalid.get(name), "synthetic_gate_passes": [positive[name]] if name in positive else [],
+            "real_evidence_passes": 0, "matched_pairs": 1 if name == "request_reply" else 0,
+        }
+    return result
+
+
+def corpus_content(name):
+    if name == "malformed_json":
+        return encode_scenario("one_service") + '{"synthetic":true,"malformed":\n'
+    return encode_scenario(name)
+
+
+def write_corpus(root):
+    root = pathlib.Path(root)
+    root.mkdir(parents=True, exist_ok=False)
+    manifest = {"corpus_version": 1, "schema_version": 1, "synthetic": True,
+                "notice": "Only artificial transport/evidence tests; no Apple trace data or real gate passes.", "files": {}}
+    for relative, expected in corpus_cases().items():
+        content = corpus_content(expected["scenario"]).encode("utf-8")
+        path = root / relative
+        path.parent.mkdir(exist_ok=True)
+        with path.open("xb") as destination:
+            destination.write(content)
+        manifest["files"][relative] = dict(expected, sha256=hashlib.sha256(content).hexdigest(), bytes=len(content))
+    with (root / "manifest.json").open("x", encoding="utf-8") as destination:
+        json.dump(manifest, destination, sort_keys=True, indent=2)
+        destination.write("\n")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("scenario", choices=SCENARIOS)
+    parser.add_argument("scenario", nargs="?", choices=SCENARIOS)
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--output", type=pathlib.Path, help="create a new synthetic JSONL file; never overwrite")
     output.add_argument("--bundle", type=pathlib.Path, help="create a new self-contained synthetic bundle directory")
+    output.add_argument("--write-corpus", type=pathlib.Path, help="create a new golden synthetic corpus; never overwrite")
     arguments = parser.parse_args(argv)
-    content = encode_scenario(arguments.scenario)
+    if (arguments.scenario is None) != (arguments.write_corpus is not None):
+        parser.error("supply a scenario, or --write-corpus without a scenario")
     try:
-        if arguments.bundle:
+        if arguments.write_corpus:
+            write_corpus(arguments.write_corpus)
+        elif arguments.bundle:
             write_bundle(arguments.bundle, arguments.scenario)
         elif arguments.output:
             with arguments.output.open("x", encoding="utf-8") as destination:
-                destination.write(content)
+                destination.write(encode_scenario(arguments.scenario))
         else:
-            sys.stdout.write(content)
+            sys.stdout.write(encode_scenario(arguments.scenario))
     except (OSError, schema.TraceFormatError) as error:
         parser.error(str(error))
     return 0

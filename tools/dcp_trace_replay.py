@@ -19,8 +19,13 @@ def select_records(records, filters):
     unknown = set(filters) - {"endpoint", "channel", "service", "opcode"}
     if unknown:
         raise schema.TraceFormatError("unsupported replay filter", "INVALID_FILTER")
-    return [record for record in records if record["kind"] == "loss" or
-            all(type(record[name]) is type(value) and record[name] == value for name, value in filters.items())]
+    selected = []
+    for record in records:
+        has_loss = record["kind"] == "loss" or not record["record_complete"] or record["loss_state"]["status"] != "none"
+        matches = all(type(record[name]) is type(value) and record[name] == value for name, value in filters.items())
+        if has_loss or matches:
+            selected.append(record)
+    return selected
 
 
 def replay(path, filters=None, realtime=False, speed=1.0, delay=None):

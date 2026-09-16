@@ -181,6 +181,14 @@ class SyntheticReplayTests(unittest.TestCase):
         with self.assertRaises(schema.TraceFormatError):
             replay.replay(self.write("malformed"), {"endpoint": 255})
 
+    def test_filter_retains_loss_attached_to_normal_reply_or_event(self):
+        for scenario in ("truncated", "incomplete_reply"):
+            with self.subTest(scenario=scenario):
+                selected, summary = replay.replay(self.write(scenario), {"endpoint": 255})
+                self.assertEqual(len(selected), 1)
+                self.assertFalse(selected[0]["record_complete"])
+                self.assertFalse(summary["record_coverage_complete"])
+
     def test_filters_preserve_identifier_types(self):
         path = self.write("request_reply")
         self.assertEqual(len(replay.replay(path, {"opcode": 99})[0]), 2)
