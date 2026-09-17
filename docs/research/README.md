@@ -259,6 +259,25 @@ passive measurement plan, not execution. No live stream or physical change
 occurs in M5P4; the hub remains connected. All four offline CTests pass (200
 tests, including 31 new log tests). M5P4 itself remains local-only.
 
+[M5P5](m5-dp-observation-plan.md) publishes the exact M5P4 branch at
+`db517239b496168b05490a6c3d71af1f88329382`, superseding its historical local-only
+status above, with no merge, PR or tag changes. This milestone is research/design
+only. **AUX_CAPTURE_CAN_RESOLVE_NEXT_GATE** for complete upstream branch topology,
+per-port EDID/DPCD and payload-control evidence. Actual simultaneous VC/video
+traffic requires a later main-link observation; AUX ACT status is receiver
+reporting, not captured ACT packets or source ownership.
+
+**UPSTREAM_USB_C_DP_PATH_MUST_BE_OBSERVED** for the current hub.
+**NATIVE_DP_MST_LAB_TOPOLOGY_VALID** is a controlled M5-source contrast, not an
+explanation of the ZMUIPNG counts. Dedicated DPA-400 2.1 and Ellisys Std DP
+routes warrant temporary AUX-access qualification, but prices, raw-export/loss
+behavior and the exact cable/electrical assembly still need acceptance.
+**PURCHASE_NOT_YET_JUSTIFIED**; no practical low-cost AUX package was established.
+The independent wire-schema design does not modify the frozen DCP pipeline.
+All 200 existing offline tests pass; 13 source/document hashes and 19 report
+sections validate. No electrical capture, query, physical change or purchase
+occurred. **KEEP_CURRENT_HUB_CONNECTED**; all safety/firmware boundaries remain.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -314,6 +333,8 @@ tests, including 31 new log tests). M5P4 itself remains local-only.
   unplugged/connected pair, exact object/EPIC diff, visibility limits and future-log proposal.
 - [M5P4 public log correlation](m5-public-log-correlation.md): exact historical
   predicate/window, retained lifecycle sequence, count/identity limits and passive wire-planning route.
+- [M5P5 external observation plan](m5-dp-observation-plan.md): AUX versus main-link
+  gates, upstream USB-C/native-DP controls, manufacturer evidence, wire schema and access/purchase decision.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 

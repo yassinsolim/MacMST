@@ -5,6 +5,38 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P5 External Observation Plan
+
+[M5P5](m5-dp-observation-plan.md) publishes M5P4 unchanged and separates the next
+control gate from eventual packetization/ownership proof.
+**AUX_CAPTURE_CAN_RESOLVE_NEXT_GATE**: complete passive upstream traffic can
+show MST enable control, branch-presented output paths, per-path EDID/DPCD,
+accepted VCPI/PBN and payload-table/ACT-status progress. It cannot show actual
+video packets, independent pixel streams or private M5 source bindings. Missing
+traffic is inconclusive without a known generation, complete capture and
+explicit caching/loss limits.
+
+The current-hub question requires **UPSTREAM_USB_C_DP_PATH_MUST_BE_OBSERVED**;
+downstream monitor HDMI/DP analysis is not an upstream branch trace. A native-DP
+MST branch is a valid future M5-source contrast with adapter, lanes/USB3,
+rate/coding, DSC, chipset and conversion controlled. It cannot retroactively
+resolve the historical log `newCount=2` versus public `SinkCount=1` namespace.
+
+Next planning decision: **AUX_ANALYZER_ACQUISITION_WARRANTED**, specifically
+qualify temporary DPA-400 2.1/official USB-C cable or Ellisys `CTR1-A-STD-DP`
+access through a manufacturer demonstration or a staffed lab. Open gates:
+exact connector fit, nonparticipating PD/HPD/AUX behavior, HBR3 transparency,
+burst/loss reporting, raw exports and actual access terms. No sample capture,
+loan booking or vendor contact occurred. Full-link acquisition waits for Q5;
+**PURCHASE_NOT_YET_JUSTIFIED** and **NO_PRACTICAL_LOW_COST_AUX_PATH_IDENTIFIED**.
+
+**KEEP_CURRENT_HUB_CONNECTED**. W0 design only, independent wire schema proposed,
+200 existing offline tests passing and no new real-evidence ownership gate.
+Preserve **RETIRED_ON_DAILY_USE_M5**, **NOT_READY_FOR_DPCD_TEST**, the firmware
+freeze, m1n1 policy boundary and **OFFLINE_OBSERVER_PIPELINE_READY**. No capture,
+new runtime query, mode change, reconnect or electrical/physical action is
+authorized by this planning recommendation.
+
 ## M5P4 Historical Public Log Correlation
 
 [M5P4](m5-public-log-correlation.md) completes the targeted historical pass,

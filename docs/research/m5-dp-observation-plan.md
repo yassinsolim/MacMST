@@ -661,3 +661,31 @@ freeze, m1n1 policy boundary, and immutable safety markers remain in force.
 No sibling m1n1 access, private API call, native probe execution, electrical
 capture, new log query or public topology query occurred in M5P5. There are
 zero new real wire traces and zero new hardware-evidence gate passes.
+
+### Verification
+
+On 2026-09-17, the existing hardware-disabled build and all four offline CTests
+passed: 124 observer, 12 host-receipt, 33 topology and 31 public-log tests,
+200 existing tests total. No native display executable or firmware test ran.
+
+```sh
+cmake --build build-m5p4-offline
+ctest --test-dir build-m5p4-offline -L offline --output-on-failure
+```
+
+Focused document checks validated the exact 19 required sections, unique result
+classifications, local links, all 13 downloaded-file SHA-256 receipts, the
+12 sideband opcodes against the pinned header, and the five prospective A-E
+rows. The preserved M5P3 capture validator passes both states; differential,
+M5P4 historical/review hashes and 477 records match the completed baseline.
+All prior tracked files were unchanged at the first M5P5 report commit, and
+the 46 published identities after M5P4 publication remained unchanged.
+The consumed M2F marker and two receipts match their recorded hashes;
+`M2G-DPCD-READ-ATTEMPTED` remains absent.
+
+No new importer, protocol parser, electrical receiver or machine-executed wire
+schema validator was implemented. The schema, scenario rules and acceptance
+fixtures are designs for a later offline implementation with real vendor
+exports. Compilation and existing synthetic tests establish preservation, not
+instrument safety, current wire behavior, M5 MST functionality or readiness for
+a hardware experiment. Manufacturer and access gaps above remain unverified.
