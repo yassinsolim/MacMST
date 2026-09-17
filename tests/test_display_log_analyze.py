@@ -203,6 +203,37 @@ class DisplayLogTests(unittest.TestCase):
         self.assertNotIn("private-guid", str(result))
         self.assertEqual(result["summary"]["second_downstream"], "SECOND_DOWNSTREAM_LOG_EVIDENCE_UNRESOLVED")
 
+    def test_aggregate_sink_count_is_not_two_identified_entities(self):
+        values = logs.analyze_records([record("AppleDCPDP2HDMI::handleSinkCountChanged oldCount=0 newCount=2 add=1 remove=0")])["normalized_records"]
+        result = logs.method_observations(values, {"graph": {"objects": []}})
+        self.assertEqual(result["observations"][0]["fields"], {"oldCount": 0, "newCount": 2, "add": 1, "remove": 0})
+        self.assertFalse(result["second_entity_distinct_identity_proved"])
+        self.assertFalse(result["same_dptx_multi_source_established"])
+
+    def test_method_link_role_and_zero_extra_pipes_do_not_imply_policy(self):
+        values = logs.analyze_records([record("AppleDCPDP2HDMI::startLinkGated type=Video source=Upstream"),
+                                      record("AppleDCPDP2HDMI::enumerateElements _current.displayAllocation: extraPipes=0, mainUFP=0, peerUFP=0")])["normalized_records"]
+        result = logs.method_observations(values, {"graph": {"objects": []}})
+        self.assertEqual(result["observations"][0]["fields"]["link_role"], "Upstream")
+        self.assertEqual(result["observations"][1]["fields"]["extraPipes"], 0)
+        self.assertTrue(all(not item["source_identity_proved"] for item in result["observations"]))
+        self.assertFalse(any(item["classification"]["mst_policy_decision"] for item in values))
+
+    def test_opaque_log_token_remains_distinct_from_registry_id(self):
+        values = logs.analyze_records([record("DCPDPDeviceProxy<0x100>::handleMessage Processed ForwardMessage<0>")])["normalized_records"]
+        result = logs.method_observations(values, {"graph": {"objects": [{"registry_entry_id": "0x100", "class": "DCPDPDeviceProxy"}]}})
+        candidate = result["opaque_token_correspondence_candidates"][0]
+        self.assertEqual(candidate["same_spelling_same_class_registry_id"], "0x100")
+        self.assertFalse(candidate["namespace_equivalence_verified"])
+        self.assertEqual(candidate["confidence"], "INFERRED_LOG")
+
+    def test_sender_metadata_omission_is_not_message_redaction(self):
+        values = logs.analyze_records([record("AppleDCPDP2HDMI::copyEDID _virtualEDIDMode=0", senderImagePath="unqualified-sender")])["normalized_records"]
+        result = logs.method_observations(values, {"graph": {"objects": []}})
+        self.assertEqual(result["message_redacted_count"], 0)
+        self.assertEqual(result["metadata_omission_count"], 1)
+        self.assertEqual(result["observations"][0]["fields"]["virtual_edid_mode_raw"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

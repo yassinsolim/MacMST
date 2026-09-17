@@ -62,6 +62,7 @@ SOURCE_CREATED = re.compile(rf"\bcreated\s+source\s+(?:stream\s+|context\s+)?(?:
 SECOND_ENTITY = re.compile(
     r"\b(?:discovered|detected|ignored|discarded|enumerated)\s+(?:a\s+|the\s+)?(?:second|another)\s+downstream\s+(?:sink|device|port)\b|"
     r"\bsecond\s+downstream\s+(?:sink|device|port)\s+(?:was\s+)?(?:discovered|detected|ignored|discarded|enumerated)\b", re.I)
+METHOD = re.compile(r"\b(" + "|".join(TERMS) + r")(?:<(0x[0-9a-fA-F]+)>)?::([A-Za-z0-9_]+)")
 
 
 def digest(raw):
@@ -283,6 +284,113 @@ def correlate(records, snapshot):
     return correlations
 
 
+def method_observations(records, snapshot):
+    by_id = {node["registry_entry_id"]: node for node in snapshot["graph"]["objects"]}
+    groups = collections.defaultdict(list)
+    tokens = collections.defaultdict(list)
+    observations = []
+    for record in records:
+        message = record["message"]
+        method = METHOD.search(message)
+        if method is None:
+            continue
+        class_name, token, method_name = method.groups()
+        groups[(class_name, method_name)].append(record["input_index"])
+        if token:
+            tokens[(class_name, token)].append(record["input_index"])
+        fields = {}
+        kind = None
+        if method_name == "handleSinkCountChanged":
+            match = re.search(r"\boldCount=(\d+) newCount=(\d+) add=(\d+) remove=(\d+)\b", message)
+            if match:
+                fields = dict(zip(("oldCount", "newCount", "add", "remove"), map(int, match.groups())))
+                kind = "REPORTED_AGGREGATE_SINK_COUNT_CHANGE"
+        elif "_current.displayAllocation:" in message:
+            match = re.search(r"\bextraPipes=(\d+), mainUFP=(\d+), peerUFP=(\d+)\b", message)
+            if match:
+                fields = dict(zip(("extraPipes", "mainUFP", "peerUFP"), map(int, match.groups())))
+                kind = "REPORTED_ALLOCATION_VALUES_NOT_POLICY"
+        elif method_name in ("connectTo", "validateConnection"):
+            match = re.search(r"\b(die\d+::dispext\d+::core\d+) -> (die\d+::atc\d+::dpphy)\b", message)
+            if match:
+                fields = {"upstream_route_label": match[1], "downstream_route_label": match[2]}
+                kind = "REPORTED_ROUTE_LABELS_NOT_PHYSICAL_OWNER_PROOF"
+        elif method_name in ("prepareLinkGated", "startLinkGated"):
+            match = re.search(r"\btype=(Video|Audio) source=([A-Za-z]+)\b", message)
+            if match:
+                fields = {"link_type": match[1], "link_role": match[2]}
+                kind = "REPORTED_LINK_ROLE_NOT_SOURCE_ID"
+        elif method_name == "handleAddInterfaces":
+            match = re.search(r"\b(videoInterface|audioInterface)=(0x[0-9a-fA-F]+)\b", message)
+            if match:
+                fields = {"interface_kind": match[1], "interface_token": match[2]}
+                kind = "REPORTED_INTERFACE_TOKEN_NOT_SOURCE_ID"
+        elif method_name == "copyEDID":
+            match = re.search(r"\b_virtualEDIDMode=(\d+)\b", message)
+            if match:
+                fields = {"virtual_edid_mode_raw": int(match[1])}
+                kind = "REPORTED_EDID_MODE_NOT_VIRTUAL_DEVICE_INSTANCE"
+        if kind:
+            observations.append({"input_index": record["input_index"], "timestamp_raw": record["timestamp_raw"],
+                                 "class_label": class_name, "method_label": method_name, "observation": kind,
+                                 "fields": fields, "confidence": "VERIFIED_LOG", "message": message,
+                                 "raw_filtered_sha256": record["raw_filtered_sha256"], "source_identity_proved": False})
+    token_candidates = []
+    for (class_name, token), indices in sorted(tokens.items()):
+        node = by_id.get(token)
+        class_match = node is not None and node["class"] == class_name
+        token_candidates.append({"class_label": class_name, "opaque_log_object_token": token, "record_indices": indices,
+                                 "same_spelling_same_class_registry_id": token if class_match else None,
+                                 "confidence": "INFERRED_LOG" if class_match else "UNKNOWN",
+                                 "namespace_equivalence_verified": False,
+                                 "limit": "Repeated explicit log token relates log records; matching registry hex/class is a candidate, not a verified identifier namespace"})
+    return {"method_groups": [{"class_label": key[0], "method_label": key[1], "record_indices": indices}
+                              for key, indices in sorted(groups.items())],
+            "observations": observations, "opaque_token_correspondence_candidates": token_candidates,
+            "message_redacted_count": sum(bool(PRIVATE.search(record["message"])) for record in records),
+            "metadata_omission_count": sum("NON_SYSTEM_SENDER_PATH_OMITTED" in record["privacy_notes"] for record in records),
+            "second_entity_distinct_identity_proved": False, "same_dptx_multi_source_established": False,
+            "scope": "Exact field extraction from retained messages only; does not override immutable acquisition classifications"}
+
+
+def review_historical():
+    root = REPOSITORY / "artifacts/runtime/m5p4/historical"
+    expected_files = {"raw-filtered.ndjson", "normalized.json", "analysis.json", "correlations.json", "manifest.json", "hashes.json"}
+    if root.is_symlink() or {path.name for path in root.iterdir()} != expected_files:
+        raise ValueError("Historical evidence file set differs")
+    raw_files = {}
+    for name in expected_files:
+        path = root / name
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 8 * MAX_INPUT_BYTES:
+            raise ValueError("Invalid historical evidence file")
+        raw_files[name] = path.read_bytes()
+    hashes = json.loads(raw_files["hashes.json"])
+    if set(hashes) != expected_files - {"hashes.json"} or any(digest(raw_files[name]) != value for name, value in hashes.items()):
+        raise ValueError("Historical evidence hash mismatch")
+    manifest = json.loads(raw_files["manifest.json"])
+    if manifest["predicate"] != PREDICATE or manifest["command"]["argv"] != historical_command() or not manifest["query_complete"]:
+        raise ValueError("Historical scope or completeness differs")
+    baseline = m5p3_inputs()
+    if baseline != manifest["baseline"]:
+        raise ValueError("M5P3 input provenance changed")
+    filtered = parse_ndjson(raw_files["raw-filtered.ndjson"])
+    normalized = json.loads(raw_files["normalized.json"])
+    if len(filtered) != len(normalized):
+        raise ValueError("Historical raw/normalized count differs")
+    for raw, record in zip(filtered, normalized):
+        if raw["eventMessage"] != record["message"] or digest(json_bytes(raw)) != record["raw_filtered_sha256"] or not in_scope(raw):
+            raise ValueError("Historical raw/normalized record binding differs")
+    snapshot = json.loads((REPOSITORY / "artifacts/runtime/m5p3/connected/snapshot.json").read_bytes())
+    result = method_observations(normalized, snapshot)
+    result.update(schema_version=1, capture_generation=manifest["capture_generation"],
+                  input_hashes={name: digest(raw) for name, raw in raw_files.items()},
+                  review_tool_sha256=digest(pathlib.Path(__file__).read_bytes()),
+                  acquisition_tool_provenance=manifest["tool_provenance"],
+                  baseline=baseline)
+    print(json.dumps(result, sort_keys=True, indent=2))
+    return result
+
+
 def historical_command():
     return ["/usr/bin/log", "show", "--style", "ndjson", "--timezone", "UTC", "--no-pager", "--no-backtrace",
             "--info", "--debug", "--signpost", "--start", "2026-09-16 11:11:59+0000",
@@ -467,6 +575,7 @@ def main(argv=None):
     subparsers = parser.add_subparsers(dest="operation", required=True)
     subparsers.add_parser("plan")
     subparsers.add_parser("historical")
+    subparsers.add_parser("review", help="extract fields from the immutable historical capture; no public query")
     analyzer = subparsers.add_parser("analyze")
     analyzer.add_argument("input", type=pathlib.Path)
     arguments = parser.parse_args(argv)
@@ -475,6 +584,8 @@ def main(argv=None):
             print(json.dumps({"argv": historical_command(), "window_start": WINDOW_START, "window_end": WINDOW_END}, indent=2))
         elif arguments.operation == "historical":
             return historical_capture()
+        elif arguments.operation == "review":
+            review_historical()
         else:
             path = arguments.input
             if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_INPUT_BYTES:
