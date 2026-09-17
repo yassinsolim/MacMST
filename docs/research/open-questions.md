@@ -5,6 +5,36 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P4 Historical Public Log Correlation
+
+[M5P4](m5-public-log-correlation.md) completes the targeted historical pass,
+after publishing the exact M5P3 branch unchanged. **M5P3_HISTORICAL_LOGS_RETAINED**:
+477 scoped kernel messages, no privilege or output-limit failure. Routing,
+service startup, aggregate sink-count/EDID handling, training and video/audio
+link-start statements provide **HISTORICAL_LOG_EVIDENCE_SUFFICIENT** without
+another physical reconnect. No live stream was started.
+
+**PUBLIC_LOG_RUNTIME_PARTIAL**. `AppleDCPDP2HDMI::handleSinkCountChanged`
+reports `oldCount=0 newCount=2 add=1 remove=0`; M5P3's later transport property
+remains `SinkCount=1`. Preserve both values without guessing their counting
+semantics. **SECOND_DOWNSTREAM_LOG_EVIDENCE_UNRESOLVED** and
+**PUBLIC_LOG_SOURCE_IDENTITIES_NOT_ESTABLISHED**. The log's route names,
+opaque object tokens, interface values and `source=Upstream` are not an
+independently established source/physical-DPTX identity contract.
+
+**PUBLIC_LOG_MIRROR_POLICY_UNRESOLVED** and
+**PUBLIC_LOG_MST_POLICY_GATE_UNRESOLVED**. `tiled=NO` and `extraPipes=0` are
+reported state, not explicit policy decisions. Content-protection retry errors
+are not identified as an MST/source-limit prohibition.
+
+Next: **EXTERNAL_DP_PROTOCOL_CAPTURE_WARRANTED**, for a separate passive
+measurement design that can distinguish actual downstream entities and
+main-link VC/timing traffic from the two reported count domains. No instrument,
+purchase, new stimulus, AUX/DPCD request or private observer is authorized by
+this recommendation. The hub stays connected; the live-cycle gate is not
+triggered. Preserve all daily-use/firmware stops and
+**OFFLINE_OBSERVER_PIPELINE_READY**, with no real source-ownership gate pass.
+
 ## M5P3 Passive Runtime Differential
 
 [M5P3](m5-passive-runtime-topology.md) completes an owner-approved ordinary hub

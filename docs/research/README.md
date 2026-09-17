@@ -242,6 +242,23 @@ daily-use and firmware gates remain. All 33 snapshot tests and the preserved
 offline suites pass; CTest is 3/3. Captures stay local and ignored, and the
 completed branch is local-only, with no push, merge or PR.
 
+[M5P4](m5-public-log-correlation.md) first audits and publishes that exact
+M5P3 branch at `369b5e5f202640f906904d2dc91413bd1b0930f3`, with no merge or PR.
+One bounded, unprivileged `log show` using M5P3's exact kernel predicate and
+recorded UTC bracket returns **477 retained records**. The historical
+routing/service, sink/EDID, training and link-start evidence is sufficient to
+avoid a new reconnect: **HISTORICAL_LOG_EVIDENCE_SUFFICIENT**.
+
+**PUBLIC_LOG_RUNTIME_PARTIAL**. A logged aggregate sink-count change to 2
+differs from M5P3's later public SinkCount 1, but the counting namespaces and
+distinct downstream identities remain unresolved. Opaque log tokens, link-role
+`source=Upstream`, interface tokens and zero `extraPipes` do not establish
+source ownership or a mirror/MST prohibition. The next route is
+**EXTERNAL_DP_PROTOCOL_CAPTURE_WARRANTED**, meaning a separately approved
+passive measurement plan, not execution. No live stream or physical change
+occurs in M5P4; the hub remains connected. All four offline CTests pass (200
+tests, including 31 new log tests). M5P4 itself remains local-only.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -295,6 +312,8 @@ completed branch is local-only, with no push, merge or PR.
   evidence, virtual/mirror distinctions, physical binding gaps and runtime-observer outcome.
 - [M5P3 passive runtime topology](m5-passive-runtime-topology.md): validated
   unplugged/connected pair, exact object/EPIC diff, visibility limits and future-log proposal.
+- [M5P4 public log correlation](m5-public-log-correlation.md): exact historical
+  predicate/window, retained lifecycle sequence, count/identity limits and passive wire-planning route.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
