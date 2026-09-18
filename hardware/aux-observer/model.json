@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "hardware_authorized": false,
+  "build_status": "ANALYSIS_ONLY_NOT_FOR_CONSTRUCTION",
+  "architecture": "symmetric_ac_coupled_comparator_sense",
+  "parameter_classification": "ASSUMED_FOR_SIMULATION",
+  "parameters": {
+    "source_leg_ohm": 50,
+    "termination_leg_ohm": 50,
+    "endpoint_bias_ohm": 100000,
+    "source_coupling_nf": 100,
+    "sink_coupling_nf": 100,
+    "sense_pf": 2.2,
+    "sense_series_ohm": 1000,
+    "input_series_ohm": 2200,
+    "bias_ohm": 1000000,
+    "input_pf": 2.5,
+    "protection_pf": 0.5,
+    "bus_stray_pf": 0.5,
+    "off_clamp_ohm": 10,
+    "supply_v": 3.3,
+    "bias_v": 1.65
+  },
+  "worst_case": {
+    "input_pf": 8,
+    "bus_stray_pf": 3,
+    "sense_tolerance_pf": 0.1,
+    "input_imbalance_pf": 0.25,
+    "resistor_fraction": 0.01
+  },
+  "frequencies_hz": [100000, 1000000, 2500000, 10000000, 100000000],
+  "source_urls": {
+    "comparator": "https://www.ti.com/lit/ds/symlink/tlv3211.pdf",
+    "protection_candidate": "https://www.ti.com/lit/ds/symlink/tpd1e01b04.pdf",
+    "digital_isolation_candidate": "https://www.ti.com/lit/ds/symlink/iso7710.pdf"
+  },
+  "limits": [
+    "No normative third-observer loading allowance established",
+    "Receiver capacitance maximum and powered-off nonlinear behavior unqualified",
+    "Protection is after branch series resistance but before DC-blocking sense capacitance",
+    "Off AC case is a pessimistic conducting-clamp bound, not a device macromodel",
+    "No transmission-line, surge, hotplug or ground-loop validation",
+    "No hardware execution or purchase permitted"
+  ]
+}

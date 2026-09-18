@@ -100,6 +100,9 @@ if(BUILD_TESTING)
     add_test(NAME dp_wire
         COMMAND ${Python3_EXECUTABLE} -X dev -W error -m unittest discover -s tests -p test_dp_wire.py -v)
     set_tests_properties(dp_wire PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} LABELS "unit;offline")
+    add_test(NAME dp_aux_frontend
+        COMMAND ${Python3_EXECUTABLE} -X dev -W error -m unittest discover -s tests -p test_dp_aux_frontend.py -v)
+    set_tests_properties(dp_aux_frontend PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} LABELS "unit;offline")
     add_test(NAME iodp_static_parsers
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s tests -p test_iodp_static.py -v)
     set_tests_properties(iodp_static_parsers PROPERTIES WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} LABELS unit)
