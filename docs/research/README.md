@@ -322,6 +322,23 @@ is a progress dependency, no message was sent, and the contact drafts remain
 unchanged. A future W1 requires a new baseline and generation. The daily-use
 selector retirement, DPCD not-ready gate and static firmware freeze remain.
 
+[M5P8](m5-aux-frontend.md) reconciles exact M5P7 at
+`277ff81437f3d5443eba58375495f86b3c5fcb41` and freezes its decoder stack.
+**COMPARATOR_FRONTEND_PREFERRED**, with symmetric AC-coupled sensing and an
+independently powered one-way digital boundary. The model distinguishes active
+termination loading from weak idle bias: a 200-kohm differential probe can
+halve a modelled 2.7 V bias held by two 100-kohm resistors. Capacitive sensing
+reduces DC load, but worst-case sense mismatch converts 0.3 V common mode into
+about 14.2 mV error; typical input capacitance is not a guaranteed maximum.
+
+**MORE_ELECTRICAL_RESEARCH_REQUIRED**. The pre-build review records 5 PASS,
+1 FAIL and 10 UNRESOLVED. The editable SPICE subcircuit is analysis-only; no
+simulator or EDA execution, construction schematic, qualified BOM or hardware
+build is claimed. Thirty-three new behavioural/model tests plus the preserved
+294 tests pass in six offline CTests. Powered-off protection and a complete
+capture backend remain unqualified. **CURRENT_HUB_STATE_NOT_REQUIRED**; no Mac
+query, connection change, purchase, assembly, outreach or private operation.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -386,6 +403,9 @@ selector retirement, DPCD not-ready gate and static firmware freeze remain.
 - [M5P7 self-built AUX observer](m5-selfbuilt-aux-observer.md): electrical facts,
   capture budgets, passive front-end gates, offline tools, synthetic scenarios
   and independent physical-state/outreach policy.
+- [M5P8 front-end qualification](m5-aux-frontend.md): component electrical
+  limits, quantitative loading/protection, analysis circuit, conditioned-signal
+  tests, ground/backend decisions and formal pre-build review.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 

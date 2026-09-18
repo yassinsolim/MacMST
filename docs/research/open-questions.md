@@ -5,6 +5,32 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P8 Electrical Qualification
+
+[M5P8](m5-aux-frontend.md) preserves all M5P7 decoders and advances only
+electrical design/modelling. **COMPARATOR_FRONTEND_PREFERRED** with symmetric
+AC-coupled sense branches; **TLV3502_NOT_PREFERRED**. The proposed independently
+powered, forward-only isolated digital boundary enforces no intentional AUX
+drive path, but does not establish powered-off transparency or fault safety.
+
+The single next design boundary is a sufficiently qualified analogue input
+network. It must meet both weak idle-bias and active-signal loading budgets,
+bound common-mode conversion and low-overdrive timing, and coordinate protection
+without rail backfeed. The present worst mismatch corner fails its transfer
+target. **POWERED_OFF_BEHAVIOR_UNRESOLVED** and
+**MORE_ELECTRICAL_RESEARCH_REQUIRED**; no construction schematic or orderable
+complete BOM is released. The SPICE circuit is analysis-only and unexecuted;
+analytical/behavioural results are explicit, with 33 new tests and all 294 prior
+tests passing.
+
+**ACQUISITION_PLATFORM_UNRESOLVED**. Glasgow revD's architecture is viable but
+pre-launch; Pico 2's stock full-speed USB cannot sustain the chosen continuous
+raw format. No backend or supply is selected by headline price alone.
+**CURRENT_HUB_STATE_NOT_REQUIRED**. No outreach dependency, hardware action or
+Mac query is introduced. M5P9 bench build remains conditional on a fully passing
+pre-build review and separate owner authorization; the daily-use/static gates
+remain unchanged.
+
 ## M5P7 Self-Built Observer
 
 [M5P7](m5-selfbuilt-aux-observer.md) makes self-owned engineering primary and
