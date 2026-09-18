@@ -5,6 +5,41 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P6 AUX Access Qualification
+
+[M5P6](m5-aux-access.md) publishes the exact completed M5P5 branch and advances
+from layer selection to equipment and access questions. DPA-400 product 065055
+and current software catalogue 2.1.10 are documented. Its USB-C cable is 546109
+on the current product page but 546127 in manual v13; no equivalence/replacement
+is established. **DPA400_TOPOLOGY_COMPATIBILITY_UNRESOLVED**. Native main-link
+electronics cannot carry HBR3; the official external bypass and its exact
+USB-C/PD/USB3/mating behavior must be qualified.
+
+**ELLISYS_W1_REQUIREMENTS_PARTIAL**. SBU/AUX, PD and passive gigabit pass-through
+are explicit, but the USB2 export FAQ is not an AUX format contract. Both
+leading systems still need complete raw samples, loss/overflow semantics,
+direction provenance, exact fixture and actual available-unit/access receipts.
+**AUX_ACCESS_NOT_READY**; **DO_NOT_PURCHASE_ANALYZER_YET**.
+
+**TEMPORARY_DPA400_ACCESS_FIRST** is an enquiry priority, not acquired access.
+The official USA/Canada contact and GRL's service-wide DPA-400 equipment claim
+are useful leads. UCalgary's central Technical Services mailbox is the smallest
+local inventory enquiry; no university analyzer ownership is established.
+Testforce Calgary/Edmonton and CMC are further rental/referral routes, not
+confirmed suitable stock. **ACCESS_PATH_DEPENDS_ON_AVAILABLE_EQUIPMENT**.
+
+Next: **USER_OUTREACH_REQUIRED**, using the four
+[unsent drafts](m5-aux-access-contact-package.md). Obtain dated technical
+answers, a permitted raw sample, exact cable diagram and actual access/cost
+terms. Do not replace missing vendor evidence with more broad static analysis.
+The report freezes 13 W1 questions, one future attach and W1.1-W1.8 ordering;
+no electrical capture or physical procedure is authorized by that design.
+
+**KEEP_CURRENT_HUB_CONNECTED**, **RETIRED_ON_DAILY_USE_M5** and
+**NOT_READY_FOR_DPCD_TEST** remain. All 200 offline tests and receipt checks
+pass; no new source-ownership evidence, correspondence, purchase, runtime query,
+hardware/firmware/security change or m1n1 access occurred.
+
 ## M5P5 External Observation Plan
 
 [M5P5](m5-dp-observation-plan.md) publishes M5P4 unchanged and separates the next

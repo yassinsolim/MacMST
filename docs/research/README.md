@@ -278,6 +278,28 @@ All 200 existing offline tests pass; 13 source/document hashes and 19 report
 sections validate. No electrical capture, query, physical change or purchase
 occurred. **KEEP_CURRENT_HUB_CONNECTED**; all safety/firmware boundaries remain.
 
+[M5P6](m5-aux-access.md) publishes M5P5 unchanged at
+`54d30598f013b617282375d5295a6b37269fb5b9` and qualifies practical temporary
+AUX access without more theoretical source analysis. Current Unigraf HTML
+identifies DPA-400 2.1 product **065055**, software bundle **2.1.10**, and
+USB-C cable **546109**, conflicting with manual v13's **546127**. The exact
+dock/PD/USB3 assembly, loss reporting and complete exports remain unconfirmed:
+**DPA400_TOPOLOGY_COMPATIBILITY_UNRESOLVED** and
+**ELLISYS_W1_REQUIREMENTS_PARTIAL**.
+
+**AUX_ACCESS_NOT_READY**. The specific next request is
+**TEMPORARY_DPA400_ACCESS_FIRST**, not a purchase or guaranteed loan. Official
+USA/Canada contacts, UCalgary Technical Services and GRL's published DPA-400
+MST-equipment claim give concrete enquiry routes; no available unit, appointment
+or price was secured. **ACCESS_PATH_DEPENDS_ON_AVAILABLE_EQUIPMENT**;
+**DO_NOT_PURCHASE_ANALYZER_YET**. The
+[contact package](m5-aux-access-contact-package.md) contains four unsent drafts:
+**USER_OUTREACH_REQUIRED**. W1's single future attach and eight analysis gates
+require separate approval. Nineteen current receipts and the preserved 13 M5P5
+receipts validate; all 200 offline tests pass. No messages, signal capture,
+runtime query, purchase or hardware changes occurred. Keep the current hub
+connected; all daily-use and firmware boundaries remain.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -335,6 +357,10 @@ occurred. **KEEP_CURRENT_HUB_CONNECTED**; all safety/firmware boundaries remain.
   predicate/window, retained lifecycle sequence, count/identity limits and passive wire-planning route.
 - [M5P5 external observation plan](m5-dp-observation-plan.md): AUX versus main-link
   gates, upstream USB-C/native-DP controls, manufacturer evidence, wire schema and access/purchase decision.
+- [M5P6 AUX access qualification](m5-aux-access.md): current cable/software facts,
+  Canadian access leads, export/loss gates, costs and one-attach W1 design.
+- [M5P6 contact package](m5-aux-access-contact-package.md): four user-controlled,
+  unsent vendor/university/lab enquiries and the required response package.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 
