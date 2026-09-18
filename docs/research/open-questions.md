@@ -5,6 +5,34 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P7 Self-Built Observer
+
+[M5P7](m5-selfbuilt-aux-observer.md) makes self-owned engineering primary and
+commercial/lab access optional. **SELF_BUILT_AUX_OBSERVER_PRIMARY**;
+**OUTREACH_CAN_RUN_IN_PARALLEL**. No vendor, university, lab or external-person
+reply is a dependency for progress. M5P6 is published unchanged; its contact
+package remains unsent.
+
+The offline AUX/MST/W1 pipeline is implemented and all 294 offline tests pass.
+It preserves raw bytes, ambiguous direction, framing/CRC failures and known or
+unknown loss. Manifest gaps break positive reconstruction and concurrency;
+incomplete capture cannot establish a negative or exclusive one-payload result.
+Neither ACT status nor synthetic gates establish real M5 source ownership.
+
+The next self-owned questions are electrical: which concrete receive-only
+topology tolerates cable-side bias and power-off/fault conditions without
+excessive R/C loading, and which acquisition transport proves sustained
+throughput/overflow reporting? **MORE_ELECTRICAL_RESEARCH_REQUIRED**. No safe
+build BOM or B1-B6 execution is authorized. Continue modelling and design review,
+not private-interface or frozen packetizer work.
+
+**CURRENT_HUB_STATE_NOT_REQUIRED** replaces previous keep-connected requirements.
+Normal hub use between milestones does not invalidate immutable M5P3/M5P4
+evidence. Every future real W1 needs a fresh controlled baseline/generation,
+bench-qualified observer and separate approval. **RETIRED_ON_DAILY_USE_M5** and
+**NOT_READY_FOR_DPCD_TEST** remain. The following milestone sections are preserved
+historical policy and evidence, not current connection/outreach instructions.
+
 ## M5P6 AUX Access Qualification
 
 [M5P6](m5-aux-access.md) publishes the exact completed M5P5 branch and advances

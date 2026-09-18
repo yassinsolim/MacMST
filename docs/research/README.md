@@ -300,6 +300,28 @@ receipts validate; all 200 offline tests pass. No messages, signal capture,
 runtime query, purchase or hardware changes occurred. Keep the current hub
 connected; all daily-use and firmware boundaries remain.
 
+[M5P7](m5-selfbuilt-aux-observer.md) publishes M5P6 unchanged at
+`e909e471cbf5982749de2c67655197d091438a27` and advances the independent,
+MacMST-owned observer track. **SELF_BUILT_AUX_OBSERVER_PRIMARY** means continued
+engineering, not ready hardware. Neutral AUX bytes/samples/symbols, twelve MST
+message types, loss-aware reconstruction, nine W1 gates, raw bundles and A-H
+scenarios are implemented. All 294 offline tests pass; zero real wire captures
+or source-ownership gates are established.
+
+Public endpoint electrical evidence and capture/FIFO budgets support
+**NATIVE_DP_AUX_TAP_PREFERRED**, but powered-off clamps, allowable added loading
+and a specific protected receiver remain unqualified:
+**MORE_ELECTRICAL_RESEARCH_REQUIRED**. Scopes are currently qualified only as a
+short-transaction architecture; the complete MCU path is unresolved. Native-DP
+adapter/branch candidates have dated prices, not a compatibility guarantee or
+approved observer BOM. B0 passes; B1-B6 are future gated work.
+
+**CURRENT_HUB_STATE_NOT_REQUIRED** supersedes earlier keep-connected policy.
+**OUTREACH_CAN_RUN_IN_PARALLEL** supersedes mandatory outreach: no external reply
+is a progress dependency, no message was sent, and the contact drafts remain
+unchanged. A future W1 requires a new baseline and generation. The daily-use
+selector retirement, DPCD not-ready gate and static firmware freeze remain.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -361,6 +383,9 @@ connected; all daily-use and firmware boundaries remain.
   Canadian access leads, export/loss gates, costs and one-attach W1 design.
 - [M5P6 contact package](m5-aux-access-contact-package.md): four user-controlled,
   unsent vendor/university/lab enquiries and the required response package.
+- [M5P7 self-built AUX observer](m5-selfbuilt-aux-observer.md): electrical facts,
+  capture budgets, passive front-end gates, offline tools, synthetic scenarios
+  and independent physical-state/outreach policy.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 

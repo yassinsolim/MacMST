@@ -84,6 +84,11 @@ macOS CLI; that cross-platform build has not yet been executed here.
 
 ## Research Status
 
+M5P7 controls the current physical-state and outreach policy. Earlier milestone
+entries below remain historical: **CURRENT_HUB_STATE_NOT_REQUIRED** and
+**OUTREACH_CAN_RUN_IN_PARALLEL** supersede keep-connected/mandatory-outreach
+requirements. No present hub state is assumed or queried.
+
 | Area | Current Status |
 | --- | --- |
 | External DCPDP path | Identified for the recorded M5/hub topology. |
@@ -111,6 +116,7 @@ macOS CLI; that cross-platform build has not yet been executed here.
 | Public lifecycle log correlation | [M5P4](docs/research/m5-public-log-correlation.md): M5P3 published unchanged; 477 scoped historical kernel records retained. HISTORICAL_LOG_EVIDENCE_SUFFICIENT; PUBLIC_LOG_RUNTIME_PARTIAL. Reported sink count 0 -> 2 is not two identified sinks/sources; source and mirror/MST policy remain unestablished. EXTERNAL_DP_PROTOCOL_CAPTURE_WARRANTED for future planning only. Hub remains connected; no reconnect, log stream or private operation. |
 | External observation architecture | [M5P5](docs/research/m5-dp-observation-plan.md): M5P4 published unchanged. AUX_CAPTURE_CAN_RESOLVE_NEXT_GATE for complete upstream topology/allocation traffic; main-link transmission and internal source ownership remain separate. Qualify temporary DPA-400/USB-C or Ellisys Std DP access; PURCHASE_NOT_YET_JUSTIFIED. Independent wire-schema design and W0-W4 ladder only; no signals captured, hardware changed or software observer executed. KEEP_CURRENT_HUB_CONNECTED. |
 | AUX qualification and access | [M5P6](docs/research/m5-aux-access.md): M5P5 published unchanged. DPA-400 current product 065055/software 2.1.10; USB-C cable 546109 on the product page conflicts with manual 546127. DPA400_TOPOLOGY_COMPATIBILITY_UNRESOLVED; ELLISYS_W1_REQUIREMENTS_PARTIAL; AUX_ACCESS_NOT_READY. TEMPORARY_DPA400_ACCESS_FIRST through qualification/outreach, not a secured unit. [Unsent contact package](docs/research/m5-aux-access-contact-package.md); USER_OUTREACH_REQUIRED; DO_NOT_PURCHASE_ANALYZER_YET; KEEP_CURRENT_HUB_CONNECTED. |
+| Self-built AUX observer | [M5P7](docs/research/m5-selfbuilt-aux-observer.md): M5P6 published unchanged; independent AUX/MST decoders, loss-aware W1.1-W1.9 evaluation, A-H synthetic scenarios and raw-preserving bundles. 94 new tests plus 200 preserved tests pass. SELF_BUILT_AUX_OBSERVER_PRIMARY; NATIVE_DP_AUX_TAP_PREFERRED; MORE_ELECTRICAL_RESEARCH_REQUIRED. No qualified build BOM, hardware capture or M5 functionality claim. CURRENT_HUB_STATE_NOT_REQUIRED; OUTREACH_CAN_RUN_IN_PARALLEL. |
 
 The owner-controlled connected/disconnected/reconnected test now associates the
 External **DCPEXT0 / Unit 0** DP/AV path with a **ZMUIPNG 14-in-1 hub** on the
