@@ -339,6 +339,21 @@ build is claimed. Thirty-three new behavioural/model tests plus the preserved
 capture backend remain unqualified. **CURRENT_HUB_STATE_NOT_REQUIRED**; no Mac
 query, connection change, purchase, assembly, outreach or private operation.
 
+[M5P9](m5-aux-electrical-closure.md) starts from exact M5P8
+`a68448e87d21b09bf7cd6a55ccf3541aa76cf7f1` and preserves its models and the
+M5P7 wire stack. The 14.2101 mV failure is predominantly capacitive matching:
+perfect resistors still leave 14.2082 mV. A machine-readable table preserves
+every original review item; actual numerical RC/PWL E0-E10 waveforms, tolerance
+sweeps and six circuit-to-W1 profiles are executed and retained.
+
+**MORE_ELECTRICAL_RESEARCH_REQUIRED**. Review: 6 PASS, 2 FAIL, 14 UNRESOLVED.
+Matching and nominal full-pipeline completeness fail; comparator/protection,
+powered-off, backend, construction schematic and actual BOM remain unqualified.
+TLV9031's fail-safe positive input is a useful new lead, not a selected build
+part. All 361 offline tests pass; no SPICE execution, purchase, assembly, Mac
+query or signal capture is claimed. **CURRENT_HUB_STATE_NOT_REQUIRED**.
+Future bench build is now conditional **M5P10**, not this milestone.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -406,6 +421,9 @@ query, connection change, purchase, assembly, outreach or private operation.
 - [M5P8 front-end qualification](m5-aux-frontend.md): component electrical
   limits, quantitative loading/protection, analysis circuit, conditioned-signal
   tests, ground/backend decisions and formal pre-build review.
+- [M5P9 electrical closure](m5-aux-electrical-closure.md): capacitive matching
+  derivation, full closure matrix, executed circuit scenarios, error budget,
+  unchanged-decoder results and explicit construction-release refusal.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 

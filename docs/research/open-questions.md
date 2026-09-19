@@ -5,6 +5,36 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P9 Electrical Closure
+
+[M5P9](m5-aux-electrical-closure.md) reproduces the M5P8 failure and corrects
+its informal resistor-matching interpretation: opposing sense and input
+capacitance dominate. Precision resistors alone cannot solve it. The original
+divider needs approximately 2.008% capacitive-ratio tracking, or <=0.0502 pF
+input-C difference if sense caps match perfectly. No inspected part/layout
+provides that guaranteed envelope.
+
+**MATCHING_ERROR_REMAINS_BLOCKING**. A genuine numerical RC/PWL circuit model
+now executes E0-E10, with convergence/reference tests and raw waveforms.
+TLV9031 removes the positive input-rail clamp in its documented 0..5.5 V
+fail-safe range, but negative inputs, C matching, low-overdrive timing and idle
+slicing remain unresolved. Nominal circuit-to-W1 coverage is incomplete;
+passing bounded synthetic profiles do not authorize hardware.
+
+**MORE_ELECTRICAL_RESEARCH_REQUIRED**: 6 PASS / 2 FAIL / 14 UNRESOLVED in the
+[complete closure table](../../hardware/aux-observer/closure.json). No
+construction schematic or complete BOM is released. Next: a bounded
+differential-first input-network/C-matrix and fixed receive-threshold analysis
+against the unchanged matching/margin criteria, using the existing E1/E8/E10
+and pipeline fixtures. Do not start another resistor catalogue search or build
+around an unqualified comparator.
+
+All 327 prior plus 34 new offline tests pass. **CURRENT_HUB_STATE_NOT_REQUIRED**;
+no outreach dependency, physical operation or Mac query. The owner's present
+scope supersedes M5P8's conditional M5P9 bench-build label: future hardware work
+would be separately approved **M5P10**, after all critical release rows pass.
+Daily-use selector retirement, DPCD not-ready state and static freeze remain.
+
 ## M5P8 Electrical Qualification
 
 [M5P8](m5-aux-frontend.md) preserves all M5P7 decoders and advances only
