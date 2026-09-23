@@ -64,8 +64,11 @@ def direct_network(parameters, input_mismatch_pf=0, protection_mismatch_pf=0, cl
         protection = parameters["protection_pf"] + sign * protection_mismatch_pf / 2
         if input_cap <= 0 or protection < 0:
             raise ValueError("Invalid capacitance corner")
-        resistors.extend([("bus" + suffix, "input" + suffix, parameters["branch_ohm"]),
+        branch = parameters["branch_ohm"] * (1 + sign * parameters.get("branch_resistor_tolerance", 0))
+        resistors.extend([("bus" + suffix, "input" + suffix, branch),
                           ("input" + suffix, "ground", parameters["input_resistance_ohm"])])
+        if "input_bias_a" in parameters:
+            injections["input" + suffix] = -parameters["input_bias_a"]
         capacitors.extend([("input" + suffix, "ground", (input_cap + protection) * 1e-12),
                            ("bus" + suffix, "ground", parameters["board_pf"] * 1e-12)])
         if clamps:
@@ -74,11 +77,13 @@ def direct_network(parameters, input_mismatch_pf=0, protection_mismatch_pf=0, cl
             diodes.append(("input" + suffix, "rail", 0.3, 10))
     capacitors.append(("inputp", "inputn", (parameters["input_differential_pf"] +
                                             parameters["protection_cross_pf"]) * 1e-12))
+    if "input_differential_resistance_ohm" in parameters:
+        resistors.append(("inputp", "inputn", parameters["input_differential_resistance_ohm"]))
     if off_upper_clamp:
         nodes.append("rail")
         resistors.append(("rail", "ground", 1000000))
         capacitors.append(("rail", "ground", 1.1e-6))
-    return legacy.RcCircuit(nodes, resistors, capacitors, diodes), injections
+    return legacy.RcCircuit(nodes, resistors, [element for element in capacitors if element[2] != 0], diodes), injections
 
 
 def direct_ac(parameters, frequency_hz, input_mismatch_pf=0, protection_mismatch_pf=0):
@@ -369,7 +374,9 @@ def simulate_record(raw_hex="90002100", case="N1", kind="request", step_ns=5,
                              parameters["reference_error_v"]) if powered and attached else 0
         for bit, delay_key in ((1, "positive_delay_ns"), (2, "negative_delay_ns")):
             if (target & bit) != (desired & bit):
-                pending.append((timestamp + parameters[delay_key], bit, target & bit))
+                edge_delay = parameters.get("comparator_rise_delay_ns" if target & bit else "comparator_fall_delay_ns",
+                                            parameters[delay_key])
+                pending.append((timestamp + edge_delay, bit, target & bit))
         pending.sort()
         desired = target
         while pending and pending[0][0] <= timestamp:
@@ -465,7 +472,7 @@ def simulate_case(case, step_ns=5, retain=True):
     return result
 
 
-def pipeline_capture(case="N1", step_ns=20, fault=None):
+def pipeline_capture(case="N1", step_ns=20, fault=None, extra=None):
     if fault not in (None, "invalid", "gap", "unknown_direction", "channel_skew", "direct"):
         raise ValueError("Unknown differential pipeline fault")
     trace = synthetic.Trace()
@@ -480,9 +487,12 @@ def pipeline_capture(case="N1", step_ns=20, fault=None):
     trace.transaction(0x2c0, b"\x03", True)
     records = []
     state = None
+    parameters = dict(extra or {})
+    if fault == "channel_skew":
+        parameters["negative_delay_ns"] = 100
     for index, source in enumerate(trace.records):
         result, state = simulate_record(source["raw_hex"], case, source["kind"], step_ns,
-                                        extra={"negative_delay_ns": 100} if fault == "channel_skew" else None,
+                                        extra=parameters,
                                         origin_ns=source["timestamp_ns"], duration_ns=250000,
                                         state=state, retain=False,
                                         conditioning="direct" if fault == "direct" else "post_difference")
@@ -503,6 +513,8 @@ def pipeline_capture(case="N1", step_ns=20, fault=None):
                                "sample_rate_hz": 50000000, "clock_source": "shared_deterministic_counter",
                                "timestamp_resolution_ns": 20, "input_configuration": "two_channel_window"},
                "records": records}
+    if extra is not None:
+        capture["acquisition"]["candidate_parameters"] = copy.deepcopy(parameters)
     if fault == "gap":
         capture["loss_intervals"] = [{"start_ns": 1050000, "end_ns": 1051000, "reason": "synthetic_acquisition_gap"}]
     normalized = adapt_window_capture(capture)
