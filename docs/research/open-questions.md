@@ -5,6 +5,30 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P11 Low-C Receiver Qualification
+
+[M5P11](m5-aux-low-cap-receiver.md) qualifies six concrete receiver circuits
+against unchanged criteria. None survives every gate. The best fully sourced
+buffered example uses OPA810IDR inputs and downstream TLV9031DBVR window slicing:
+3.4 pF/leg representative loading, but maximum UNKNOWN and documented off-rail
+clamps. A3 V input through100.1 kohm requires at least24.975 uA to remain below
+the unpowered+0.5 V pin stress boundary, incompatible with100 nA transparency.
+That contradiction is not dependent on an assumed diode-current curve.
+
+**AUX_FRONTEND_PROTOTYPE_STILL_BLOCKED**; independently
+**W1_CAPTURE_SYSTEM_NOT_READY**. No selected comparator/threshold, PCB, schematic
+or BOM. Bench-only protection omission remains optional, not a production pass.
+The single next proposal is **M5P12_OFF_STATE_ISOLATION_CELL_QUALIFICATION**:
+offline evaluation of one normally-open two-pole sense disconnect and its
+power-valid sequencing, including maximum on/off capacitance, leakage and sudden
+power-loss timing/hold-up. No assumption that it works and no build authorization.
+
+All412 old +46 new =458 offline tests pass; all M5P10 numerical outputs are
+preserved under the additive extension and candidate evidence reproduces.
+M5P11 names offline qualification, superseding older conditional build labels.
+**CURRENT_HUB_STATE_NOT_REQUIRED**; no Mac connection/query, private operation,
+vendor/UCalgary contact or hardware action. All retirement/static gates remain.
+
 ## M5P10 Differential-First Closure
 
 [M5P10](m5-aux-differential-frontend.md) exactly reproduces M5P9 before testing

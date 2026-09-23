@@ -100,8 +100,15 @@ stage is qualified: **AUX_FRONTEND_PROTOTYPE_STILL_BLOCKED**, independently of
 frozen; exact W1 recorder selection is not a frontend bench prerequisite.
 Future physical work is conditional **M5P11**; older labels below are historical.
 
+M5P11 is now offline low-capacitance/off-state qualification, not that earlier
+conditional build. No concrete receiver passes every gate. The OPA810 example
+is 3.4 pF/leg using typical values, with an unknown guaranteed maximum and a
+documented unpowered clamp-loading conflict. **AUX_FRONTEND_PROTOTYPE_STILL_BLOCKED**;
+**W1_CAPTURE_SYSTEM_NOT_READY**. No build or connection is authorized.
+
 | Area | Current Status |
 | --- | --- |
+| Low-C receive stage and powered-off qualification | [M5P11](docs/research/m5-aux-low-cap-receiver.md): six concrete candidate profiles, condition-qualified capacitance accounting, explicit rail/JFET/feedback off-state circuits and preserved M5P10 replay. No complete maximum-C/off-state contract; no comparator/threshold/schematic/BOM selection. 458 offline tests pass; 82-file candidate evidence deterministic. Next proposal is offline power-fail isolation-cell qualification, not hardware build. CURRENT_HUB_STATE_NOT_REQUIRED. |
 | External DCPDP path | Identified for the recorded M5/hub topology. |
 | IODP read ABI | Substantially reconstructed through static analysis. |
 | DPDV selector-0 path | RETIRED_ON_DAILY_USE_M5; historical reconstruction is not an available transport. |

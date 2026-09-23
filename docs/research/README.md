@@ -371,6 +371,23 @@ frontend gate. **BACKEND_INTERFACE_REQUIREMENTS_FROZEN** and
 work is conditional **M5P11**, superseding old labels above.
 **CURRENT_HUB_STATE_NOT_REQUIRED**; no Mac query, purchase, assembly or outreach.
 
+[M5P11](m5-aux-low-cap-receiver.md) starts from exact M5P10
+`cceefb962834a86183d119ba5bb356b9e5fd6dd5`. All69 old outputs reproduce before
+edits; the extended model's golden test preserves all68 result files and the
+manifest except its explicitly changed source hash. Six actual receiver circuits
+now have condition-qualified C budgets and concrete off-state equivalents.
+The buffered OPA810 example is3.4 pF/leg only from typical/assumed terms; no
+guaranteed total exists, and its documented rail paths conflict with the passive
+off-state loading target. No examined architecture passes all requirements.
+
+**AUX_FRONTEND_PROTOTYPE_STILL_BLOCKED**, **W1_CAPTURE_SYSTEM_NOT_READY**.
+**BENCH_PROTECTION_OPTIONAL** is separate from
+**PRODUCTION_PROTECTION_UNRESOLVED**. No comparator, hardware threshold,
+construction schematic or BOM is selected. All458 offline tests pass and the
+82-file candidate bundle is deterministic. M5P11 supersedes the old conditional
+build label above; M5P12 is proposed only as an offline isolation-cell study.
+**CURRENT_HUB_STATE_NOT_REQUIRED**; no physical/Mac/private/outreach action.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -446,6 +463,9 @@ work is conditional **M5P11**, superseding old labels above.
   numerical pipeline and separate frontend/W1 release gates.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
+- [M5P11 low-C receiver](m5-aux-low-cap-receiver.md): concrete component limits,
+  explicit powered-off paths, capacitance/protection/threshold accounting,
+  preserved numerical stack and independent frontend/W1 rejection gates.
 
 The user reports two physical monitors connected to one USB-C dock showing the
 same image. This is an input to investigate, not proof of the dock's transport,
