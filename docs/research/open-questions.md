@@ -5,6 +5,35 @@ MST on M5 is **MACMST_STATIC_FEASIBILITY_INCONCLUSIVE**. Preserve
 **M5_DCP_STREAM_OWNERSHIP_UNRESOLVED** and
 **MACMST_ARCHITECTURAL_VIABILITY_UNRESOLVED**. Static packetizer analysis is frozen.
 
+## M5P10 Differential-First Closure
+
+[M5P10](m5-aux-differential-frontend.md) exactly reproduces M5P9 before testing
+direct sensing and a conditioned dual-threshold receiver. External CM conversion
+improves, but direct comparison fails on modeled cable DC bias. Post-difference
+DC removal and an idle window recover complete nominal and assumed-corner
+synthetic intervals without changing M5P7 or hiding invalid samples.
+**NOMINAL_CAPTURE_COMPLETENESS_RESOLVED** is model-scoped; the qualified physical
+worst-case envelope remains unresolved.
+
+**AUX_FRONTEND_PROTOTYPE_STILL_BLOCKED**, independently of
+**W1_CAPTURE_SYSTEM_NOT_READY**. The next electrical boundary is one qualified
+low-C differential input cell: within the derived2.95 pF receiver allocation
+with protection, and with a complete signed-input/off-state contract. Current
+representative7.95 pF fails4 pF; a generic upper input clamp raises the off rail
+to2.548 V. A450 fF buffer headline is a lead, not a guarantee. Do not tune
+thresholds or relax criteria to hide either failure.
+
+**BACKEND_INTERFACE_REQUIREMENTS_FROZEN**: two isolated3.3 V outputs at>=50 MS/s
+fit several ordinary analyzers for B1/B2. Exact180 s recorder, overflow/export
+and live-DP pass-through remain W1-only, not frontend bench blockers. Review:
+10 PASS /1 FAIL /19 UNRESOLVED, preserving22 old rows plus eight new findings.
+No construction schematic or frontend BOM is released.
+
+All361 prior +51 new offline tests pass. **CURRENT_HUB_STATE_NOT_REQUIRED**;
+no hardware/Mac/AUX query or outreach. Future physical work is conditional
+**M5P11**, superseding historical labels below. Daily-use retirement, DPCD
+not-ready and the static freeze remain unchanged.
+
 ## M5P9 Electrical Closure
 
 [M5P9](m5-aux-electrical-closure.md) reproduces the M5P8 failure and corrects

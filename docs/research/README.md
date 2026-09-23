@@ -354,6 +354,23 @@ part. All 361 offline tests pass; no SPICE execution, purchase, assembly, Mac
 query or signal capture is claimed. **CURRENT_HUB_STATE_NOT_REQUIRED**.
 Future bench build is now conditional **M5P10**, not this milestone.
 
+[M5P10](m5-aux-differential-frontend.md) preserves exact M5P9
+`2977255832c17714bb3ee273b52d0d85e4fb30e9` and reproduces every legacy output.
+Direct sensing reduces assumed CM conversion, but roughly -2.7 V cable DC
+differential defeats direct comparison. A conditional receiver, post-difference
+high-pass and raw-preserving dual-window adapter resolve nominal synthetic
+completeness through the unchanged AUX/MST/W1 stack. N0-N12 and twelve pipeline
+profiles are retained; all 412 offline tests pass.
+
+**AUX_FRONTEND_PROTOTYPE_STILL_BLOCKED** by input loading, off-state and missing
+component bounds; separately **W1_CAPTURE_SYSTEM_NOT_READY**. Review:
+10 PASS / 1 FAIL / 19 UNRESOLVED. All22 original rows survive; live-DP and
+exact180-second recorder requirements are explicitly deferred from the non-DP
+frontend gate. **BACKEND_INTERFACE_REQUIREMENTS_FROZEN** and
+**MODULAR_FRONTEND_BACKEND_PREFERRED**; no schematic/BOM release. Future physical
+work is conditional **M5P11**, superseding old labels above.
+**CURRENT_HUB_STATE_NOT_REQUIRED**; no Mac query, purchase, assembly or outreach.
+
 - [Evidence ledger](evidence-ledger.md): canonical claims, captures, exact sources.
 - [M5 display stack](m5-display-stack.md): DCP/DCPEXT and current service paths.
 - [AUX access](aux-access.md): IODPDeviceReadDPCD candidate, alternatives, safety gates.
@@ -424,6 +441,9 @@ Future bench build is now conditional **M5P10**, not this milestone.
 - [M5P9 electrical closure](m5-aux-electrical-closure.md): capacitive matching
   derivation, full closure matrix, executed circuit scenarios, error budget,
   unchanged-decoder results and explicit construction-release refusal.
+- [M5P10 differential frontend](m5-aux-differential-frontend.md): D1-D5 topology
+  discrimination, conditioned window receiver, conservative adapter, continuous
+  numerical pipeline and separate frontend/W1 release gates.
 - [MST signature oracle](mst-source-signatures.json): pinned Linux protocol
   addresses, masks, codec/allocator shapes and candidate-only scan rules.
 

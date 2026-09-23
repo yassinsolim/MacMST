@@ -93,6 +93,13 @@ M5P8 retains that policy and narrows work to electrical qualification. Its
 analysis-only circuit is not released for construction; the pre-build review
 has a common-mode matching failure and unresolved protection/power-off gates.
 
+M5P10 compares differential-first receiving and explicit idle thresholds. Its
+conditional model resolves nominal synthetic decoding, but no physical input
+stage is qualified: **AUX_FRONTEND_PROTOTYPE_STILL_BLOCKED**, independently of
+**W1_CAPTURE_SYSTEM_NOT_READY**. A standard two-channel analyzer interface is
+frozen; exact W1 recorder selection is not a frontend bench prerequisite.
+Future physical work is conditional **M5P11**; older labels below are historical.
+
 | Area | Current Status |
 | --- | --- |
 | External DCPDP path | Identified for the recorded M5/hub topology. |
@@ -123,6 +130,7 @@ has a common-mode matching failure and unresolved protection/power-off gates.
 | Self-built AUX observer | [M5P7](docs/research/m5-selfbuilt-aux-observer.md): M5P6 published unchanged; independent AUX/MST decoders, loss-aware W1.1-W1.9 evaluation, A-H synthetic scenarios and raw-preserving bundles. 94 new tests plus 200 preserved tests pass. SELF_BUILT_AUX_OBSERVER_PRIMARY; NATIVE_DP_AUX_TAP_PREFERRED; MORE_ELECTRICAL_RESEARCH_REQUIRED. No qualified build BOM, hardware capture or M5 functionality claim. CURRENT_HUB_STATE_NOT_REQUIRED; OUTREACH_CAN_RUN_IN_PARALLEL. |
 | Passive AUX electrical qualification | [M5P8](docs/research/m5-aux-frontend.md): symmetric AC-coupled comparator architecture, loading/idle-bias/charge models, analysis-only SPICE subcircuit and conditioned decoder fixtures. COMPARATOR_FRONTEND_PREFERRED; TLV3502_NOT_PREFERRED; POWERED_OFF_BEHAVIOR_UNRESOLVED; MORE_ELECTRICAL_RESEARCH_REQUIRED. Review 5 PASS / 1 FAIL / 10 UNRESOLVED. All 327 offline tests pass; SPICE/EDA execution and B1-B6 remain unperformed. No purchase, assembly or Mac interaction. |
 | AUX electrical closure and release | [M5P9](docs/research/m5-aux-electrical-closure.md): reproduced 14.2101 mV and proved capacitive mismatch dominates; perfect resistors leave 14.2082 mV. Executed numerical E0-E10 circuits and frozen-decoder pipeline profiles. Review 6 PASS / 2 FAIL / 14 UNRESOLVED; MORE_ELECTRICAL_RESEARCH_REQUIRED. All 361 offline tests pass. No construction schematic/BOM release; conditional future bench work is M5P10, not performed here. CURRENT_HUB_STATE_NOT_REQUIRED. |
+| Differential-first frontend closure | [M5P10](docs/research/m5-aux-differential-frontend.md): direct sensing improves modeled CM conversion but cable DC bias defeats direct slicing. Conditioned dual-window model resolves nominal synthetic completeness; N0-N12 and twelve pipeline profiles retained. Standard modular backend interface frozen. Review 10 PASS / 1 FAIL / 19 UNRESOLVED; analogue loading, off-state and component bounds prevent construction release. All 412 offline tests pass. No schematic/BOM release or hardware action. Future physical milestone M5P11. CURRENT_HUB_STATE_NOT_REQUIRED. |
 
 The owner-controlled connected/disconnected/reconnected test now associates the
 External **DCPEXT0 / Unit 0** DP/AV path with a **ZMUIPNG 14-in-1 hub** on the
