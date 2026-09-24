@@ -1,13 +1,138 @@
 # MacMST
 
-Experimental investigation of native DisplayPort MST on Apple Silicon,
-currently targeting Apple M5. **Whether native MST can be enabled is unknown.**
-MacMST is at the research/probe stage: it does not enable MST or make private
-DPCD calls, and it is not an MST driver or DisplayLink replacement.
-The default executable is a public read-only probe. A separately gated, opt-in
-DPDV open/close helper now exists. After an initial preflight stop and explicitly
-renewed authorization during recovery, it completed one open/immediate-close with
-unchanged public display state. No selector or DPCD operation was performed.
+Research into native DisplayPort Multi-Stream Transport (MST) on Apple Silicon,
+starting with the base M5 MacBook Pro. The goal is independent external displays
+through ordinary USB-C / DisplayPort MST hubs, without DisplayLink or special
+Thunderbolt multi-DP hardware.
+
+**Research only: MacMST does not enable MST. There is no installable display
+driver, qualified observer hardware, or demonstrated independent same-link MST
+output on M5. Whether native MST can be enabled remains unknown.**
+
+## Current Status
+
+Latest completed milestone: **M5P11 - Low-Capacitance Receive Stage And
+Powered-Off Qualification** (2026-09-22).
+[Read the findings and source-backed limits](docs/research/m5-aux-low-cap-receiver.md).
+
+| Area | Current Result |
+| --- | --- |
+| M5 source investigation | Static evidence identifies MST control and source packetizer programming. Independent stream ownership on one physical link remains unresolved; further packetizer reverse engineering is frozen. |
+| Offline analysis | DCP trace analysis, AUX Manchester/native/I2C decoding, MST CRC/reassembly and conservative wire-evidence evaluation are implemented and tested. |
+| Receive frontend | Six concrete receiver profiles assessed. No candidate meets every loading, range, protection and powered-off requirement. **AUX_FRONTEND_PROTOTYPE_STILL_BLOCKED**. |
+| Electrical models | Conditional differential receiver models recover synthetic traffic. Typical-value capacitance and successful decoding are not hardware qualification. |
+| Capture system | **W1_CAPTURE_SYSTEM_NOT_READY**. Analogue hardware, actual acquisition backend and 180-second capture acceptance remain unqualified. |
+| Verification | **458 offline tests in nine CTest groups**, including exact M5P10 result regression and deterministic M5P11 evidence replay. |
+| Hardware state | **CURRENT_HUB_STATE_NOT_REQUIRED**. Current work needs no Mac display query, hub connection, hardware purchase or assembly. |
+
+The closest fully sourced buffered example uses OPA810IDR stages and downstream
+TLV9031DBVR comparators. Its **3.4 pF/leg** budget uses typical IC values and an
+assumed PCB allowance, not a guaranteed maximum. Documented input-to-supply
+paths also prevent claiming powered-off transparency. No comparator, hardware
+threshold, construction schematic or BOM is released.
+
+The next proposal is **M5P12_OFF_STATE_ISOLATION_CELL_QUALIFICATION**: an offline
+study of one normally-open sense disconnect and its power-fail sequencing.
+It is not an approved build or hardware experiment.
+
+## What Is Included
+
+- A frozen [DCP observer schema and offline pipeline](docs/research/dcp-observer-schema-v1.md), with synthetic replay and conservative ownership-evidence checks.
+- Independent [AUX/MST decoders and W1 wire-evidence analysis](docs/research/m5-selfbuilt-aux-observer.md), preserving unknown direction, malformed traffic and capture loss.
+- Reproducible [differential frontend models](tools/dp_aux_differential.py) and [condition-qualified receiver analysis](tools/dp_aux_receiver.py), with explicit assumptions and fail-closed release gates.
+- [Exact component specifications and source receipts](hardware/aux-observer/receivers.json), distinguishing typical values, stated-condition limits and unknowns.
+- Historical public-probe and static-analysis tooling, plus source-backed research reports. Their presence is not permission to repeat retired experiments.
+
+## Offline Quick Start
+
+Prerequisites: Python 3.9 or newer, CMake 3.20 or newer, Ninja and a C++20
+compiler. On macOS, use Xcode or the Command Line Tools. The offline Python
+tools use the standard library; no third-party packages are downloaded.
+
+```sh
+cmake -S . -B build-offline -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DMACMST_ENABLE_HARDWARE_TESTS=OFF -DMACMST_ENABLE_DPDV_OPEN_EXPERIMENT=OFF
+cmake --build build-offline
+ctest --test-dir build-offline -L offline --output-on-failure
+```
+
+This runs only the nine offline test groups. It does not execute the native
+display probe, open an IOKit client, or send AUX/DPCD traffic. Golden numerical
+replays can take a few minutes. Broader unit and hardware suites are separate.
+
+Inspect the receiver budgets and blocked release decisions without hardware:
+
+```sh
+python3 tools/dp_aux_receiver.py
+```
+
+The tests run from tracked source without historical raw captures. Generating
+new source-qualified candidate evidence additionally requires the exact local
+datasheet receipts documented in [M5P11](docs/research/m5-aux-low-cap-receiver.md#reproduction-and-tests).
+Missing evidence is not fetched silently or treated as a passing result.
+
+## Research Guide
+
+| Start Here | Scope |
+| --- | --- |
+| [M5P11: low-C receiver and powered-off qualification](docs/research/m5-aux-low-cap-receiver.md) | Latest completed work, concrete candidate rejections and all 16 qualification answers. |
+| [M5P10: differential-first frontend](docs/research/m5-aux-differential-frontend.md) | DC-bias discrimination, four-state slicer, continuous synthetic pipeline and separate frontend/W1 gates. |
+| [M5P9: electrical closure](docs/research/m5-aux-electrical-closure.md) | Legacy capacitive-mismatch failure and executed circuit baseline. |
+| [M5P7: self-built AUX observer](docs/research/m5-selfbuilt-aux-observer.md) | Protocol tools, synthetic fixtures and limits of AUX evidence. |
+| [M5 static conclusion](docs/research/m5-mst-static-conclusion.md) | Source packetizer evidence, unresolved stream ownership and frozen reverse-engineering boundary. |
+| [Open questions](docs/research/open-questions.md) | Current blockers and the next proposed offline investigation. |
+| [Research index](docs/research/README.md) | Full milestone history and report navigation. |
+| [Evidence ledger](docs/research/evidence-ledger.md) | Claims, exact sources, revisions, hashes and confidence limits. |
+
+## Safety And Evidence
+
+**RETIRED_ON_DAILY_USE_M5**: the private DPDV/selector-0 transport is permanently
+retired on the daily-use M5. **NOT_READY_FOR_DPCD_TEST** remains unchanged.
+One explicitly authorized historical open/immediate-close occurred with zero
+selectors; it does not authorize reuse or establish safe DPCD access.
+
+Current work is offline. Do not connect an unqualified frontend to a Mac or DP
+link, drive AUX from GPIO, repeat old private-helper commands, or disable system
+security mechanisms. Physical experiments require separate owner approval and
+their own passing safety gates. No vendor or university outreach is required.
+
+**STATIC_PACKETIZER_ANALYSIS_FROZEN** and
+**NO_FURTHER_T8142_PACKETIZER_REVERSE_ENGINEERING_AUTHORIZED** remain in force.
+Compilation and synthetic success do not prove hardware functionality. AUX
+allocation/ACT status does not prove actual main-link packets or independent
+pixels; results on other chips do not establish M5 behavior.
+
+## Research Checkpoints
+
+`main` includes completed research through M5P11. The annotated checkpoint
+**m5-aux-receiver-qualification-v1.2** marks this offline research state, not a
+software or hardware-ready release. The M5P11 milestone branch remains pinned
+at `41e0ce2ef43f7507787bb43dc5d403bfeaed5b69`.
+
+Earlier tags, including `m5-observer-platform-gap-v1.1`, preserve their original
+historical conclusions. They are not moved to newer commits or interpreted as
+current project-wide instructions. Completed research branches are retained.
+
+## Reproducibility And Data
+
+Raw captures, downloaded datasheets, copied external sources, extracted Apple
+binaries, build outputs, secrets and machine-specific editor configuration are
+ignored by Git. Reports retain URLs, revisions, hashes, provenance and reproduction
+commands; a fresh clone does not contain those local artifacts. No Apple firmware
+or kernel binary is distributed here.
+
+Historical observations are bound to their recorded hardware, OS and topology.
+Do not assume the current display state or promote a typical component value
+to a guaranteed maximum. See the [evidence rules](docs/research/m5-aux-low-cap-receiver.md#evidence-rules)
+for `VERIFIED_FROM_DATASHEET`, `TYPICAL_ONLY`, `INFERRED`, `ASSUMED`, `UNKNOWN`
+and `BLOCKING` distinctions.
+
+<details>
+<summary>Historical probe tooling and milestone timeline</summary>
+
+The material below is retained historical reference, not the current quick start
+or authorization to run hardware/private experiments. Milestone-specific future
+build labels, connection policies and readiness statements have been superseded
+where the current status above says so. For current work, use the offline suite.
 
 ## Build And Probe
 
@@ -356,6 +481,8 @@ before comparing findings. No Apple binary is distributed by this project.
 - [Pinned MST source signature oracle](docs/research/mst-source-signatures.json)
 - [Protocol constants and decoding](docs/research/displayport-mst.md)
 - [Language/architecture ADR](docs/adr/0001-language-and-architecture.md)
+
+</details>
 
 ## License
 

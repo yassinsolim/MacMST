@@ -1,6 +1,31 @@
-# MacMST Phase 0 / Milestone 1
+# MacMST Research
+
+## Current Checkpoint
+
+Latest completed milestone: **M5P11 - Low-Capacitance Receive Stage And
+Powered-Off Qualification** (2026-09-22).
+[Latest report](m5-aux-low-cap-receiver.md) |
+[Current blockers and next proposal](open-questions.md) |
+[Evidence ledger](evidence-ledger.md) |
+[Project overview and offline quick start](../../README.md).
+
+The published `main` includes work through M5P11. The annotated research
+checkpoint is `m5-aux-receiver-qualification-v1.2`, not a working MST driver
+or hardware-ready release. **458 tests in nine offline CTest groups pass**.
+
+**AUX_FRONTEND_PROTOTYPE_STILL_BLOCKED** and **W1_CAPTURE_SYSTEM_NOT_READY**.
+No receiver, comparator, hardware threshold, construction schematic or BOM is
+qualified. The next proposal is offline power-fail isolation-cell qualification,
+not a build. **CURRENT_HUB_STATE_NOT_REQUIRED**, **RETIRED_ON_DAILY_USE_M5**,
+**NOT_READY_FOR_DPCD_TEST** and the static packetizer freeze remain unchanged.
+
+The sections below retain the chronological research record. Older connection
+policies, build labels and experiment proposals are historical, not current
+instructions or authorizations.
 
 ## Scope
+
+Original Phase 0 / Milestone 1 scope:
 
 Establish a reproducible, read-only baseline of this M5 host, its macOS display
 services, and the attached USB-C dock. Do not attempt to enable MST. Neither
