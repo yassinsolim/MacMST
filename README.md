@@ -1,3 +1,5 @@
+<img src="docs/assets/macmst-logo.svg" alt="MacMST logo" width="112" align="right">
+
 # MacMST
 
 Research into native DisplayPort Multi-Stream Transport (MST) on Apple Silicon,

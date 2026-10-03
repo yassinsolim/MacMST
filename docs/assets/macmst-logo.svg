@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>MacMST</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#252a33"/>
+      <stop offset="1" stop-color="#0e1116"/>
+    </linearGradient>
+  </defs>
+  <path d="M 56 0 H 200 A 56 56 0 0 1 256 56 V 200 A 56 56 0 0 1 200 256 H 56 A 56 56 0 0 1 0 200 V 56 A 56 56 0 0 1 56 0 Z" fill="url(#bg)"/>
+  <rect x="42.0" y="46" width="52" height="38" rx="8" fill="#4cc9f0"/>
+  <path d="M 68 84 V 94 C 68 128 116 116 116 148 V 180" fill="none" stroke="#4cc9f0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="102.0" y="46" width="52" height="38" rx="8" fill="#8b7bff"/>
+  <path d="M 128 84 V 180" fill="none" stroke="#8b7bff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="162.0" y="46" width="52" height="38" rx="8" fill="#ff5c93"/>
+  <path d="M 188 84 V 94 C 188 128 140 116 140 148 V 180" fill="none" stroke="#ff5c93" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 100 178 H 156 Q 160 178 160 182 V 197 L 149 208 H 100 Q 96 208 96 204 V 182 Q 96 178 100 178 Z" fill="#e9edf3"/>
+</svg>
